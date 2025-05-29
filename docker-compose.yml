@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Mevcut sistem (korunur)
+  webimar-legacy:
+    build: ./webimar
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./webimar:/app
+    environment:
+      - DEBUG=True
+
+  # Yeni backend API
+  webimar-api:
+    build: ./webimar-api
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./webimar-api:/app
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///db.sqlite3
+    depends_on:
+      - postgres
+
+  # Yeni frontend
+  webimar-react:
+    build: ./webimar-react
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./webimar-react:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8001/api
+
+  # PostgreSQL (yeni sistem için)
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: webimar_api
+      POSTGRES_USER: webimar
+      POSTGRES_PASSWORD: webimar123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Redis (cache için)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
