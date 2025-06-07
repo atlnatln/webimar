@@ -15,7 +15,7 @@ const ResultContainer = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   padding: 24px;
   margin-top: 24px;
-  border: 1px solid #e...j && (calculationType === 'solucan-tesisi' || calculationType === 'mantar-tesisi' || calculationType === 'aricilik' || calculationType === 'hububat-silo' || calculationType === 'tarimsal-depo' || calculationType === 'lisansli-depo' || calculationType === 'yikama-tesisi' || calculationType === 'kurutma-tesisi' || calculationType === 'meyve-sebze-kurutma' || calculationType === 'zeytinyagi-fabrikasi' || calculationType === 'su-depolama' || calculationType === 'su-kuyulari' || calculationType === 'zeytinyagi-uretim-tesisi' || calculationType === 'soguk-hava-deposu' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'agil-kucukbas') && (e7eb;
+  border: 1px solid #e5e7eb;
 `;
 
 const ResultHeader = styled.div`
@@ -181,7 +181,18 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
 
   if (!result) {
     console.log('❌ No result to display');
-    return null;
+    return (
+      <ResultContainer>
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center', 
+          color: '#6b7280',
+          fontSize: '16px'
+        }}>
+          Hesaplama yapmak için formu doldurun ve "Hesapla" butonuna tıklayın.
+        </div>
+      </ResultContainer>
+    );
   }
 
   if (!result.success) {

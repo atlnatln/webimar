@@ -1,29 +1,112 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { DetailedCalculationInput, CalculationResult, StructureType } from '../types';
 import { apiService } from '../services/api';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
 
+// Cursor yanıp sönme animasyonu
+const blink = keyframes`
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+`;
+
+// Typewriter efekti için hook
+const useTypewriter = (text: string, speed: number = 100) => {
+  const [displayedText, setDisplayedText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    setDisplayedText('');
+    setIsComplete(false);
+    
+    if (text.length === 0) return;
+
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText(text.slice(0, i + 1));
+        i++;
+      } else {
+        setIsComplete(true);
+        clearInterval(timer);
+      }
+    }, speed);
+
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return { displayedText, isComplete };
+};
+
 const FormContainer = styled.div`
   background: white;
   border-radius: 12px;
-  padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   margin-bottom: 24px;
+  overflow: hidden;
 `;
 
 const FormTitle = styled.h2`
   color: #2c3e50;
-  margin-bottom: 20px;
+  margin: 0;
+  padding: 24px 24px 16px;
   font-size: 24px;
   font-weight: 600;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+    padding: 20px 16px 12px;
+  }
+`;
+
+const FormContent = styled.div`
+  padding: 24px;
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+`;
+
+const FormSection = styled.div`
+  margin-bottom: 32px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  @media (max-width: 768px) {
+    margin-bottom: 24px;
+  }
+`;
+
+const SectionTitle = styled.h3`
+  color: #374151;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  @media (max-width: 768px) {
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
 `;
 
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 `;
 
 const FormGroup = styled.div`
@@ -55,41 +138,37 @@ const Input = styled.input`
   }
 `;
 
-const Select = styled.select`
-  padding: 12px;
-  border: 2px solid #e0e6ed;
-  border-radius: 8px;
-  font-size: 16px;
-  background: white;
-  transition: border-color 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-  }
-`;
-
 const SubmitButton = styled.button<{ $isLoading: boolean }>`
   background: ${props => props.$isLoading ? '#95a5a6' : '#3498db'};
   color: white;
   border: none;
-  padding: 14px 28px;
+  padding: 16px 32px;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: ${props => props.$isLoading ? 'not-allowed' : 'pointer'};
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
+  margin-top: 8px;
 
   &:hover {
     background: ${props => props.$isLoading ? '#95a5a6' : '#2980b9'};
+    transform: ${props => props.$isLoading ? 'none' : 'translateY(-1px)'};
   }
 
   &:disabled {
     background: #95a5a6;
     cursor: not-allowed;
+    transform: none;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 14px 24px;
+    font-size: 15px;
   }
 `;
 
@@ -107,6 +186,84 @@ const RequiredIndicator = styled.span`
   margin-left: 4px;
 `;
 
+const CoordinateInfo = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #495057;
+`;
+
+const CoordinateLabel = styled.div`
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #2c3e50;
+`;
+
+const CoordinateValue = styled.div`
+  font-family: 'Courier New', monospace;
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+// Animasyonlu Select Container
+const AnimatedSelectContainer = styled.div`
+  position: relative;
+`;
+
+const AnimatedSelect = styled.select<{ $hasValue?: boolean }>`
+  padding: 12px;
+  border: 2px solid #e0e6ed;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+  width: 100%;
+  background: white;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 40px;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+  }
+
+  &:invalid {
+    border-color: #e74c3c;
+  }
+
+  option:first-child {
+    color: #999;
+  }
+`;
+
+const TypewriterPlaceholder = styled.div<{ $show?: boolean }>`
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 16px;
+  pointer-events: none;
+  opacity: ${props => props.$show ? 1 : 0};
+  transition: opacity 0.2s ease;
+  font-family: inherit;
+  
+  .cursor {
+    animation: ${blink} 1s infinite;
+  }
+`;
+
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
 
 // Arazi tipi interface'i API'den gelen data için
@@ -119,17 +276,19 @@ interface CalculationFormComponentProps {
   calculationType: StructureType;
   onResult: (result: CalculationResult) => void;
   onCalculationStart: () => void;
+  selectedCoordinate?: { lat: number; lng: number } | null;
 }
 
 const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   calculationType,
   onResult,
-  onCalculationStart
+  onCalculationStart,
+  selectedCoordinate
 }) => {
   const { structureTypeLabels } = useStructureTypes();
   const [formData, setFormData] = useState<DetailedCalculationInput>({
     alan_m2: 0,
-    arazi_vasfi: 'Dikili tarım'
+    arazi_vasfi: '' // Başlangıçta boş olacak ki placeholder görünsün
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -137,6 +296,11 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [araziTipleri, setAraziTipleri] = useState<AraziTipi[]>([]);
   const [araziTipleriLoading, setAraziTipleriLoading] = useState(true);
+  const [selectFocused, setSelectFocused] = useState(false);
+  const [selectOpen, setSelectOpen] = useState(false);
+  
+  // Typewriter efekti için
+  const { displayedText } = useTypewriter('Arazi vasfınızı seçiniz', 80);
 
   // API'den arazi tiplerini çek
   useEffect(() => {
@@ -148,13 +312,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         
         if (data.success) {
           setAraziTipleri(data.data);
-          // İlk arazi tipini default olarak seç
-          if (data.data.length > 0) {
-            setFormData(prev => ({
-              ...prev,
-              arazi_vasfi: data.data[0].ad
-            }));
-          }
+          // Placeholder görünür kalması için otomatik seçimi kaldırıldı
         } else {
           console.error('Arazi tipleri çekilemedi:', data.message);
         }
@@ -176,6 +334,11 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       ...prev,
       [name]: name === 'alan_m2' || name === 'silo_taban_alani_m2' ? Number(value) : value
     }));
+
+    // Arazi vasfı seçildiğinde dropdown'ı kapat
+    if (name === 'arazi_vasfi' && value) {
+      setSelectOpen(false);
+    }
 
     // Clear validation error when user starts typing
     if (validationErrors[name]) {
@@ -234,6 +397,13 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       if (calculationType === 'ipek-bocekciligi' && finalFormData.dut_bahcesi_var_mi === undefined) {
         finalFormData.dut_bahcesi_var_mi = true;
         console.log('🌳 İpek böcekçiliği için dut_bahcesi_var_mi default true olarak ayarlandı');
+      }
+
+      // Seçilen koordinat bilgisini form dataya ekle
+      if (selectedCoordinate) {
+        finalFormData.latitude = selectedCoordinate.lat;
+        finalFormData.longitude = selectedCoordinate.lng;
+        console.log('📍 Koordinat bilgisi form dataya eklendi:', selectedCoordinate);
       }
       
       // Explicitly debug each step
@@ -349,119 +519,182 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         {structureTypeLabels[calculationType] || calculationType} Hesaplama
       </FormTitle>
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
+      <FormContent>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
 
-      <form onSubmit={handleSubmit}>
-        <FormGrid>
-          <FormGroup>
-            <Label>
-              Alan (m²) <RequiredIndicator>*</RequiredIndicator>
-            </Label>
-            <Input
-              type="number"
-              name="alan_m2"
-              value={formData.alan_m2 || ''}
-              onChange={handleInputChange}
-              placeholder="Örn: 5000"
-              min="1"
-              step="1"
-              required
-            />
-            {validationErrors.alan_m2 && (
-              <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
-            )}
-          </FormGroup>
+        {/* Seçilen koordinat bilgisi */}
+        {selectedCoordinate && (
+          <FormSection>
+            <CoordinateInfo>
+              <CoordinateLabel>📍 Seçilen Arazi Konumu</CoordinateLabel>
+              <CoordinateValue>
+                <div>
+                  <strong>Enlem:</strong> {selectedCoordinate.lat.toFixed(6)}
+                </div>
+                <div>
+                  <strong>Boylam:</strong> {selectedCoordinate.lng.toFixed(6)}
+                </div>
+              </CoordinateValue>
+            </CoordinateInfo>
+          </FormSection>
+        )}
 
-          {/* Hububat silo için özel alan */}
-          {calculationType === 'hububat-silo' && (
-            <FormGroup>
-              <Label>
-                Planlanan Silo Taban Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
-              </Label>
-              <Input
-                type="number"
-                name="silo_taban_alani_m2"
-                value={formData.silo_taban_alani_m2 || ''}
-                onChange={handleInputChange}
-                placeholder="Örn: 1000"
-                min="1"
-                step="1"
-                required
-              />
-              {validationErrors.silo_taban_alani_m2 && (
-                <ErrorMessage>{validationErrors.silo_taban_alani_m2}</ErrorMessage>
-              )}
-            </FormGroup>
-          )}
-
-          {/* İpek böcekçiliği için özel alan */}
-          {calculationType === 'ipek-bocekciligi' && (
-            <FormGroup>
-              <Label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  name="dut_bahcesi_var_mi"
-                  checked={formData.dut_bahcesi_var_mi !== undefined ? formData.dut_bahcesi_var_mi : true}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      dut_bahcesi_var_mi: e.target.checked
-                    }));
-                  }}
+        <form onSubmit={handleSubmit}>
+          {/* Temel Bilgiler */}
+          <FormSection>
+            <SectionTitle>
+              📊 Temel Bilgiler
+            </SectionTitle>
+            <FormGrid>
+              <FormGroup>
+                <Label>
+                  Alan (m²) <RequiredIndicator>*</RequiredIndicator>
+                </Label>
+                <Input
+                  type="number"
+                  name="alan_m2"
+                  value={formData.alan_m2 || ''}
+                  onChange={handleInputChange}
+                  placeholder="Örn: 5000"
+                  min="1"
+                  step="1"
+                  required
                 />
-                Arazide dut bahçesi var mı? <RequiredIndicator>*</RequiredIndicator>
-              </Label>
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
-                İpek böcekçiliği tesisi için arazide dut bahçesi bulunması zorunludur.
-              </div>
-            </FormGroup>
+                {validationErrors.alan_m2 && (
+                  <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
+                )}
+              </FormGroup>
+
+              <FormGroup>
+                <Label>
+                  Arazi Vasfı <RequiredIndicator>*</RequiredIndicator>
+                </Label>
+                <AnimatedSelectContainer>
+                  <AnimatedSelect
+                    name="arazi_vasfi"
+                    value={formData.arazi_vasfi}
+                    onChange={handleInputChange}
+                    onFocus={() => setSelectFocused(true)}
+                    onBlur={() => {
+                      setSelectFocused(false);
+                      setSelectOpen(false);
+                    }}
+                    onMouseDown={() => setSelectOpen(true)}
+                    onClick={() => setSelectOpen(true)}
+                    required
+                    disabled={araziTipleriLoading}
+                    $hasValue={!!formData.arazi_vasfi}
+                  >
+                    {araziTipleriLoading ? (
+                      <option>Arazi tipleri yükleniyor...</option>
+                    ) : (
+                      <>
+                        <option value="" disabled style={{ display: 'none' }}>
+                          {/* Gizli placeholder option */}
+                        </option>
+                        {araziTipleri.map((araziTipi: AraziTipi) => (
+                          <option key={araziTipi.id} value={araziTipi.ad}>
+                            {araziTipi.ad}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </AnimatedSelect>
+                  
+                  {/* Animasyonlu placeholder */}
+                  <TypewriterPlaceholder 
+                    $show={!formData.arazi_vasfi && !selectOpen && !araziTipleriLoading}
+                  >
+                    {displayedText}
+                    {displayedText.length < 'Arazi vasfınızı seçiniz'.length && (
+                      <span className="cursor">|</span>
+                    )}
+                  </TypewriterPlaceholder>
+                </AnimatedSelectContainer>
+                {validationErrors.arazi_vasfi && (
+                  <ErrorMessage>{validationErrors.arazi_vasfi}</ErrorMessage>
+                )}
+              </FormGroup>
+            </FormGrid>
+          </FormSection>
+
+          {/* Özel Parametreler */}
+          {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi') && (
+            <FormSection>
+              <SectionTitle>
+                ⚙️ Özel Parametreler
+              </SectionTitle>
+              <FormGrid>
+                {/* Hububat silo için özel alan */}
+                {calculationType === 'hububat-silo' && (
+                  <FormGroup>
+                    <Label>
+                      Planlanan Silo Taban Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
+                    </Label>
+                    <Input
+                      type="number"
+                      name="silo_taban_alani_m2"
+                      value={formData.silo_taban_alani_m2 || ''}
+                      onChange={handleInputChange}
+                      placeholder="Örn: 1000"
+                      min="1"
+                      step="1"
+                      required
+                    />
+                    {validationErrors.silo_taban_alani_m2 && (
+                      <ErrorMessage>{validationErrors.silo_taban_alani_m2}</ErrorMessage>
+                    )}
+                  </FormGroup>
+                )}
+
+                {/* İpek böcekçiliği için özel alan */}
+                {calculationType === 'ipek-bocekciligi' && (
+                  <FormGroup>
+                    <Label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        name="dut_bahcesi_var_mi"
+                        checked={formData.dut_bahcesi_var_mi !== undefined ? formData.dut_bahcesi_var_mi : true}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            dut_bahcesi_var_mi: e.target.checked
+                          }));
+                        }}
+                      />
+                      Arazide dut bahçesi var mı? <RequiredIndicator>*</RequiredIndicator>
+                    </Label>
+                    <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
+                      İpek böcekçiliği tesisi için arazide dut bahçesi bulunması zorunludur.
+                    </div>
+                  </FormGroup>
+                )}
+              </FormGrid>
+            </FormSection>
           )}
 
-          <FormGroup>
-            <Label>
-              Arazi Vasfı <RequiredIndicator>*</RequiredIndicator>
-            </Label>
-            <Select
-              name="arazi_vasfi"
-              value={formData.arazi_vasfi}
-              onChange={handleInputChange}
-              required
-              disabled={araziTipleriLoading}
+          {/* Hesaplama Butonu */}
+          <FormSection>
+            <SubmitButton
+              type="submit"
+              $isLoading={isLoading}
+              disabled={isLoading}
             >
-              {araziTipleriLoading ? (
-                <option>Arazi tipleri yükleniyor...</option>
+              {isLoading ? (
+                <>
+                  <span>⏳</span>
+                  Hesaplanıyor...
+                </>
               ) : (
-                araziTipleri.map((araziTipi: AraziTipi) => (
-                  <option key={araziTipi.id} value={araziTipi.ad}>
-                    {araziTipi.ad}
-                  </option>
-                ))
+                <>
+                  <span>🧮</span>
+                  Hesapla
+                </>
               )}
-            </Select>
-            {validationErrors.arazi_vasfi && (
-              <ErrorMessage>{validationErrors.arazi_vasfi}</ErrorMessage>
-            )}
-          </FormGroup>
-        </FormGrid>
-
-        <SubmitButton
-          type="submit"
-          $isLoading={isLoading}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <span>⏳</span>
-              Hesaplanıyor...
-            </>
-          ) : (
-            <>
-              <span>🧮</span>
-              Hesapla
-            </>
-          )}
-        </SubmitButton>
-      </form>
+            </SubmitButton>
+          </FormSection>
+        </form>
+      </FormContent>
     </FormContainer>
   );
 };

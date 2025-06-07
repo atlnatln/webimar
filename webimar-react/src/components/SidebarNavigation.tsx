@@ -82,10 +82,10 @@ const NavLabel = styled.span<{ $isOpen: boolean }>`
   white-space: nowrap;
 `;
 
-const ToggleButton = styled.button`
+const ToggleButton = styled.button<{ $isOpen: boolean }>`
   position: absolute;
   top: 20px;
-  right: -15px;
+  right: ${props => props.$isOpen ? '7px' : '7px'};
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -96,7 +96,7 @@ const ToggleButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease;
+  transition: all 0.3s ease;
   z-index: 1001;
 
   &:hover {
@@ -166,7 +166,7 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle 
   if (loading) {
     return (
       <SidebarContainer $isOpen={isOpen}>
-        <ToggleButton onClick={onToggle}>
+        <ToggleButton $isOpen={isOpen} onClick={onToggle}>
           {isOpen ? '←' : '→'}
         </ToggleButton>
         
@@ -194,7 +194,7 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle 
 
   return (
     <SidebarContainer $isOpen={isOpen}>
-      <ToggleButton onClick={onToggle}>
+      <ToggleButton $isOpen={isOpen} onClick={onToggle}>
         {isOpen ? '←' : '→'}
       </ToggleButton>
       

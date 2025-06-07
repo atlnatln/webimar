@@ -12,8 +12,8 @@ const LayoutContainer = styled.div`
   background-color: #f8fafc;
 `;
 
-const Sidebar = styled.aside`
-  width: 280px;
+const Sidebar = styled.aside<{ $isOpen: boolean }>`
+  width: ${props => props.$isOpen ? '280px' : '60px'};
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
@@ -21,13 +21,15 @@ const Sidebar = styled.aside`
   height: 100vh;
   overflow-y: auto;
   z-index: 1000;
+  transition: width 0.3s ease;
 `;
 
-const MainContent = styled.main`
+const MainContent = styled.main<{ $sidebarOpen: boolean }>`
   flex: 1;
-  margin-left: 280px;
+  margin-left: ${props => props.$sidebarOpen ? '280px' : '60px'};
   padding: 24px;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
 `;
 
 const Header = styled.header`
@@ -68,10 +70,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <LayoutContainer>
-      <Sidebar>
+      <Sidebar $isOpen={sidebarOpen}>
         <SidebarNavigation isOpen={sidebarOpen} onToggle={toggleSidebar} />
       </Sidebar>
-      <MainContent>
+      <MainContent $sidebarOpen={sidebarOpen}>
         <Header>
           <HeaderTitle>Webimar - Tarımsal Yapı Hesaplama Sistemi</HeaderTitle>
           <HeaderSubtitle>Tarımsal arazilerde yapılabilecek yapıların hesaplama sistemi</HeaderSubtitle>

@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import styled from 'styled-components';
 import 'leaflet/dist/leaflet.css';
+import KMLLayerManager from './KMLLayerManager';
+import { KMLLayerConfig } from '../../utils/kmlParser';
 
 // Leaflet default marker icons düzeltmesi
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,34 +24,6 @@ const MapContainer_Styled = styled.div`
   .leaflet-container {
     height: 100%;
     width: 100%;
-  }
-`;
-
-const MapControls = styled.div`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const ControlButton = styled.button`
-  background: #ffffff;
-  border: 2px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  
-  &:hover {
-    background: #f0f0f0;
-  }
-  
-  &:active {
-    background: #e0e0e0;
   }
 `;
 
@@ -78,48 +52,27 @@ interface MapComponentProps {
   height?: string;
 }
 
-// KML yükleme bileşeni
+// KML yükleme bileşeni - gerçek KML dosyalarını yüklemek için KMLLayerManager kullanır
 const KMLLoader: React.FC<{ layers: KMLLayer[] }> = ({ layers }) => {
-  const map = useMap();
-  const loadedLayersRef = useRef<L.Layer[]>([]);
+  // KMLLayer'ı KMLLayerConfig'e dönüştür
+  const layerConfigs: KMLLayerConfig[] = layers.map(layer => ({
+    name: layer.name,
+    url: layer.url,
+    style: layer.style,
+    visible: true
+  }));
 
-  useEffect(() => {
-    // Önceki katmanları temizle
-    loadedLayersRef.current.forEach(layer => {
-      map.removeLayer(layer);
-    });
-    loadedLayersRef.current = [];
-
-    // Yeni katmanları yükle
-    layers.forEach(async (layerConfig) => {
-      try {
-        const response = await fetch(layerConfig.url);
-        const kmlText = await response.text();
-        
-        // KML'yi GeoJSON'a dönüştür (basit implementasyon)
-        // Gerçek uygulamada bir KML parser kullanılmalı
-        console.log(`${layerConfig.name} KML katmanı yüklendi:`, kmlText.substring(0, 200));
-        
-        // Geçici olarak bir örnek katman ekle
-        const layer = L.circle(map.getCenter(), {
-          ...layerConfig.style,
-          radius: 5000,
-        }).addTo(map);
-        
-        loadedLayersRef.current.push(layer);
-      } catch (error) {
-        console.error(`${layerConfig.name} KML katmanı yüklenirken hata:`, error);
-      }
-    });
-
-    return () => {
-      loadedLayersRef.current.forEach(layer => {
-        map.removeLayer(layer);
-      });
-    };
-  }, [layers, map]);
-
-  return null;
+  return (
+    <KMLLayerManager 
+      layerConfigs={layerConfigs}
+      onLayersLoaded={(parsedLayers) => {
+        console.log('KML katmanları yüklendi:', parsedLayers.map(l => l.name));
+      }}
+      onError={(error) => {
+        console.error('KML katman yükleme hatası:', error);
+      }}
+    />
+  );
 };
 
 const MapComponent: React.FC<MapComponentProps> = ({
@@ -130,8 +83,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
   kmlLayers = [],
   height = '500px'
 }) => {
-  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
-
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     const coordinate: Coordinate = {
       lat: e.latlng.lat,
@@ -141,25 +92,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
     onMapClick?.(coordinate);
   };
 
-  const fitToIzmir = () => {
-    if (mapInstance) {
-      mapInstance.setView([38.4237, 27.1428], 10);
-    }
-  };
-
   return (
     <MapContainer_Styled style={{ height }}>
-      <MapControls>
-        <ControlButton onClick={fitToIzmir}>
-          🎯 İzmir'e Git
-        </ControlButton>
-      </MapControls>
       
       <MapContainer
         center={center}
         zoom={zoom}
         style={{ height: '100%', width: '100%' }}
-        whenReady={() => setMapInstance}
       >
         {/* Uydu görüntüsü - mevcut sistemle uyumlu */}
         <TileLayer

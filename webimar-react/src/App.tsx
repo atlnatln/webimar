@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AppLayout from './components/AppLayout';
-import Homepage from './components/Homepage';
-import CalculationPage from './components/CalculationPage';
+import HomePage from './pages/HomePage';
+import CalculationPage from './pages/CalculationPage';
 import MapTestPage from './pages/MapTestPage';
 import { StructureType } from './types';
 import { StructureTypesProvider, useStructureTypes } from './contexts/StructureTypesContext';
@@ -62,7 +62,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/" element={<Homepage />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/map-test" element={<MapTestPage />} />
       
       {/* Dinamik routes - her yapı türü için */}
