@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bağ Evi Form Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .test-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .test-button:hover {
+            background: #2980b9;
+        }
+        .console-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+        .info { color: #3498db; }
+        .warning { color: #f39c12; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🍇 Bağ Evi API & Form Test Suite</h1>
+        
+        <div class="test-section">
+            <div class="test-title">📡 Backend API Testleri</div>
+            <button class="test-button" onclick="testBackendAPI()">Backend API Test</button>
+            <button class="test-button" onclick="testAraziTipleri()">Arazi Tipleri Test</button>
+            <button class="test-button" onclick="testValidationScenarios()">Validation Test</button>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🚀 Frontend Service Testleri</div>
+            <button class="test-button" onclick="testFrontendService()">Frontend Service Test</button>
+            <button class="test-button" onclick="simulateFormSubmission()">Form Submission Test</button>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">📝 Form Validation Testleri</div>
+            <button class="test-button" onclick="testFormValidation()">Validation Logic Test</button>
+            <button class="test-button" onclick="testConditionalFields()">Conditional Fields Test</button>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🔗 React App Integration</div>
+            <a href="http://localhost:3000/bag-evi" target="_blank" class="test-button" style="text-decoration: none; display: inline-block;">React App'i Aç</a>
+            <button class="test-button" onclick="openConsoleInstructions()">Console Talimatları</button>
+        </div>
+        
+        <div id="console-output" class="console-output"></div>
+    </div>
+
+    <script>
+        let outputDiv = document.getElementById('console-output');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : 
+                            type === 'error' ? 'error' : 
+                            type === 'warning' ? 'warning' : 'info';
+            
+            outputDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+        
+        function clearConsole() {
+            outputDiv.innerHTML = '';
+        }
+        
+        async function testBackendAPI() {
+            clearConsole();
+            log('🍇 Starting Bağ Evi Backend API Test...', 'info');
+            
+            const testData = {
+                alan_m2: 15000,
+                arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+                tarla_alani: 15000,
+                dikili_alani: 12000
+            };
+            
+            log(`📊 Test Data: ${JSON.stringify(testData, null, 2)}`, 'info');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/calculations/bag-evi/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`📡 Response Status: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                const data = await response.json();
+                log(`📦 Response Data: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (data.success) {
+                    log('✅ Backend API Test BAŞARILI', 'success');
+                    log(`📊 Sonuç: ${data.sonuc || data.results?.ana_mesaj}`, 'success');
+                    log(`📋 İzin Durumu: ${data.results?.izin_durumu}`, 'info');
+                } else {
+                    log('❌ Backend API Test BAŞARISIZ', 'error');
+                    log(`🔍 Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`💥 Network Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAraziTipleri() {
+            clearConsole();
+            log('🌍 Testing Arazi Tipleri API...', 'info');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/calculations/arazi-tipleri/');
+                const data = await response.json();
+                
+                log(`📡 Arazi Tipleri Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (data.success && data.data) {
+                    log('✅ Arazi Tipleri Test BAŞARILI', 'success');
+                    log(`📊 Toplam ${data.data.length} arazi tipi bulundu`, 'success');
+                    
+                    // Bağ evi için kritik olan tipleri kontrol et
+                    const kritikTipler = data.data.filter(tip => 
+                        tip.ad.includes('dikili') || 
+                        tip.ad.includes('Dikili') ||
+                        tip.ad.includes('Tarla')
+                    );
+                    
+                    log(`🍇 Bağ evi ile ilgili tipler: ${JSON.stringify(kritikTipler, null, 2)}`, 'info');
+                } else {
+                    log('❌ Arazi Tipleri Test BAŞARISIZ', 'error');
+                }
+            } catch (error) {
+                log(`💥 Arazi Tipleri Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function testValidationScenarios() {
+            clearConsole();
+            log('📝 Testing Form Validation Scenarios...', 'info');
+            
+            // Senario 1: Valid data
+            const validData = {
+                calculationType: 'bag-evi',
+                arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+                tarla_alani: 15000,
+                dikili_alani: 12000
+            };
+            log(`✅ Valid Scenario: ${JSON.stringify(validData, null, 2)}`, 'success');
+            
+            // Senario 2: Dikili alan > Tarla alan (Invalid)
+            const invalidData1 = {
+                calculationType: 'bag-evi',
+                arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+                tarla_alani: 10000,
+                dikili_alani: 15000 // HATA: dikili > tarla
+            };
+            log(`❌ Invalid Scenario (dikili > tarla): ${JSON.stringify(invalidData1, null, 2)}`, 'error');
+            
+            // Senario 3: Normal arazi vasfı (alan_m2 gerekli)
+            const normalData = {
+                calculationType: 'bag-evi',
+                arazi_vasfi: 'tarım',
+                alan_m2: 5000
+            };
+            log(`📊 Normal Area Scenario: ${JSON.stringify(normalData, null, 2)}`, 'info');
+            
+            log('🔍 Validation Logic:', 'info');
+            log('- Bağ evi + "Tarla + herhangi bir dikili vasıflı" → tarla_alani & dikili_alani gerekli', 'info');
+            log('- Dikili alan ≤ Tarla alan olmalı', 'info');
+            log('- Diğer arazi vasfları → normal alan_m2 gerekli', 'info');
+        }
+        
+        function testFrontendService() {
+            clearConsole();
+            log('🚀 Testing Frontend Service...', 'info');
+            
+            // Window.apiService kontrolü
+            if (typeof window !== 'undefined' && window.apiService) {
+                log('✅ window.apiService bulundu', 'success');
+                
+                if (window.apiService.calculations) {
+                    log('✅ window.apiService.calculations bulundu', 'success');
+                    
+                    const availableKeys = Object.keys(window.apiService.calculations);
+                    log(`📊 Available calculation keys: ${availableKeys.join(', ')}`, 'info');
+                    
+                    if (window.apiService.calculations.bag_evi) {
+                        log('✅ bag_evi calculation function bulundu', 'success');
+                    } else {
+                        log('❌ bag_evi calculation function bulunamadı', 'error');
+                    }
+                } else {
+                    log('❌ window.apiService.calculations bulunamadı', 'error');
+                }
+            } else {
+                log('❌ window.apiService bulunamadı', 'error');
+                log('⚠️ Bu normal - browser console\'da React app içinde test edin', 'warning');
+            }
+        }
+        
+        function simulateFormSubmission() {
+            clearConsole();
+            log('📋 Simulating Form Submission...', 'info');
+            
+            log('🔗 React App\'te test etmek için:', 'info');
+            log('1. http://localhost:3000/bag-evi sayfasını açın', 'info');
+            log('2. Arazi vasfından "Tarla + herhangi bir dikili vasıflı" seçin', 'info');
+            log('3. Tarla alanı ve dikili alanı form alanlarının açıldığını kontrol edin', 'info');
+            log('4. Tarla alanı: 15000, Dikili alanı: 12000 girin', 'info');
+            log('5. Hesapla butonuna tıklayın', 'info');
+        }
+        
+        function testFormValidation() {
+            clearConsole();
+            log('🧮 Testing Form Validation Logic...', 'info');
+            
+            // Pseudo validation test
+            function validateBagEvi(formData) {
+                const errors = {};
+                
+                if (formData.calculationType === 'bag-evi' && 
+                    formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
+                    
+                    if (!formData.tarla_alani || formData.tarla_alani <= 0) {
+                        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
+                    }
+                    
+                    if (!formData.dikili_alani || formData.dikili_alani <= 0) {
+                        errors.dikili_alani = 'Dikili alan pozitif bir sayı olmalıdır';
+                    }
+                    
+                    if (formData.tarla_alani && formData.dikili_alani && 
+                        formData.dikili_alani > formData.tarla_alani) {
+                        errors.dikili_alani = 'Dikili alan, tarla alanından büyük olamaz';
+                    }
+                } else {
+                    if (!formData.alan_m2 || formData.alan_m2 <= 0) {
+                        errors.alan_m2 = 'Alan (m²) pozitif bir sayı olmalıdır';
+                    }
+                }
+                
+                return { isValid: Object.keys(errors).length === 0, errors };
+            }
+            
+            // Test scenarios
+            const scenarios = [
+                {
+                    name: 'Valid Bağ Evi',
+                    data: {
+                        calculationType: 'bag-evi',
+                        arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+                        tarla_alani: 15000,
+                        dikili_alani: 12000
+                    }
+                },
+                {
+                    name: 'Invalid - Dikili > Tarla',
+                    data: {
+                        calculationType: 'bag-evi',
+                        arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+                        tarla_alani: 10000,
+                        dikili_alani: 15000
+                    }
+                },
+                {
+                    name: 'Valid Normal Area',
+                    data: {
+                        calculationType: 'bag-evi',
+                        arazi_vasfi: 'tarım',
+                        alan_m2: 5000
+                    }
+                }
+            ];
+            
+            scenarios.forEach(scenario => {
+                const result = validateBagEvi(scenario.data);
+                log(`${scenario.name}: ${result.isValid ? '✅ VALID' : '❌ INVALID'}`, 
+                    result.isValid ? 'success' : 'error');
+                
+                if (!result.isValid) {
+                    log(`  Errors: ${JSON.stringify(result.errors, null, 2)}`, 'error');
+                }
+            });
+        }
+        
+        function testConditionalFields() {
+            clearConsole();
+            log('⚙️ Testing Conditional Fields Logic...', 'info');
+            
+            function shouldShowBagEviFields(calculationType, araziVasfi) {
+                return calculationType === 'bag-evi' && 
+                       araziVasfi === 'Tarla + herhangi bir dikili vasıflı';
+            }
+            
+            const testCases = [
+                {
+                    calculationType: 'bag-evi',
+                    araziVasfi: 'Tarla + herhangi bir dikili vasıflı',
+                    expected: true
+                },
+                {
+                    calculationType: 'bag-evi',
+                    araziVasfi: 'tarım',
+                    expected: false
+                },
+                {
+                    calculationType: 'hububat-silo',
+                    araziVasfi: 'Tarla + herhangi bir dikili vasıflı',
+                    expected: false
+                }
+            ];
+            
+            testCases.forEach((testCase, index) => {
+                const result = shouldShowBagEviFields(testCase.calculationType, testCase.araziVasfi);
+                const passed = result === testCase.expected;
+                
+                log(`Test ${index + 1}: ${passed ? '✅ PASS' : '❌ FAIL'}`, passed ? 'success' : 'error');
+                log(`  Type: ${testCase.calculationType}, Vasıf: ${testCase.araziVasfi}`, 'info');
+                log(`  Expected: ${testCase.expected}, Got: ${result}`, 'info');
+            });
+        }
+        
+        function openConsoleInstructions() {
+            clearConsole();
+            log('🔧 React App Console Test Talimatları:', 'info');
+            log('', 'info');
+            log('1. http://localhost:3000/bag-evi sayfasını açın', 'info');
+            log('2. F12 tuşuna basarak Developer Tools\'u açın', 'info');
+            log('3. Console sekmesine geçin', 'info');
+            log('4. Aşağıdaki kodu console\'a yapıştırın:', 'info');
+            log('', 'info');
+            
+            const consoleCode = `
+// Bağ Evi Test Script - React App Console'da çalıştırın
+console.log('🍇 Bağ Evi React App Test başlıyor...');
+
+// 1. API Service kontrolü
+if (window.apiService && window.apiService.calculations && window.apiService.calculations.bag_evi) {
+    console.log('✅ bag_evi API service bulundu');
+    
+    // Test data
+    const testData = {
+        alan_m2: 15000,
+        arazi_vasfi: 'Tarla + herhangi bir dikili vasıflı',
+        tarla_alani: 15000,
+        dikili_alani: 12000
+    };
+    
+    // API test
+    window.apiService.calculations.bag_evi(testData)
+        .then(result => {
+            console.log('🎯 API Test Result:', result);
+        })
+        .catch(error => {
+            console.error('❌ API Test Error:', error);
+        });
+} else {
+    console.log('❌ bag_evi API service bulunamadı');
+    console.log('🔍 Available services:', window.apiService?.calculations ? Object.keys(window.apiService.calculations) : 'No apiService');
+}
+
+// 2. Form state kontrolü
+console.log('📝 Form element kontrolü...');
+const araziVasfiSelect = document.querySelector('select[name="arazi_vasfi"]');
+if (araziVasfiSelect) {
+    console.log('✅ Arazi vasfı select bulundu');
+    console.log('📊 Mevcut options:', Array.from(araziVasfiSelect.options).map(o => o.value));
+} else {
+    console.log('❌ Arazi vasfı select bulunamadı');
+}
+
+console.log('✨ Test tamamlandı. Formu manuel olarak test edin.');
+            `;
+            
+            log(consoleCode, 'info');
+        }
+        
+        // Initial message
+        log('🍇 Bağ Evi Test Suite hazır. Testleri başlatmak için butonlara tıklayın.', 'success');
+    </script>
+</body>
+</html>

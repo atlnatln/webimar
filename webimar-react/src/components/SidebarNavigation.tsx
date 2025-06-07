@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
 import { NavigationItem, StructureType } from '../types';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 const SidebarContainer = styled.div<{ $isOpen: boolean }>`
   position: fixed;
@@ -102,11 +103,17 @@ const ToggleButton = styled.button<{ $isOpen: boolean }>`
   &:hover {
     background: #2980b9;
   }
+  
+  /* Mobilde gizle - floating button kullanılıyor */
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 interface SidebarNavigationProps {
   isOpen: boolean;
   onToggle: () => void;
+  onNavigate?: () => void; // Mobilde navigation sonrası çağrılacak
 }
 
 const categoryIcons = {
@@ -125,9 +132,17 @@ const categoryNames = {
   other: 'Diğer Yapılar'
 };
 
-const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle }) => {
+const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle, onNavigate }) => {
   const location = useLocation();
   const { structureCategories, structureTypeLabels, loading } = useStructureTypes();
+  const isMobile = useIsMobile();
+
+  // Mobilde navigation item'a tıklandığında sidebar'ı kapat
+  const handleNavigation = () => {
+    if (isMobile && onNavigate) {
+      onNavigate();
+    }
+  };
 
   // Navigation items oluştur
   const generateNavigationItems = (): NavigationItem[] => {
@@ -213,6 +228,7 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle 
               key={item.id}
               to={item.path}
               $isActive={location.pathname === item.path}
+              onClick={handleNavigation}
             >
               <NavIcon>
                 {category === 'livestock' ? '🐄' : 

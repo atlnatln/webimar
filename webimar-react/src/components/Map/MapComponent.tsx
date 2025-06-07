@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import styled from 'styled-components';
@@ -48,8 +48,15 @@ interface MapComponentProps {
   zoom?: number;
   onMapClick?: (coordinate: Coordinate) => void;
   selectedCoordinate?: Coordinate | null;
+  showMarker?: boolean; // Marker gösterilsin mi?
   kmlLayers?: KMLLayer[];
   height?: string;
+}
+
+// Map ref interface - dışarıdan erişilebilir fonksiyonlar
+export interface MapRef {
+  zoomToLocation: (lat: number, lng: number, zoom?: number) => void;
+  getMapInstance: () => L.Map | null;
 }
 
 // KML yükleme bileşeni - gerçek KML dosyalarını yüklemek için KMLLayerManager kullanır
@@ -75,14 +82,30 @@ const KMLLoader: React.FC<{ layers: KMLLayer[] }> = ({ layers }) => {
   );
 };
 
-const MapComponent: React.FC<MapComponentProps> = ({
+const MapComponent = forwardRef<MapRef, MapComponentProps>(({
   center = [38.4237, 27.1428], // İzmir koordinatları
   zoom = 10,
   onMapClick,
   selectedCoordinate,
+  showMarker = true, // Default olarak marker göster
   kmlLayers = [],
   height = '500px'
-}) => {
+}, ref) => {
+  const mapRef = useRef<L.Map | null>(null);
+
+  // External API için ref expose etme
+  useImperativeHandle(ref, () => ({
+    zoomToLocation: (lat: number, lng: number, zoom = 15) => {
+      if (mapRef.current) {
+        mapRef.current.setView([lat, lng], zoom, {
+          animate: true,
+          duration: 1.5
+        });
+      }
+    },
+    getMapInstance: () => mapRef.current
+  }), []);
+
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     const coordinate: Coordinate = {
       lat: e.latlng.lat,
@@ -110,12 +133,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {/* KML katmanları */}
         {kmlLayers.length > 0 && <KMLLoader layers={kmlLayers} />}
         
-        {/* Seçilen koordinat marker'ı */}
-        {selectedCoordinate && (
+        {/* Seçilen koordinat marker'ı - sadece showMarker true ise göster */}
+        {selectedCoordinate && showMarker && (
           <Marker position={[selectedCoordinate.lat, selectedCoordinate.lng]}>
             <Popup>
               <div>
-                <strong>Seçilen Konum</strong><br />
+                <strong>Manuel Seçilen Konum</strong><br />
                 Enlem: {selectedCoordinate.lat.toFixed(6)}<br />
                 Boylam: {selectedCoordinate.lng.toFixed(6)}
               </div>
@@ -124,25 +147,36 @@ const MapComponent: React.FC<MapComponentProps> = ({
         )}
         
         {/* Harita tıklama olayı */}
-        <MapEventHandler onMapClick={handleMapClick} />
+        <MapEventHandler onMapClick={handleMapClick} mapRef={mapRef} />
       </MapContainer>
     </MapContainer_Styled>
   );
-};
+});
 
 // Harita olaylarını yöneten bileşen
-const MapEventHandler: React.FC<{ onMapClick: (e: L.LeafletMouseEvent) => void }> = ({ onMapClick }) => {
+const MapEventHandler: React.FC<{ 
+  onMapClick: (e: L.LeafletMouseEvent) => void;
+  mapRef: React.RefObject<L.Map | null>;
+}> = ({ onMapClick, mapRef }) => {
   const map = useMap();
 
   useEffect(() => {
+    // Map instance'ı ref'e kaydet
+    if (mapRef.current !== map) {
+      mapRef.current = map;
+    }
+
     map.on('click', onMapClick);
     return () => {
       map.off('click', onMapClick);
     };
-  }, [map, onMapClick]);
+  }, [map, onMapClick, mapRef]);
 
   return null;
 };
+
+// forwardRef için displayName ekle
+MapComponent.displayName = 'MapComponent';
 
 export default MapComponent;
 export type { Coordinate, KMLLayer };

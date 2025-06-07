@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import CalculationForm from '../components/CalculationForm';
 import ResultDisplay from '../components/ResultDisplay';
-import MapComponent from '../components/Map/MapComponent';
+import MapComponent, { MapRef } from '../components/Map/MapComponent';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 import { CalculationResult, StructureType } from '../types';
 
 interface CalculationPageProps {
@@ -196,7 +197,9 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCoordinate, setSelectedCoordinate] = useState<{lat: number, lng: number} | null>(null);
+  const [isManualSelection, setIsManualSelection] = useState(false); // Manuel harita tıklaması mı?
   const [isMapVisible, setIsMapVisible] = useState(true);
+  const mapRef = useRef<MapRef>(null);
 
   const handleCalculationResult = (newResult: CalculationResult) => {
     setResult(newResult);
@@ -210,11 +213,29 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
 
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
     setSelectedCoordinate(coordinate);
-    console.log('Seçilen koordinat:', coordinate);
+    setIsManualSelection(true); // Manuel seçim olarak işaretle
+    console.log('Manuel seçilen koordinat:', coordinate);
   };
 
   const toggleMapVisibility = () => {
     setIsMapVisible(!isMapVisible);
+  };
+
+  // Konum seçildiğinde haritada zoom yap
+  const handleLocationSelect = (location: any) => {
+    // Zoom seviyesini konum türüne göre ayarla
+    const zoomLevel = location.tur === 'İLÇE' ? 13 : 15; // İlçe için 13, mahalle için 15
+    
+    // Haritada konuma zoom yap
+    if (mapRef.current) {
+      mapRef.current.zoomToLocation(location.latitude, location.longitude, zoomLevel);
+    }
+    
+    // Mahalle/İlçe seçimi için koordinat gösterimi ve marker'ı kaldır
+    setSelectedCoordinate(null);
+    setIsManualSelection(false);
+    
+    console.log(`📍 ${location.tur}: ${location.ad}, ${location.ilce} seçildi (zoom: ${zoomLevel}) - Marker gösterilmiyor`);
   };
 
   return (
@@ -244,11 +265,42 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
           </MapToggleButton>
         </MapHeader>
         <MapContainer $isOpen={isMapVisible}>
+          {/* Konum Arama Bölümü */}
+          <div style={{ 
+            marginBottom: '16px', 
+            padding: '16px', 
+            background: '#f8f9fa', 
+            borderRadius: '8px',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ 
+              marginBottom: '8px', 
+              fontSize: '14px', 
+              fontWeight: '600', 
+              color: '#2c3e50' 
+            }}>
+              🔍 İlçe/Mahalle Arama
+            </div>
+            <LocationAutocomplete 
+              onLocationSelect={handleLocationSelect}
+              placeholder="İlçe veya mahalle adı yazın... (örn: Karşıyaka, Bornova)"
+            />
+            <div style={{ 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: '#6c757d' 
+            }}>
+              💡 İlçe veya mahalle seçtiğinizde harita otomatik olarak o konuma odaklanacak
+            </div>
+          </div>
+
           <MapComponent
+            ref={mapRef}
             center={[38.4237, 27.1428]} // İzmir merkezi
             zoom={10}
             onMapClick={handleMapClick}
             selectedCoordinate={selectedCoordinate}
+            showMarker={isManualSelection} // Sadece manuel seçimde marker göster
             height="400px"
             kmlLayers={[
               {
@@ -282,9 +334,9 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
               }
             ]}
           />
-          {selectedCoordinate && (
+          {selectedCoordinate && isManualSelection && (
             <CoordinateInfo>
-              <CoordinateLabel>Seçilen Koordinat</CoordinateLabel>
+              <CoordinateLabel>Manuel Seçilen Koordinat</CoordinateLabel>
               <CoordinateValues>
                 <div>
                   <strong>Enlem:</strong><br/>
@@ -306,7 +358,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
             calculationType={calculationType}
             onResult={handleCalculationResult}
             onCalculationStart={handleCalculationStart}
-            selectedCoordinate={selectedCoordinate}
+            selectedCoordinate={isManualSelection ? selectedCoordinate : null}
           />
         </FormSection>
         

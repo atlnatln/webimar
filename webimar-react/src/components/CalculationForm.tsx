@@ -353,8 +353,13 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    if (!formData.alan_m2 || formData.alan_m2 <= 0) {
-      errors.alan_m2 = 'Alan (m²) pozitif bir sayı olmalıdır';
+    // Alan_m2 validation - Bağ evi için "Tarla + herhangi bir dikili vasıflı" seçildiğinde gerekli değil
+    const isBagEviWithSpecialVasif = calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı';
+    
+    if (!isBagEviWithSpecialVasif) {
+      if (!formData.alan_m2 || formData.alan_m2 <= 0) {
+        errors.alan_m2 = 'Alan (m²) pozitif bir sayı olmalıdır';
+      }
     }
 
     if (!formData.arazi_vasfi) {
@@ -365,6 +370,20 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     if (calculationType === 'hububat-silo') {
       if (!formData.silo_taban_alani_m2 || formData.silo_taban_alani_m2 <= 0) {
         errors.silo_taban_alani_m2 = 'Planlanan silo taban alanı pozitif bir sayı olmalıdır';
+      }
+    }
+
+    // Bağ evi için özel validation - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde
+    if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
+      if (!formData.tarla_alani || formData.tarla_alani <= 0) {
+        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
+      }
+      if (!formData.dikili_alani || formData.dikili_alani <= 0) {
+        errors.dikili_alani = 'Dikili alan (bağ alanı) pozitif bir sayı olmalıdır';
+      }
+      // Dikili alan, tarla alanından büyük olamaz
+      if (formData.tarla_alani && formData.dikili_alani && formData.dikili_alani > formData.tarla_alani) {
+        errors.dikili_alani = 'Dikili alan, tarla alanından büyük olamaz';
       }
     }
 
@@ -397,6 +416,13 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       if (calculationType === 'ipek-bocekciligi' && finalFormData.dut_bahcesi_var_mi === undefined) {
         finalFormData.dut_bahcesi_var_mi = true;
         console.log('🌳 İpek böcekçiliği için dut_bahcesi_var_mi default true olarak ayarlandı');
+      }
+
+      // Bağ evi için özel alan hesaplaması - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde
+      if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
+        // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
+        finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
+        console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
       }
 
       // Seçilen koordinat bilgisini form dataya ekle
@@ -546,24 +572,27 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
               📊 Temel Bilgiler
             </SectionTitle>
             <FormGrid>
-              <FormGroup>
-                <Label>
-                  Alan (m²) <RequiredIndicator>*</RequiredIndicator>
-                </Label>
-                <Input
-                  type="number"
-                  name="alan_m2"
-                  value={formData.alan_m2 || ''}
-                  onChange={handleInputChange}
-                  placeholder="Örn: 5000"
-                  min="1"
-                  step="1"
-                  required
-                />
-                {validationErrors.alan_m2 && (
-                  <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
-                )}
-              </FormGroup>
+              {/* Bağ evi dışındaki hesaplamalar için genel alan inputu */}
+              {calculationType !== 'bag-evi' && (
+                <FormGroup>
+                  <Label>
+                    Alan (m²) <RequiredIndicator>*</RequiredIndicator>
+                  </Label>
+                  <Input
+                    type="number"
+                    name="alan_m2"
+                    value={formData.alan_m2 || ''}
+                    onChange={handleInputChange}
+                    placeholder="Örn: 5000"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                  {validationErrors.alan_m2 && (
+                    <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
+                  )}
+                </FormGroup>
+              )}
 
               <FormGroup>
                 <Label>
@@ -619,7 +648,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           </FormSection>
 
           {/* Özel Parametreler */}
-          {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi') && (
+          {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi' || calculationType === 'bag-evi') && (
             <FormSection>
               <SectionTitle>
                 ⚙️ Özel Parametreler
@@ -668,6 +697,68 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                       İpek böcekçiliği tesisi için arazide dut bahçesi bulunması zorunludur.
                     </div>
                   </FormGroup>
+                )}
+
+                {/* Bağ evi için özel alanlar - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde */}
+                {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+                  <>
+                    <FormGroup>
+                      <Label>
+                        Tarla Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
+                      </Label>
+                      <Input
+                        type="number"
+                        name="tarla_alani"
+                        value={formData.tarla_alani || ''}
+                        onChange={handleInputChange}
+                        placeholder="Örn: 15000"
+                        min="1"
+                        step="1"
+                        required
+                      />
+                      {validationErrors.tarla_alani && (
+                        <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
+                      )}
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>
+                        Dikili Alanı (Bağ Alanı) (m²) <RequiredIndicator>*</RequiredIndicator>
+                      </Label>
+                      <Input
+                        type="number"
+                        name="dikili_alani"
+                        value={formData.dikili_alani || ''}
+                        onChange={handleInputChange}
+                        placeholder="Örn: 12000"
+                        min="1"
+                        step="1"
+                        required
+                      />
+                      {validationErrors.dikili_alani && (
+                        <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
+                      )}
+                    </FormGroup>
+
+                    <div style={{ 
+                      gridColumn: '1 / -1', 
+                      background: '#f0f9ff', 
+                      border: '1px solid #0ea5e9', 
+                      borderRadius: '8px', 
+                      padding: '12px',
+                      marginTop: '8px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '18px' }}>ℹ️</span>
+                        <strong style={{ color: '#0369a1' }}>Bağ Evi Hesaplama Bilgileri</strong>
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#075985', fontSize: '14px' }}>
+                        <li>Tarla alanı: Parselin toplam alanıdır</li>
+                        <li>Dikili alan: Parsel içerisindeki asma dikili alanın miktarıdır</li>
+                        <li>Bağ evi hesabında bu iki alanın ayrı ayrı belirtilmesi gereklidir</li>
+                      </ul>
+                    </div>
+                  </>
                 )}
               </FormGrid>
             </FormSection>

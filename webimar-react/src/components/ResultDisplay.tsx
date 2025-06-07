@@ -535,6 +535,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
         calculationType === 'zeytinyagi-fabrikasi' || 
         calculationType === 'su-depolama' || 
         calculationType === 'su-kuyulari' || 
+        calculationType === 'bag-evi' || 
         calculationType === 'zeytinyagi-uretim-tesisi' || 
         calculationType === 'soguk-hava-deposu' || 
         calculationType === 'agil-kucukbas' || 

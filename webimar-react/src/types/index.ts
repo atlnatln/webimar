@@ -25,6 +25,10 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // İpek böcekçiliği için dut bahçesi durumu
   dut_bahcesi_var_mi?: boolean;
 
+  // Bağ evi için özel alanlar
+  tarla_alani?: number;
+  dikili_alani?: number;
+
   // Koordinat bilgileri
   latitude?: number;
   longitude?: number;
