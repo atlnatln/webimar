@@ -3,6 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import { DetailedCalculationInput, CalculationResult, StructureType } from '../types';
 import { apiService } from '../services/api';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
+import DikiliAlanKontrol from './DikiliAlanKontrol';
 
 // Cursor yanıp sönme animasyonu
 const blink = keyframes`
@@ -186,32 +187,40 @@ const RequiredIndicator = styled.span`
   margin-left: 4px;
 `;
 
-const CoordinateInfo = styled.div`
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+const DikiliKontrolButton = styled.button`
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  border: none;
+  padding: 12px 20px;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 20px;
   font-size: 14px;
-  color: #495057;
-`;
-
-const CoordinateLabel = styled.div`
   font-weight: 600;
-  margin-bottom: 8px;
-  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+
+  &:hover {
+    background: linear-gradient(135deg, #229954, #27ae60);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
 `;
 
-const CoordinateValue = styled.div`
-  font-family: 'Courier New', monospace;
-  background: #ffffff;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-`;
+
 
 // Animasyonlu Select Container
 const AnimatedSelectContainer = styled.div`
@@ -299,6 +308,10 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [selectFocused, setSelectFocused] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
   
+  // Dikili alan kontrolü için
+  const [dikiliKontrolOpen, setDikiliKontrolOpen] = useState(false);
+  const [dikiliKontrolSonucu, setDikiliKontrolSonucu] = useState<any>(null);
+  
   // Typewriter efekti için
   const { displayedText } = useTypewriter('Arazi vasfınızı seçiniz', 80);
 
@@ -332,7 +345,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'alan_m2' || name === 'silo_taban_alani_m2' ? Number(value) : value
+      [name]: (name === 'alan_m2' || name === 'silo_taban_alani_m2' || name === 'tarla_alani' || name === 'dikili_alani') ? Number(value) : value
     }));
 
     // Arazi vasfı seçildiğinde dropdown'ı kapat
@@ -347,6 +360,51 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         delete newErrors[name];
         return newErrors;
       });
+    }
+  };
+
+  // Dikili alan kontrolü handler'ları
+  const handleDikiliKontrolOpen = () => {
+    setDikiliKontrolOpen(true);
+  };
+
+  const handleDikiliKontrolClose = () => {
+    setDikiliKontrolOpen(false);
+  };
+
+  const handleDikiliKontrolSuccess = (result: any) => {
+    setDikiliKontrolSonucu(result);
+    console.log('Dikili alan kontrol sonucu:', result);
+    
+    // Dikili alan kontrolü başarılı ise dikili alan değerini dikili_alani form alanına aktar
+    if (result?.dikiliAlanKontrolSonucu?.type === 'success' && 
+        result?.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true && 
+        result?.dikiliAlan && result?.tarlaAlani) {
+      
+      const dikiliAlan = result.dikiliAlan; // Dikili alan değeri
+      const tarlaAlani = result.tarlaAlani; // Tarla alanı
+      
+      setFormData(prev => ({
+        ...prev,
+        dikili_alani: dikiliAlan,
+        tarla_alani: tarlaAlani
+      }));
+      
+      // Validation hatalarını temizle
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.dikili_alani;
+        delete newErrors.tarla_alani;
+        return newErrors;
+      });
+      
+      console.log(`✅ Dikili alan kontrolü başarılı - Değerler aktarıldı:`);
+      console.log(`  - Dikili alan: ${dikiliAlan} m²`);
+      console.log(`  - Tarla alanı: ${tarlaAlani} m²`);
+      console.log(`📊 Ağaçların teorik kapladığı alan: ${result?.dikiliAlanKontrolSonucu?.alanBilgisi?.kaplanAlan} m² (yoğunluk kontrolü için)`);
+      console.log(`🎯 Yeterlilik oranı: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} (min: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran})`);
+    } else {
+      console.log('❌ Dikili alan kontrolü başarısız - Yeterlilik kriteri sağlanmadı, değer aktarımı yapılmadı');
     }
   };
 
@@ -548,22 +606,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       <FormContent>
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
-        {/* Seçilen koordinat bilgisi */}
-        {selectedCoordinate && (
-          <FormSection>
-            <CoordinateInfo>
-              <CoordinateLabel>📍 Seçilen Arazi Konumu</CoordinateLabel>
-              <CoordinateValue>
-                <div>
-                  <strong>Enlem:</strong> {selectedCoordinate.lat.toFixed(6)}
-                </div>
-                <div>
-                  <strong>Boylam:</strong> {selectedCoordinate.lng.toFixed(6)}
-                </div>
-              </CoordinateValue>
-            </CoordinateInfo>
-          </FormSection>
-        )}
+
 
         <form onSubmit={handleSubmit}>
           {/* Temel Bilgiler */}
@@ -644,6 +687,48 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                   <ErrorMessage>{validationErrors.arazi_vasfi}</ErrorMessage>
                 )}
               </FormGroup>
+
+              {/* Bağ evi için Dikili Alan Kontrolü butonu - 3. sütun */}
+              {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+                <FormGroup>
+                  <Label>
+                    Dikili Alan Kontrolü
+                  </Label>
+                  <DikiliKontrolButton
+                    type="button"
+                    onClick={handleDikiliKontrolOpen}
+                  >
+                    🌳 Dikili Alan Kontrolü
+                  </DikiliKontrolButton>
+                  {dikiliKontrolSonucu && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px', 
+                      background: dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#d4edda' : '#f8d7da',
+                      border: '1px solid ' + (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#c3e6cb' : '#f5c6cb'),
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      color: dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#155724' : '#721c24'
+                    }}>
+                      {dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? (
+                        <>
+                          ✅ Dikili alan kontrolü başarılı
+                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                            Yoğunluk: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu.yeterlilik.oran?.toFixed(1)} ≥ %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu.yeterlilik.minimumOran}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          ❌ Dikili alan kontrolü başarısız
+                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                            Yoğunluk yetersiz: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1) || '0'} &lt; %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran || '70'}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </FormGroup>
+              )}
             </FormGrid>
           </FormSection>
 
@@ -786,6 +871,13 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           </FormSection>
         </form>
       </FormContent>
+
+      {/* Dikili Alan Kontrolü Paneli */}
+      <DikiliAlanKontrol
+        isOpen={dikiliKontrolOpen}
+        onClose={handleDikiliKontrolClose}
+        onSuccess={handleDikiliKontrolSuccess}
+      />
     </FormContainer>
   );
 };

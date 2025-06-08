@@ -153,41 +153,7 @@ const MapContainer = styled.div<{ $isOpen: boolean }>`
   opacity: ${props => props.$isOpen ? 1 : 0};
 `;
 
-const CoordinateInfo = styled.div`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  font-size: 12px;
-  color: #374151;
-  min-width: 200px;
-  z-index: 1000;
-  
-  @media (max-width: 768px) {
-    top: 8px;
-    right: 8px;
-    min-width: 160px;
-    padding: 8px;
-    font-size: 11px;
-  }
-`;
 
-const CoordinateLabel = styled.div`
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #111827;
-`;
-
-const CoordinateValues = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  font-family: 'Courier New', monospace;
-`;
 
 const CalculationPage: React.FC<CalculationPageProps> = ({ 
   calculationType, 
@@ -334,21 +300,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
               }
             ]}
           />
-          {selectedCoordinate && isManualSelection && (
-            <CoordinateInfo>
-              <CoordinateLabel>Manuel Seçilen Koordinat</CoordinateLabel>
-              <CoordinateValues>
-                <div>
-                  <strong>Enlem:</strong><br/>
-                  {selectedCoordinate.lat.toFixed(6)}
-                </div>
-                <div>
-                  <strong>Boylam:</strong><br/>
-                  {selectedCoordinate.lng.toFixed(6)}
-                </div>
-              </CoordinateValues>
-            </CoordinateInfo>
-          )}
+
         </MapContainer>
       </MapSection>
       

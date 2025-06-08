@@ -135,15 +135,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({
         
         {/* Seçilen koordinat marker'ı - sadece showMarker true ise göster */}
         {selectedCoordinate && showMarker && (
-          <Marker position={[selectedCoordinate.lat, selectedCoordinate.lng]}>
-            <Popup>
-              <div>
-                <strong>Manuel Seçilen Konum</strong><br />
-                Enlem: {selectedCoordinate.lat.toFixed(6)}<br />
-                Boylam: {selectedCoordinate.lng.toFixed(6)}
-              </div>
-            </Popup>
-          </Marker>
+          <Marker position={[selectedCoordinate.lat, selectedCoordinate.lng]} />
         )}
         
         {/* Harita tıklama olayı */}
