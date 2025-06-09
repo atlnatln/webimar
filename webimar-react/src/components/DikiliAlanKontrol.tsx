@@ -378,6 +378,10 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const [stopTrigger, setStopTrigger] = useState(false);
   const [clearTrigger, setClearTrigger] = useState(false);
 
+  // Edit modu için state'ler
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingAgacSayisi, setEditingAgacSayisi] = useState<number>(0);
+
   // Ağaç verilerini yükle
   useEffect(() => {
     const agacData: AgacTuru[] = [
@@ -482,6 +486,32 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const agacSil = (index: number) => {
     const yeniListe = eklenenAgaclar.filter((_, i) => i !== index);
     setEklenenAgaclar(yeniListe);
+  };
+
+  // Ağaç düzenleme başlat
+  const agacEdit = (index: number) => {
+    setEditingIndex(index);
+    setEditingAgacSayisi(eklenenAgaclar[index].sayi);
+  };
+
+  // Ağaç düzenleme kaydet
+  const agacEditSave = (index: number) => {
+    if (editingAgacSayisi <= 0) {
+      alert('Ağaç sayısı 0\'dan büyük olmalıdır!');
+      return;
+    }
+
+    const yeniListe = [...eklenenAgaclar];
+    yeniListe[index].sayi = editingAgacSayisi;
+    setEklenenAgaclar(yeniListe);
+    setEditingIndex(null);
+    setEditingAgacSayisi(0);
+  };
+
+  // Ağaç düzenleme iptal
+  const agacEditCancel = () => {
+    setEditingIndex(null);
+    setEditingAgacSayisi(0);
   };
 
   // Harita fonksiyonları
@@ -589,14 +619,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
 
   // Hesaplama yap
   const hesaplamaYap = () => {
-    if (dikiliAlan < 5000) {
-      setHesaplamaSonucu({
-        type: 'error',
-        message: 'Dikili tarım arazilerinde bağ evi yapılabilmesi için dikili alan büyüklüğünün en az 0,5 hektar (5000 m²) olması gerekmektedir.'
-      });
-      return;
-    }
-
     if (tarlaAlani <= 0) {
       setHesaplamaSonucu({
         type: 'error',
@@ -605,18 +627,32 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       return;
     }
 
-    // Toplam parsel alanı = dikili alan + tarla alanı
-    const toplamParselAlani = dikiliAlan + tarlaAlani;
+    // Kriter 2 kontrolü: Tarla alanı >= 20000 m² ise ağaç kontrolü yapmadan devam et
+    const kriter2SaglaniyorMu = tarlaAlani >= 20000;
+    
+    if (!kriter2SaglaniyorMu) {
+      // Kriter 2 sağlanmıyorsa, Kriter 1 için gerekli kontrolleri yap
+      if (dikiliAlan < 5000) {
+        setHesaplamaSonucu({
+          type: 'error',
+          message: 'Dikili tarım arazilerinde bağ evi yapılabilmesi için dikili alan büyüklüğünün en az 0,5 hektar (5000 m²) olması gerekmektedir.'
+        });
+        return;
+      }
 
-    // Tarla alanı üst limit kontrolü (20000 m² ve üstü için uyarı ama hesaplama devam eder)
-    if (eklenenAgaclar.length === 0) {
-      setHesaplamaSonucu({
-        type: 'error',
-        message: 'Lütfen en az bir ağaç türü ekleyin.'
-      });
-      return;
+      if (eklenenAgaclar.length === 0) {
+        setHesaplamaSonucu({
+          type: 'error',
+          message: 'Lütfen en az bir ağaç türü ekleyin.'
+        });
+        return;
+      }
     }
 
+    // Kriter 2 sağlandığında da ağaç hesaplaması yap (gerçek değerleri göstermek için)
+    // Ama ağaç hesaplaması yoksa da devam edilebilir
+
+    // Kriter 1 için ağaç hesaplaması yap (eğer ağaç varsa)
     // Her ağaç türü için kapladığı alanı hesapla
     let toplamKaplanAlan = 0;
     const agacDetaylari: any[] = [];
@@ -637,23 +673,24 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     });
 
     // Sonuç hesaplama - dikili alan yeterlilik kontrolü
-    const dikiliAlanOrani = Math.min((toplamKaplanAlan / dikiliAlan) * 100, 100); // %100'ü geçmesin
+    const dikiliAlanOrani = eklenenAgaclar.length > 0 ? 
+      Math.min((toplamKaplanAlan / dikiliAlan) * 100, 100) : 0; // Ağaç yoksa %0
     const MINIMUM_YETERLILIK_ORANI = 100; // %100 minimum ağaç yoğunluğu kriteri
 
     // Bağ evi yapabilmek için iki farklı kriter:
     // Bağ evi kriterleri (Türkiye Tarım ve Orman Bakanlığı yönetmeliği):
     // 1. Dikili alan ≥ 5000 m² + %100 ağaç yoğunluğu VEYA
-    // 2. Toplam parsel alanı ≥ 20000 m² (0.5 hektar minimum dikili alan + diğer alanlar)
+    // 2. Tarla alanı ≥ 20000 m² (tek başına yeterli)
     
     const agacYogunluguYeterli = dikiliAlanOrani >= MINIMUM_YETERLILIK_ORANI;
     const dikiliAlanYeterli = dikiliAlan >= 5000;
-    const buyukParselAlani = toplamParselAlani >= 20000;
+    const buyukTarlaAlani = tarlaAlani >= 20000;
     
     // Kriter 1: Dikili alan yeterli + ağaç yoğunluğu yeterli
     const kriter1SaglandiMi = dikiliAlanYeterli && agacYogunluguYeterli;
     
-    // Kriter 2: Büyük toplam parsel alanı
-    const kriter2SaglandiMi = buyukParselAlani;
+    // Kriter 2: Büyük tarla alanı
+    const kriter2SaglandiMi = buyukTarlaAlani;
     
     // Genel uygunluk: herhangi bir kriter sağlanırsa uygun
     const bagEviIcinUygun = kriter1SaglandiMi || kriter2SaglandiMi;
@@ -666,15 +703,17 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       if (kriter1SaglandiMi && kriter2SaglandiMi) {
         // Her iki kriter de sağlanıyor
         message = 'Bağ Evi Kontrolü Başarılı (Her İki Kriter Sağlanıyor)';
-        type = buyukParselAlani ? 'warning' : 'success'; // Büyük parsel alanı varsa warning
+        type = 'success';
       } else if (kriter1SaglandiMi) {
         // Sadece dikili alan + ağaç yoğunluğu kriteri sağlanıyor
         message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan + Ağaç Yoğunluğu)';
         type = 'success';
       } else if (kriter2SaglandiMi) {
-        // Sadece büyük toplam parsel alanı kriteri sağlanıyor
-        message = 'Bağ Evi Kontrolü Başarılı (Büyük Toplam Parsel Alanı)';
-        type = 'warning';
+        // Sadece büyük tarla alanı kriteri sağlanıyor
+        message = eklenenAgaclar.length > 0 ? 
+          'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı bilgi amaçlı)' :
+          'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı gerekmiyor)';
+        type = 'success';
       }
       
       setHesaplamaSonucu({
@@ -691,17 +730,17 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
           kaplanAlan: Math.round(toplamKaplanAlan),
           oran: Math.round(dikiliAlanOrani * 10) / 10,
           agacDetaylari: agacDetaylari
-        },
-        tarlaAlaniUyarisi: buyukParselAlani
+        }
+        // tarlaAlaniUyarisi kaldırıldı - başarılı durumlarda uyarı göstermeye gerek yok
       });
     } else {
       // Bağ evi için uygun değil - hiçbir kriter sağlanmıyor
       let message = 'Bağ Evi Kontrolü Başarısız';
       
-      if (!dikiliAlanYeterli && !buyukParselAlani) {
-        message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Toplam Parsel < 20000 m²)';
-      } else if (!agacYogunluguYeterli && !buyukParselAlani) {
-        message = 'Bağ Evi Kontrolü Başarısız (Ağaç Yoğunluğu Yetersiz ve Toplam Parsel < 20000 m²)';
+      if (!dikiliAlanYeterli && !buyukTarlaAlani) {
+        message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Tarla Alanı < 20000 m²)';
+      } else if (!agacYogunluguYeterli && !buyukTarlaAlani) {
+        message = 'Bağ Evi Kontrolü Başarısız (Ağaç Yoğunluğu Yetersiz ve Tarla Alanı < 20000 m²)';
       } else if (!dikiliAlanYeterli && !agacYogunluguYeterli) {
         message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Ağaç Yoğunluğu Yetersiz)';
       }
@@ -721,8 +760,8 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
           kaplanAlan: Math.round(toplamKaplanAlan),
           oran: Math.round(dikiliAlanOrani * 10) / 10,
           agacDetaylari: agacDetaylari
-        },
-        tarlaAlaniUyarisi: buyukParselAlani
+        }
+        // tarlaAlaniUyarisi kaldırıldı - başarısız durumlarda da uyarı göstermeye gerek yok
       });
     }
   };
@@ -742,6 +781,19 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       // Hiçbir kriter sağlanmıyor - uyarı göster
       alert('Bağ evi kontrolü başarısız olduğu için değer aktarımı yapılamaz. Lütfen kriterleri sağlayın.');
     }
+  };
+
+  // Doğrudan hesaplama sayfasına aktar (ağaç hesaplaması yapmadan)
+  const handleDirectCalculation = () => {
+    // Poligon verilerini doğrudan aktarım yaparak ana forma gönder
+    onSuccess({
+      dikiliAlanKontrolSonucu: null, // Ağaç hesaplaması yapılmadı
+      eklenenAgaclar: [], // Boş ağaç listesi
+      dikiliAlan: dikiliAlan,
+      tarlaAlani: tarlaAlani,
+      directTransfer: true // Bu bir doğrudan aktarım olduğunu belirt
+    });
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -785,10 +837,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
           <>
             <FormSection>
               <SectionTitle>📏 Alan Bilgisi</SectionTitle>
-              <InfoBox>
-                Dikili tarım arazilerinde bağ evi yapılabilmesi için arazi büyüklüğünün 
-                en az 0,5 hektar (5000 m²) olması gerekmektedir.
-              </InfoBox>
               
               {/* Haritadan gelen alan bilgisi uyarısı */}
               {(tarlaPolygon || dikiliPolygon) && (
@@ -920,12 +968,49 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                 <AgacListesi>
                   {eklenenAgaclar.map((agac, index) => (
                     <AgacItem key={index}>
-                      <span>
-                        <strong>{agac.turAdi}</strong> ({agac.tipi}) - {agac.sayi} adet
-                      </span>
-                      <Button onClick={() => agacSil(index)} $variant="danger">
-                        🗑️
-                      </Button>
+                      {editingIndex === index ? (
+                        <>
+                          <span>
+                            <strong>{agac.turAdi}</strong> ({agac.tipi}) - 
+                            <input
+                              type="number"
+                              value={editingAgacSayisi}
+                              onChange={(e) => setEditingAgacSayisi(Number(e.target.value))}
+                              min="1"
+                              style={{
+                                width: '60px',
+                                margin: '0 8px',
+                                padding: '4px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px'
+                              }}
+                            />
+                            adet
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <Button onClick={() => agacEditSave(index)} $variant="success" style={{ fontSize: '12px', padding: '4px 8px' }}>
+                              ✓
+                            </Button>
+                            <Button onClick={agacEditCancel} $variant="secondary" style={{ fontSize: '12px', padding: '4px 8px' }}>
+                              ✕
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span>
+                            <strong>{agac.turAdi}</strong> ({agac.tipi}) - {agac.sayi} adet
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <Button onClick={() => agacEdit(index)} $variant="primary" style={{ fontSize: '12px', padding: '4px 8px' }}>
+                              ✏️
+                            </Button>
+                            <Button onClick={() => agacSil(index)} $variant="danger" style={{ fontSize: '12px', padding: '4px 8px' }}>
+                              🗑️
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </AgacItem>
                   ))}
                 </AgacListesi>
@@ -934,7 +1019,10 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   <Button onClick={hesaplamaYap} $variant="primary">
                     🧮 Hesapla
                   </Button>
-                  <Button onClick={() => setEklenenAgaclar([])} $variant="secondary">
+                  <Button onClick={() => {
+                    setEklenenAgaclar([]);
+                    setHesaplamaSonucu(null);
+                  }} $variant="secondary">
                     🗑️ Temizle
                   </Button>
                 </div>
@@ -945,26 +1033,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
               <SonucPanel $type={hesaplamaSonucu.type}>
                 <h4 style={{ margin: '0 0 12px 0' }}>{hesaplamaSonucu.message}</h4>
                 
-                {/* Tarla alanı uyarısı gösterimi */}
-                {hesaplamaSonucu.tarlaAlaniUyarisi && (
-                  <div style={{ 
-                    padding: '12px', 
-                    borderRadius: '6px', 
-                    marginBottom: '12px',
-                    background: '#fff3cd',
-                    border: '1px solid #ffeaa7',
-                    color: '#856404'
-                  }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                      ⚠️ Tarla Alanı Uyarısı
-                    </div>
-                    <div style={{ fontSize: '14px' }}>
-                      Tarla alanı 20.000 m² ve üzerindedir ({tarlaAlani.toLocaleString()} m²). 
-                      Bu büyüklükteki araziler için ek inceleme gerekebilir.
-                    </div>
-                  </div>
-                )}
-
                 {/* Yeterlilik durumu gösterimi */}
                 {hesaplamaSonucu.yeterlilik && (
                   <div style={{ 
@@ -988,7 +1056,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                         </span>
                       </div>
                       <div style={{ marginBottom: '4px' }}>
-                        <strong>Kriter 2:</strong> Toplam parsel alanı ≥ 20000 m²: {' '}
+                        <strong>Kriter 2:</strong> Tarla alanı ≥ 20000 m²: {' '}
                         <span style={{ color: hesaplamaSonucu.yeterlilik.kriter2 ? '#155724' : '#721c24' }}>
                           {hesaplamaSonucu.yeterlilik.kriter2 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
                         </span>
@@ -1028,7 +1096,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   </>
                 )}
 
-                {hesaplamaSonucu.alanBilgisi && (
+                {hesaplamaSonucu.alanBilgisi && hesaplamaSonucu.type === 'error' && (
                   <>
                     <p>
                       <strong>Ağaçların kapladığı toplam alan:</strong> {hesaplamaSonucu.alanBilgisi.kaplanAlan.toLocaleString()} m² 
@@ -1060,11 +1128,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     <div>
                       <p style={{ background: '#e8f5e8', padding: '8px', borderRadius: '4px', margin: '12px 0', fontSize: '14px' }}>
                         ✅ Bağ evi kontrolü başarılı. Arazide bağ evi yapılabilir.
-                        {hesaplamaSonucu.tarlaAlaniUyarisi && (
-                          <span style={{ display: 'block', marginTop: '4px', color: '#856404' }}>
-                            ⚠️ Tarla alanı büyüklüğü nedeniyle ek inceleme gerekebilir.
-                          </span>
-                        )}
                       </p>
                       <Button onClick={devamEt} $variant={
                         hesaplamaSonucu.type === 'warning' ? 'warning' : 
@@ -1084,7 +1147,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       <p style={{ fontSize: '13px', color: '#666', margin: '8px 0' }}>
                         💡 Çözüm önerileri:
                         <br/>• Dikili alanı 5000 m²'ye çıkarın ve %100 ağaç yoğunluğu sağlayın
-                        <br/>• Veya toplam parsel alanını 20000 m²'ye çıkarın (dikili + tarla alanı)
+                        <br/>• Veya tarla alanını 20000 m²'ye çıkarın
                       </p>
                     </div>
                   )}
@@ -1259,15 +1322,25 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                 </div>
               )}
               
-              {/* Manuel kontrole geçiş butonu */}
+              {/* Manuel kontrole geçiş ve direkt hesaplama butonları */}
               {tarlaPolygon && dikiliPolygon && (
-                <Button 
-                  onClick={() => handleTabChange('manuel')} 
-                  $variant="primary"
-                  style={{ width: '100%' }}
-                >
-                  📝 Ağaç Bilgilerini Eklemek İçin Manuel Kontrole Geç
-                </Button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <Button 
+                    onClick={() => handleTabChange('manuel')} 
+                    $variant="primary"
+                    style={{ width: '100%' }}
+                  >
+                    📝 Ağaç Bilgilerini Eklemek İçin Manuel Kontrole Geç
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleDirectCalculation}
+                    $variant="success"
+                    style={{ width: '100%' }}
+                  >
+                    🚀 Poligon Verilerini Hesaplama Formuna Aktar
+                  </Button>
+                </div>
               )}
             </FormSection>
           </>

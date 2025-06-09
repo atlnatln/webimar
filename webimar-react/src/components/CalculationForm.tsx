@@ -376,10 +376,13 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     setDikiliKontrolSonucu(result);
     console.log('Dikili alan kontrol sonucu:', result);
     
-    // Dikili alan kontrolü başarılı ise dikili alan değerini dikili_alani form alanına aktar
-    if (result?.dikiliAlanKontrolSonucu?.type === 'success' && 
-        result?.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true && 
-        result?.dikiliAlan && result?.tarlaAlani) {
+    // Doğrudan aktarım (ağaç hesaplaması olmadan) veya başarılı kontrol sonucu
+    const isDirectTransfer = result?.directTransfer === true;
+    const isSuccessfulControl = result?.dikiliAlanKontrolSonucu?.type === 'success' && 
+                               result?.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true;
+    
+    // Değer aktarım koşulları: Doğrudan aktarım VEYA başarılı kontrol
+    if ((isDirectTransfer || isSuccessfulControl) && result?.dikiliAlan && result?.tarlaAlani) {
       
       const dikiliAlan = result.dikiliAlan; // Dikili alan değeri
       const tarlaAlani = result.tarlaAlani; // Tarla alanı
@@ -398,11 +401,19 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         return newErrors;
       });
       
-      console.log(`✅ Dikili alan kontrolü başarılı - Değerler aktarıldı:`);
-      console.log(`  - Dikili alan: ${dikiliAlan} m²`);
-      console.log(`  - Tarla alanı: ${tarlaAlani} m²`);
-      console.log(`📊 Ağaçların teorik kapladığı alan: ${result?.dikiliAlanKontrolSonucu?.alanBilgisi?.kaplanAlan} m² (yoğunluk kontrolü için)`);
-      console.log(`🎯 Yeterlilik oranı: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} (min: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran})`);
+      // Konsol mesajları
+      if (isDirectTransfer) {
+        console.log(`🚀 Doğrudan aktarım - Poligon verileri forma aktarıldı:`);
+        console.log(`  - Dikili alan: ${dikiliAlan} m²`);
+        console.log(`  - Tarla alanı: ${tarlaAlani} m²`);
+        console.log(`📝 Not: Ağaç hesaplaması yapılmadı, sadece alan bilgileri aktarıldı`);
+      } else {
+        console.log(`✅ Dikili alan kontrolü başarılı - Değerler aktarıldı:`);
+        console.log(`  - Dikili alan: ${dikiliAlan} m²`);
+        console.log(`  - Tarla alanı: ${tarlaAlani} m²`);
+        console.log(`📊 Ağaçların teorik kapladığı alan: ${result?.dikiliAlanKontrolSonucu?.alanBilgisi?.kaplanAlan} m² (yoğunluk kontrolü için)`);
+        console.log(`🎯 Yeterlilik oranı: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} (min: %${result?.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran})`);
+      }
     } else {
       console.log('❌ Dikili alan kontrolü başarısız - Yeterlilik kriteri sağlanmadı, değer aktarımı yapılmadı');
     }
@@ -704,13 +715,23 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                     <div style={{ 
                       marginTop: '8px', 
                       padding: '8px', 
-                      background: dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#d4edda' : '#f8d7da',
-                      border: '1px solid ' + (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#c3e6cb' : '#f5c6cb'),
+                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : 
+                                 (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#d4edda' : '#f8d7da'),
+                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : 
+                                             (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#c3e6cb' : '#f5c6cb')),
                       borderRadius: '4px',
                       fontSize: '12px',
-                      color: dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#155724' : '#721c24'
+                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : 
+                            (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#155724' : '#721c24')
                     }}>
-                      {dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? (
+                      {dikiliKontrolSonucu.directTransfer ? (
+                        <>
+                          🚀 Doğrudan aktarım yapıldı
+                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                            Dikili alan: {dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² | Tarla alanı: {dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m²
+                          </div>
+                        </>
+                      ) : dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? (
                         <>
                           ✅ Dikili alan kontrolü başarılı
                           <div style={{ fontSize: '11px', marginTop: '2px' }}>
@@ -721,7 +742,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                         <>
                           ❌ Dikili alan kontrolü başarısız
                           <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Yoğunluk yetersiz: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1) || '0'} &lt; %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran || '70'}
+                            Yoğunluk yetersiz: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} &lt; %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}
                           </div>
                         </>
                       )}
