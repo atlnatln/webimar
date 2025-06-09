@@ -4,6 +4,30 @@ import * as turf from '@turf/turf';
 import { useMap, useMapEvents } from 'react-leaflet'; // useMapEvents eklendi, useCallback eklendi
 import styled from 'styled-components';
 
+// Global CSS for polygon tooltips
+const GlobalStyle = `
+  .polygon-tooltip {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #3498db !important;
+    border-radius: 4px !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    color: #2c3e50 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  }
+  .polygon-tooltip:before {
+    border-top-color: #3498db !important;
+  }
+`;
+
+// Global style'ı head'e ekle
+if (typeof document !== 'undefined' && !document.getElementById('polygon-tooltip-style')) {
+  const style = document.createElement('style');
+  style.id = 'polygon-tooltip-style';
+  style.textContent = GlobalStyle;
+  document.head.appendChild(style);
+}
+
 const DrawingControls = styled.div`
   position: absolute;
   top: 60px;
@@ -100,6 +124,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null); // Sadece markerlar için alt katman
   const linesLayerRef = useRef<L.LayerGroup | null>(null);   // Sadece çizgiler için alt katman
   const polygonLayerRef = useRef<L.LayerGroup | null>(null); // Sadece poligon için alt katman
+  const completedPolygonsLayerRef = useRef<L.LayerGroup | null>(null); // Tamamlanmış poligonlar için katman
   
   // const markersRef = useRef<L.Marker[]>([]); // KALDIRILDI
   // const linesRef = useRef<L.Polyline[]>([]); // KALDIRILDI
@@ -121,6 +146,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     if (!polygonLayerRef.current && drawingLayerRef.current) {
       polygonLayerRef.current = L.layerGroup().addTo(drawingLayerRef.current);
     }
+    // Tamamlanmış poligonlar için ayrı katman oluştur (haritaya doğrudan eklenir)
+    if (!completedPolygonsLayerRef.current) {
+      completedPolygonsLayerRef.current = L.layerGroup().addTo(map);
+    }
     
     return () => {
       if (drawingLayerRef.current) {
@@ -129,6 +158,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
         markersLayerRef.current = null;
         linesLayerRef.current = null;
         polygonLayerRef.current = null;
+      }
+      if (completedPolygonsLayerRef.current) {
+        map.removeLayer(completedPolygonsLayerRef.current);
+        completedPolygonsLayerRef.current = null;
       }
     };
   }, [map]);
@@ -279,6 +312,46 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     }
   };
 
+  // Kalıcı polygon ekle (tamamlanmış poligonlar için)
+  const addPermanentPolygon = (points: PolygonPoint[], color: string = polygonColor, name: string = polygonName) => {
+    if (!completedPolygonsLayerRef.current || points.length < 3) return;
+    
+    const latLngs = points.map(p => [p.lat, p.lng] as [number, number]);
+    
+    const polygon = L.polygon(latLngs, {
+      color: color,
+      weight: 2,
+      fillColor: color,
+      fillOpacity: 0.3,
+      opacity: 0.8
+    });
+    
+    // Polygon'a tooltip ekle
+    try {
+      const coordinates = [...points.map(p => [p.lng, p.lat]), [points[0].lng, points[0].lat]];
+      const turfPolygon = turf.polygon([coordinates]);
+      const area = turf.area(turfPolygon); // m² cinsinden
+      const areaInDonum = (area / 10000).toFixed(2);
+      
+      polygon.bindTooltip(`
+        <strong>${name}</strong><br>
+        Alan: ${areaInDonum} dönüm<br>
+        (${Math.round(area)} m²)
+      `, {
+        permanent: false,
+        direction: 'center',
+        className: 'polygon-tooltip'
+      });
+    } catch (error) {
+      console.error('Tooltip oluşturma hatası:', error);
+    }
+    
+    polygon.addTo(completedPolygonsLayerRef.current);
+    console.log(`🔥 Kalıcı polygon eklendi: ${name}, renk: ${color}`);
+    
+    return polygon;
+  };
+
   // Polygon tamamla
   const completePolygon = () => {
     if (currentPoints.length < 3) {
@@ -293,8 +366,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       area: currentArea
     };
     
-    // Çizim modunu durdurmak yerine sadece mevcut çizimi temizle
-    // Bu sayede kullanıcı aynı tipte yeni polygon çizebilir
+    // ÖNEMLİ: Polygon'u kalıcı katmana ekle (kaybolmasını önler)
+    addPermanentPolygon(currentPoints, polygonColor, polygonName);
+    
+    // Sadece çizim katmanlarını temizle (kalıcı polygon korunur)
     setCurrentPoints([]);
     setCurrentArea(0);
     markersLayerRef.current?.clearLayers();
@@ -303,7 +378,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     
     onPolygonComplete?.(polygon);
     
-    console.log('✅ Polygon tamamlandı, alan:', polygon.area, 'm²');
+    console.log('✅ Polygon tamamlandı ve kalıcı katmana eklendi, alan:', polygon.area, 'm²');
   };
 
   // Çizimi temizle
@@ -321,10 +396,21 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   // Tam temizleme (çizim durdur + temizle)
   const fullClear = () => {
+    console.log('🧹 Tam temizleme başlatılıyor...');
+    
+    // Önce tüm kalıcı poligonları temizle
+    if (completedPolygonsLayerRef.current) {
+      completedPolygonsLayerRef.current.clearLayers();
+      console.log('✅ Kalıcı poligonlar temizlendi');
+    }
+    
+    // Sonra çizim durumunu temizle
     if (isDrawing) {
       stopDrawing();
     }
     clearDrawing();
+    
+    console.log('🧹 Tüm poligonlar (kalıcı dahil) temizlendi');
     
     // Güvenlik için double-click zoom'u yeniden aktifleştir
     map.doubleClickZoom.enable();
@@ -402,7 +488,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   useEffect(() => {
     if (externalClearTrigger > 0) {
-      clearDrawing();
+      fullClear(); // clearDrawing yerine fullClear kullan
     }
   }, [externalClearTrigger]);
 
@@ -414,6 +500,16 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       hideHelpMessage();
     }
   }, [isDrawing]);
+
+  // Mevcut poligonları yükle (component mount olduğunda)
+  useEffect(() => {
+    if (existingPolygons && existingPolygons.length > 0 && completedPolygonsLayerRef.current) {
+      console.log('📋 Mevcut poligonlar yükleniyor:', existingPolygons.length, 'adet');
+      existingPolygons.forEach((item, index) => {
+        addPermanentPolygon(item.polygon.points, item.color, item.name);
+      });
+    }
+  }, [existingPolygons, completedPolygonsLayerRef.current]);
 
   return (
     <>
