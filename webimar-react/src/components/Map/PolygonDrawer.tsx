@@ -133,12 +133,9 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     };
   }, [map]);
 
-  // Harita tıklama işleyicisi - useCallback ile optimize edilmiş
-  const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
-    console.log('🗺️ handleMapClick çağrıldı, isDrawing (iç):', isDrawing); 
+  // Harita tıklama işleyicisi - basitleştirilmiş versiyon
+  const handleMapClick = (e: L.LeafletMouseEvent) => {
     if (!isDrawing) return;
-    
-    console.log('🖱️ Harita tıklandı:', e.latlng);
     
     e.originalEvent?.stopPropagation();
     e.originalEvent?.preventDefault();
@@ -148,19 +145,22 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       lng: e.latlng.lng
     };
     
-    setCurrentPoints(prevPoints => {
-      const newPoints = [...prevPoints, newPoint];
-      console.log('📍 Yeni nokta eklendi. Toplam:', newPoints.length);
-      addMarker(e.latlng, newPoints.length);
-      if (newPoints.length >= 2) {
-        addLine(newPoints[newPoints.length - 2], newPoint);
-      }
-      if (newPoints.length >= 3) {
-        updatePolygon(newPoints);
-      }
-      return newPoints;
-    });
-  }, [isDrawing]); // isDrawing bağımlılığı eklendi
+    // Yeni nokta listesini oluştur
+    const newPoints = [...currentPoints, newPoint];
+    console.log('📍 Nokta eklendi. Toplam:', newPoints.length);
+    
+    // State'i güncelle
+    setCurrentPoints(newPoints);
+    
+    // Visual güncellemeleri hemen yap
+    addMarker(e.latlng, newPoints.length);
+    if (newPoints.length >= 2) {
+      addLine(newPoints[newPoints.length - 2], newPoint);
+    }
+    if (newPoints.length >= 3) {
+      updatePolygon(newPoints);
+    }
+  };
 
   // useMapEvents hook'u ile harita olaylarını yönet
   useMapEvents({
@@ -176,14 +176,13 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const startDrawing = () => {
     if (disabled || isDrawing) return;
     
-    console.log('🎨 Polygon çizim başlatıldı');
     setIsDrawing(true);
     onDrawingStateChange?.(true);
     setCurrentPoints([]);
     setCurrentArea(0);
     clearDrawing();
     showHelpMessage();
-    console.log('👆 Çizim modu aktif, tıklama bekleniyor.');
+    console.log('🎨 Çizim başlatıldı');
   };
 
   // Çizimi durdur
@@ -191,7 +190,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setIsDrawing(false);
     onDrawingStateChange?.(false);
     hideHelpMessage();
-    console.log('🛑 Çizim durduruldu.');
+    console.log('🛑 Çizim durduruldu');
   };
 
   // Marker ekle
@@ -296,7 +295,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     
     onPolygonComplete?.(polygon);
     
-    console.log('🔄 Yeni çizim için hazır, çizim modu aktif kalıyor');
+    console.log('✅ Polygon tamamlandı, alan:', polygon.area, 'm²');
   };
 
   // Çizimi temizle
@@ -356,21 +355,18 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   // External triggers
   useEffect(() => {
     if (externalDrawingTrigger && !disabled) {
-      console.log('🎯 External drawing trigger alındı');
       startDrawing();
     }
   }, [externalDrawingTrigger]);
 
   useEffect(() => {
     if (externalStopTrigger) {
-      console.log('⏹️ External stop trigger alındı');
       stopDrawing();
     }
   }, [externalStopTrigger]);
 
   useEffect(() => {
     if (externalClearTrigger) {
-      console.log('🧹 External clear trigger alındı');
       clearDrawing();
     }
   }, [externalClearTrigger]);

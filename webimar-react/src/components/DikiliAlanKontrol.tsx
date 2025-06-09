@@ -516,22 +516,28 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
 
   // Harita fonksiyonları
   const startDrawingMode = (mode: 'tarla' | 'dikili') => {
-    console.log('🎯 startDrawingMode çağrıldı:', { mode, isDrawing, currentDrawingMode: drawingMode });
-    
-    if (isDrawing) {
-      // Eğer çizim modundaysa, önce dur, sonra yeni modu başlat
-      console.log('⏹️ Önceki çizim durduruluyor...');
-      setStopTrigger(prev => !prev);
-      setIsDrawing(false);
+    // Eğer aynı mod aktifse, hiçbir şey yapma
+    if (drawingMode === mode && isDrawing) {
+      return;
     }
     
-    // State'leri doğru sırayla güncelle
-    console.log('🔄 Çizim modu ayarlanıyor:', mode);
+    // Farklı bir mod aktifse, önce dur
+    if (isDrawing && drawingMode !== mode) {
+      setStopTrigger(prev => !prev);
+      setIsDrawing(false);
+      
+      // Kısa bir gecikme ile yeni modu başlat
+      setTimeout(() => {
+        setDrawingMode(mode);
+        setIsDrawing(true);
+        setDrawingTrigger(prev => !prev);
+      }, 100);
+      return;
+    }
+    
+    // Normal başlatma
     setDrawingMode(mode);
     setIsDrawing(true);
-    
-    // Çizim tetikleyicisini aktifleştir
-    console.log('🚀 Çizim tetikleniyor...');
     setDrawingTrigger(prev => !prev);
   };
 
@@ -542,8 +548,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   };
 
   const handlePolygonComplete = (polygon: DrawnPolygon) => {
-    console.log('✅ Polygon tamamlandı:', { mode: drawingMode, area: polygon.area });
-    
     if (drawingMode === 'tarla') {
       setTarlaPolygon(polygon);
       setTarlaAlani(Math.round(polygon.area));
@@ -554,7 +558,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     
     // Çizim modunu sonlandırmak yerine, sadece mevcut çizimi temizle
     // Bu sayede kullanıcı aynı tipte yeni polygon çizebilir
-    console.log('🔄 Yeni çizim için hazırlanıyor...');
     setIsDrawing(false);
   };
 
@@ -571,22 +574,13 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   // Drawing state change handler'ı kaldırıldı çünkü infinite loop yaratıyordu
 
   const clearAllPolygons = () => {
-    console.log('🗑️ clearAllPolygons çağrıldı, mevcut state:', { 
-      isDrawing, 
-      drawingMode, 
-      tarlaPolygon: !!tarlaPolygon, 
-      dikiliPolygon: !!dikiliPolygon 
-    });
-    
     // Önce çizimi durdur
     if (isDrawing) {
-      console.log('⏹️ Aktif çizim durduruluyor...');
       setStopTrigger(prev => !prev);
       setIsDrawing(false);
     }
     
     // Temizleme işlemini gerçekleştir
-    console.log('🧹 Tüm poligonlar temizleniyor...');
     setClearTrigger(prev => !prev);
     setTarlaPolygon(null);
     setDikiliPolygon(null);
@@ -1195,7 +1189,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     $color="#8B4513"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('🟤 Tarla butonuna tıklandı');
                       startDrawingMode('tarla');
                     }}
                     disabled={false}
@@ -1208,7 +1201,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     $color="#27ae60"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('🟢 Dikili butonuna tıklandı');
                       startDrawingMode('dikili');
                     }}
                     disabled={false}
@@ -1226,7 +1218,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   <Button 
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('🗑️ Temizle butonuna tıklandı');
                       clearAllPolygons();
                     }} 
                     $variant="secondary"
