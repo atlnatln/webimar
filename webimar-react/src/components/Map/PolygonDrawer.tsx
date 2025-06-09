@@ -60,15 +60,35 @@ interface DrawnPolygon {
 interface PolygonDrawerProps {
   onPolygonComplete?: (polygon: DrawnPolygon) => void;
   onPolygonClear?: () => void;
-  onDrawingStateChange?: (isDrawing: boolean) => void; // Çizim durumu callback'i
+  onDrawingStateChange?: (isDrawing: boolean) => void;
   disabled?: boolean;
+  polygonColor?: string;
+  polygonName?: string;
+  hideControls?: boolean;
+  autoStart?: boolean;
+  externalDrawingTrigger?: boolean;
+  externalStopTrigger?: boolean;
+  externalClearTrigger?: boolean;
+  existingPolygons?: Array<{
+    polygon: DrawnPolygon;
+    color: string;
+    name: string;
+  }>;
 }
 
 const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   onPolygonComplete,
   onPolygonClear,
   onDrawingStateChange,
-  disabled = false
+  disabled = false,
+  polygonColor = '#e74c3c',
+  polygonName = 'Polygon',
+  hideControls = false,
+  autoStart = false,
+  externalDrawingTrigger = false,
+  externalStopTrigger = false,
+  externalClearTrigger = false,
+  existingPolygons = [],
 }) => {
   const map = useMap();
   const [isDrawing, setIsDrawing] = useState(false);
@@ -258,13 +278,25 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       return;
     }
     
+    console.log('✅ Polygon tamamlandı, area:', currentArea);
+    
     const polygon: DrawnPolygon = {
       points: currentPoints,
       area: currentArea
     };
     
+    // Çizim modunu durdurmak yerine sadece mevcut çizimi temizle
+    // Bu sayede kullanıcı aynı tipte yeni polygon çizebilir
+    setCurrentPoints([]);
+    setCurrentArea(0);
+    markersLayerRef.current?.clearLayers();
+    linesLayerRef.current?.clearLayers();
+    polygonLayerRef.current?.clearLayers();
+    hideHelpMessage();
+    
     onPolygonComplete?.(polygon);
-    stopDrawing();
+    
+    console.log('🔄 Yeni çizim için hazır, çizim modu aktif kalıyor');
   };
 
   // Çizimi temizle
@@ -321,40 +353,66 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     }
   };
 
+  // External triggers
+  useEffect(() => {
+    if (externalDrawingTrigger && !disabled) {
+      console.log('🎯 External drawing trigger alındı');
+      startDrawing();
+    }
+  }, [externalDrawingTrigger]);
+
+  useEffect(() => {
+    if (externalStopTrigger) {
+      console.log('⏹️ External stop trigger alındı');
+      stopDrawing();
+    }
+  }, [externalStopTrigger]);
+
+  useEffect(() => {
+    if (externalClearTrigger) {
+      console.log('🧹 External clear trigger alındı');
+      clearDrawing();
+    }
+  }, [externalClearTrigger]);
+
   return (
-    <DrawingControls>
-      {!isDrawing ? (
-        <DrawButton onClick={startDrawing} disabled={disabled}>
-          🎨 Polygon Çiz
-        </DrawButton>
-      ) : (
-        <>
-          <DrawButton $active onClick={stopDrawing}>
-            ⏹️ Çizimi Durdur
-          </DrawButton>
-          <DrawButton onClick={completePolygon} disabled={currentPoints.length < 3}>
-            ✅ Tamamla
-          </DrawButton>
-        </>
-      )}
-      
-      <DrawButton onClick={fullClear}>
-        🗑️ Temizle
-      </DrawButton>
-      
-      {isDrawing && (
-        <InfoPanel>
-          <div><strong>Çizim Bilgileri:</strong></div>
-          <div>Nokta Sayısı: {currentPoints.length}</div>
-          {currentArea > 0 && (
-            <div>Alan: {(currentArea / 10000).toFixed(2)} dönüm</div>
+    <>
+      {!hideControls && (
+        <DrawingControls>
+          {!isDrawing ? (
+            <DrawButton onClick={startDrawing} disabled={disabled}>
+              🎨 Polygon Çiz
+            </DrawButton>
+          ) : (
+            <>
+              <DrawButton $active onClick={stopDrawing}>
+                ⏹️ Çizimi Durdur
+              </DrawButton>
+              <DrawButton onClick={completePolygon} disabled={currentPoints.length < 3}>
+                ✅ Tamamla
+              </DrawButton>
+            </>
           )}
-          <div style={{ marginTop: 4, fontSize: 10, color: '#666' }}>
-            Çift tıklayarak tamamlayın
-          </div>
-        </InfoPanel>
+          
+          <DrawButton onClick={fullClear}>
+            🗑️ Temizle
+          </DrawButton>
+          
+          {isDrawing && (
+            <InfoPanel>
+              <div><strong>Çizim Bilgileri:</strong></div>
+              <div>Nokta Sayısı: {currentPoints.length}</div>
+              {currentArea > 0 && (
+                <div>Alan: {(currentArea / 10000).toFixed(2)} dönüm</div>
+              )}
+              <div style={{ marginTop: 4, fontSize: 10, color: '#666' }}>
+                Çift tıklayarak tamamlayın
+              </div>
+            </InfoPanel>
+          )}
+        </DrawingControls>
       )}
-    </DrawingControls>
+    </>
   );
 };
 

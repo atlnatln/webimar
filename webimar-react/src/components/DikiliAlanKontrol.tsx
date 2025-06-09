@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { MapContainer, TileLayer } from 'react-leaflet';
+import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
+import 'leaflet/dist/leaflet.css';
 
 // Stil bileşenleri
 const KontrolPanel = styled.div<{ $isOpen: boolean }>`
@@ -256,6 +259,74 @@ const InfoBox = styled.div`
   margin-bottom: 16px;
 `;
 
+const MapWrapper = styled.div`
+  height: 300px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 2px solid #e0e6ed;
+  
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+  }
+`;
+
+const DrawingModeContainer = styled.div`
+  margin-bottom: 16px;
+`;
+
+const DrawingModeButton = styled.button<{ $active: boolean; $color: string }>`
+  padding: 8px 16px;
+  margin-right: 8px;
+  border: 2px solid ${props => props.$color};
+  background: ${props => props.$active ? props.$color : 'white'};
+  color: ${props => props.$active ? 'white' : props.$color};
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$color};
+    color: white;
+  }
+`;
+
+const AreaDisplayContainer = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const AreaDisplayBox = styled.div<{ $color: string }>`
+  padding: 12px;
+  border: 2px solid ${props => props.$color};
+  border-radius: 6px;
+  background: ${props => props.$color}10;
+`;
+
+const AreaLabel = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+`;
+
+const AreaValue = styled.div`
+  font-size: 18px;
+  font-weight: bold;
+  color: #2c3e50;
+`;
+
+const AreaSubtext = styled.div`
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+`;
+
 // Ağaç türleri verisi (eski sistemden)
 interface AgacTuru {
   sira: number;
@@ -281,6 +352,8 @@ interface DikiliAlanKontrolProps {
 
 const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
+  
+  // Mevcut state'ler
   const [agacVerileri, setAgacVerileri] = useState<AgacTuru[]>([]);
   const [eklenenAgaclar, setEklenenAgaclar] = useState<EklenenAgac[]>([]);
   
@@ -293,6 +366,17 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   
   // Sonuç durumu
   const [hesaplamaSonucu, setHesaplamaSonucu] = useState<any>(null);
+  
+  // Harita ile ilgili state'ler
+  const [drawingMode, setDrawingMode] = useState<'tarla' | 'dikili' | null>(null);
+  const [tarlaPolygon, setTarlaPolygon] = useState<DrawnPolygon | null>(null);
+  const [dikiliPolygon, setDikiliPolygon] = useState<DrawnPolygon | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  
+  // PolygonDrawer external kontrolü için
+  const [drawingTrigger, setDrawingTrigger] = useState(false);
+  const [stopTrigger, setStopTrigger] = useState(false);
+  const [clearTrigger, setClearTrigger] = useState(false);
 
   // Ağaç verilerini yükle
   useEffect(() => {
@@ -398,6 +482,109 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const agacSil = (index: number) => {
     const yeniListe = eklenenAgaclar.filter((_, i) => i !== index);
     setEklenenAgaclar(yeniListe);
+  };
+
+  // Harita fonksiyonları
+  const startDrawingMode = (mode: 'tarla' | 'dikili') => {
+    console.log('🎯 startDrawingMode çağrıldı:', { mode, isDrawing, currentDrawingMode: drawingMode });
+    
+    if (isDrawing) {
+      // Eğer çizim modundaysa, önce dur, sonra yeni modu başlat
+      console.log('⏹️ Önceki çizim durduruluyor...');
+      setStopTrigger(prev => !prev);
+      setIsDrawing(false);
+    }
+    
+    // State'leri doğru sırayla güncelle
+    console.log('🔄 Çizim modu ayarlanıyor:', mode);
+    setDrawingMode(mode);
+    setIsDrawing(true);
+    
+    // Çizim tetikleyicisini aktifleştir
+    console.log('🚀 Çizim tetikleniyor...');
+    setDrawingTrigger(prev => !prev);
+  };
+
+  const stopDrawingMode = () => {
+    setStopTrigger(prev => !prev); // Toggle state to trigger stop
+    setDrawingMode(null);
+    setIsDrawing(false);
+  };
+
+  const handlePolygonComplete = (polygon: DrawnPolygon) => {
+    console.log('✅ Polygon tamamlandı:', { mode: drawingMode, area: polygon.area });
+    
+    if (drawingMode === 'tarla') {
+      setTarlaPolygon(polygon);
+      setTarlaAlani(Math.round(polygon.area));
+    } else if (drawingMode === 'dikili') {
+      setDikiliPolygon(polygon);
+      setDikiliAlan(Math.round(polygon.area));
+    }
+    
+    // Çizim modunu sonlandırmak yerine, sadece mevcut çizimi temizle
+    // Bu sayede kullanıcı aynı tipte yeni polygon çizebilir
+    console.log('🔄 Yeni çizim için hazırlanıyor...');
+    setIsDrawing(false);
+  };
+
+  const handlePolygonClear = () => {
+    if (drawingMode === 'tarla') {
+      setTarlaPolygon(null);
+      setTarlaAlani(0);
+    } else if (drawingMode === 'dikili') {
+      setDikiliPolygon(null);
+      setDikiliAlan(0);
+    }
+  };
+
+  // Drawing state change handler'ı kaldırıldı çünkü infinite loop yaratıyordu
+
+  const clearAllPolygons = () => {
+    console.log('🗑️ clearAllPolygons çağrıldı, mevcut state:', { 
+      isDrawing, 
+      drawingMode, 
+      tarlaPolygon: !!tarlaPolygon, 
+      dikiliPolygon: !!dikiliPolygon 
+    });
+    
+    // Önce çizimi durdur
+    if (isDrawing) {
+      console.log('⏹️ Aktif çizim durduruluyor...');
+      setStopTrigger(prev => !prev);
+      setIsDrawing(false);
+    }
+    
+    // Temizleme işlemini gerçekleştir
+    console.log('🧹 Tüm poligonlar temizleniyor...');
+    setClearTrigger(prev => !prev);
+    setTarlaPolygon(null);
+    setDikiliPolygon(null);
+    setTarlaAlani(0);
+    setDikiliAlan(0);
+    setDrawingMode(null);
+    
+    // Hesaplama sonucunu da temizle
+    setHesaplamaSonucu(null);
+  };
+
+  // Tab değişikliği işleyicisi
+  const handleTabChange = (tab: 'manuel' | 'harita') => {
+    setActiveTab(tab);
+    
+    // Haritadan manuel'e geçişte alan bilgilerini koru
+    if (tab === 'manuel') {
+      // Haritadan alınan alan bilgileri zaten state'te mevcut
+      // dikiliAlan ve tarlaAlani değerleri polygon'lardan geldiği için korunacak
+    }
+  };
+
+  const formatArea = (area: number) => {
+    return {
+      m2: area.toLocaleString('tr-TR'),
+      donum: (area / 1000).toFixed(2),
+      hectare: (area / 10000).toFixed(4)
+    };
   };
 
   // Hesaplama yap
@@ -566,10 +753,21 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   if (!isOpen) return null;
 
   return (
-    <KontrolPanel $isOpen={isOpen}>
+    <KontrolPanel 
+      $isOpen={isOpen}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="kontrol-title"
+      tabIndex={-1}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      }}
+    >
       <KontrolHeader>
-        <CloseButton onClick={onClose}>×</CloseButton>
-        <KontrolTitle>🌳 Dikili Alan Kontrolü</KontrolTitle>
+        <CloseButton onClick={onClose} aria-label="Kapat">×</CloseButton>
+        <KontrolTitle id="kontrol-title">🌳 Dikili Alan Kontrolü</KontrolTitle>
         <KontrolSubtitle>Bağ evi için dikili alan uygunluk kontrolü</KontrolSubtitle>
       </KontrolHeader>
 
@@ -577,13 +775,13 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
         <TabContainer>
           <TabButton 
             $active={activeTab === 'manuel'} 
-            onClick={() => setActiveTab('manuel')}
+            onClick={() => handleTabChange('manuel')}
           >
             📝 Manuel Kontrol
           </TabButton>
           <TabButton 
             $active={activeTab === 'harita'} 
-            onClick={() => setActiveTab('harita')}
+            onClick={() => handleTabChange('harita')}
           >
             🗺️ Haritadan Kontrol
           </TabButton>
@@ -597,9 +795,37 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                 Dikili tarım arazilerinde bağ evi yapılabilmesi için arazi büyüklüğünün 
                 en az 0,5 hektar (5000 m²) olması gerekmektedir.
               </InfoBox>
+              
+              {/* Haritadan gelen alan bilgisi uyarısı */}
+              {(tarlaPolygon || dikiliPolygon) && (
+                <div style={{ 
+                  background: '#e8f5e8', 
+                  border: '1px solid #c3e6cb', 
+                  color: '#155724',
+                  padding: '12px', 
+                  borderRadius: '6px', 
+                  marginBottom: '16px',
+                  fontSize: '14px'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+                    🗺️ Haritadan Alınan Veriler
+                  </div>
+                  {tarlaPolygon && (
+                    <div>✅ Tarla Alanı: {formatArea(tarlaPolygon.area).m2} m² ({formatArea(tarlaPolygon.area).donum} dönüm)</div>
+                  )}
+                  {dikiliPolygon && (
+                    <div>✅ Dikili Alan: {formatArea(dikiliPolygon.area).m2} m² ({formatArea(dikiliPolygon.area).donum} dönüm)</div>
+                  )}
+                  <div style={{ fontSize: '12px', marginTop: '8px', color: '#666' }}>
+                    Bu değerler harita üzerinden çizilen poligonlardan otomatik hesaplanmıştır.
+                  </div>
+                </div>
+              )}
+              
               <FormGroup>
-                <Label>Dikili Alan (m²)</Label>
+                <Label htmlFor="dikili-alan-input">Dikili Alan (m²)</Label>
                 <Input
+                  id="dikili-alan-input"
                   type="number"
                   value={dikiliAlan || ''}
                   onChange={(e) => setDikiliAlan(Number(e.target.value))}
@@ -609,8 +835,9 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
               </FormGroup>
               
               <FormGroup>
-                <Label>Tarla Alanı (m²)</Label>
+                <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
                 <Input
+                  id="tarla-alani-input"
                   type="number"
                   value={tarlaAlani || ''}
                   onChange={(e) => setTarlaAlani(Number(e.target.value))}
@@ -626,8 +853,9 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
             <FormSection>
               <SectionTitle>🌱 Ağaç Bilgileri</SectionTitle>
               <FormGroup>
-                <Label>Ağaç Türü</Label>
+                <Label htmlFor="agac-turu-select">Ağaç Türü</Label>
                 <Select
+                  id="agac-turu-select"
                   value={secilenAgacTuru}
                   onChange={(e) => {
                     setSecilenAgacTuru(e.target.value);
@@ -645,8 +873,9 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
 
               {secilenAgacTuru && (
                 <FormGroup>
-                  <Label>Ağaç Tipi</Label>
+                  <Label htmlFor="agac-tipi-select">Ağaç Tipi</Label>
                   <Select
+                    id="agac-tipi-select"
                     value={secilenAgacTipi}
                     onChange={(e) => setSecilenAgacTipi(e.target.value as any)}
                   >
@@ -660,8 +889,9 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
               )}
 
               <FormGroup>
-                <Label>Ağaç Sayısı</Label>
+                <Label htmlFor="agac-sayisi-input">Ağaç Sayısı</Label>
                 <Input
+                  id="agac-sayisi-input"
                   type="number"
                   value={agacSayisi || ''}
                   onChange={(e) => setAgacSayisi(Number(e.target.value))}
@@ -851,13 +1081,184 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
             )}
           </>
         ) : (
-          <FormSection>
-            <SectionTitle>🗺️ Haritadan Alan Seçimi</SectionTitle>
-            <InfoBox>
-              Haritadan alan seçimi özelliği yakında eklenecektir. 
-              Şu an için manuel kontrol seçeneğini kullanabilirsiniz.
-            </InfoBox>
-          </FormSection>
+          // Harita sekmesi
+          <>
+            <FormSection>
+              <SectionTitle>🗺️ Harita Üzerinden Alan Belirleme</SectionTitle>
+              <InfoBox>
+                Harita üzerinde poligon çizerek tarla alanı ve dikili alanı belirleyebilirsiniz. 
+                Önce tarla alanını, sonra dikili alanı çizin.
+              </InfoBox>
+              
+              {/* Çizim modu seçimi */}
+              <DrawingModeContainer>
+                <div style={{ marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>
+                  Çizim Modu:
+                </div>
+                
+                {/* Çizim durumu göstergesi */}
+                {isDrawing && drawingMode && (
+                  <div style={{ 
+                    background: drawingMode === 'tarla' ? '#8B4513' : '#27ae60', 
+                    color: 'white', 
+                    padding: '6px 12px', 
+                    borderRadius: '4px', 
+                    marginBottom: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600'
+                  }}>
+                    🎨 {drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'} çiziliyor... 
+                    <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+                      (Haritaya tıklayarak çizin, çift tıklayarak bitirin)
+                    </span>
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                  <DrawingModeButton
+                    $active={drawingMode === 'tarla'}
+                    $color="#8B4513"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('🟤 Tarla butonuna tıklandı');
+                      startDrawingMode('tarla');
+                    }}
+                    disabled={false}
+                  >
+                    🟤 Tarla Alanı Çiz
+                  </DrawingModeButton>
+                  
+                  <DrawingModeButton
+                    $active={drawingMode === 'dikili'}
+                    $color="#27ae60"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('🟢 Dikili butonuna tıklandı');
+                      startDrawingMode('dikili');
+                    }}
+                    disabled={false}
+                  >
+                    🟢 Dikili Alan Çiz
+                  </DrawingModeButton>
+                  
+                  {/* Çizimi durdur butonu - sadece çizim aktifken */}
+                  {isDrawing && (
+                    <Button onClick={stopDrawingMode} $variant="warning">
+                      ⏹️ Çizimi Durdur
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('🗑️ Temizle butonuna tıklandı');
+                      clearAllPolygons();
+                    }} 
+                    $variant="secondary"
+                  >
+                    🗑️ Tümünü Temizle
+                  </Button>
+                </div>
+              </DrawingModeContainer>
+              
+              {/* Harita */}
+              <MapWrapper>
+                <MapContainer
+                  center={[38.4237, 27.1428]} // İzmir merkezi
+                  zoom={13}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  />
+                  
+                  {/* Polygon çizim component'i - her zaman render et */}
+                  <PolygonDrawer
+                    onPolygonComplete={handlePolygonComplete}
+                    onPolygonClear={handlePolygonClear}
+                    disabled={!drawingMode} // Sadece drawing mode yoksa disabled
+                    polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
+                    polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
+                    hideControls={true}
+                    externalDrawingTrigger={drawingTrigger}
+                    externalStopTrigger={stopTrigger}
+                    externalClearTrigger={clearTrigger}
+                    existingPolygons={[
+                      ...(tarlaPolygon && drawingMode !== 'tarla' ? [{
+                        polygon: tarlaPolygon,
+                        color: '#8B4513',
+                        name: 'Tarla Alanı'
+                      }] : []),
+                      ...(dikiliPolygon && drawingMode !== 'dikili' ? [{
+                        polygon: dikiliPolygon,
+                        color: '#27ae60',
+                        name: 'Dikili Alan'
+                      }] : [])
+                    ]}
+                  />
+                </MapContainer>
+              </MapWrapper>
+              
+              {/* Alan gösterimi */}
+              <AreaDisplayContainer>
+                <AreaDisplayBox $color="#8B4513">
+                  <AreaLabel>🟤 Tarla Alanı</AreaLabel>
+                  <AreaValue>
+                    {tarlaPolygon ? formatArea(tarlaPolygon.area).m2 : '0'} m²
+                  </AreaValue>
+                  <AreaSubtext>
+                    {tarlaPolygon ? `${formatArea(tarlaPolygon.area).donum} dönüm` : 'Çizilmedi'}
+                  </AreaSubtext>
+                </AreaDisplayBox>
+                
+                <AreaDisplayBox $color="#27ae60">
+                  <AreaLabel>🟢 Dikili Alan</AreaLabel>
+                  <AreaValue>
+                    {dikiliPolygon ? formatArea(dikiliPolygon.area).m2 : '0'} m²
+                  </AreaValue>
+                  <AreaSubtext>
+                    {dikiliPolygon ? `${formatArea(dikiliPolygon.area).donum} dönüm` : 'Çizilmedi'}
+                  </AreaSubtext>
+                </AreaDisplayBox>
+              </AreaDisplayContainer>
+              
+              {/* İlerleme durumu */}
+              {(tarlaPolygon || dikiliPolygon) && (
+                <div style={{ 
+                  background: '#f8f9fa', 
+                  padding: '12px', 
+                  borderRadius: '6px', 
+                  marginBottom: '16px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>📊 Alan Belirleme Durumu:</div>
+                  <div style={{ fontSize: '14px' }}>
+                    ✅ Tarla Alanı: {tarlaPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
+                    <br/>
+                    ✅ Dikili Alan: {dikiliPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
+                  </div>
+                  
+                  {tarlaPolygon && dikiliPolygon && (
+                    <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e8', borderRadius: '4px' }}>
+                      🎯 Her iki alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Manuel kontrole geçiş butonu */}
+              {tarlaPolygon && dikiliPolygon && (
+                <Button 
+                  onClick={() => handleTabChange('manuel')} 
+                  $variant="primary"
+                  style={{ width: '100%' }}
+                >
+                  📝 Ağaç Bilgilerini Eklemek İçin Manuel Kontrole Geç
+                </Button>
+              )}
+            </FormSection>
+          </>
         )}
       </KontrolContent>
     </KontrolPanel>
