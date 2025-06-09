@@ -165,8 +165,11 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   // useMapEvents hook'u ile harita olaylarını yönet
   useMapEvents({
     click: handleMapClick,
-    dblclick: () => {
+    dblclick: (e) => {
       if (isDrawing) {
+        // Event'i durdur ve polygon'u tamamla
+        e.originalEvent?.stopPropagation();
+        e.originalEvent?.preventDefault();
         completePolygon();
       }
     }
@@ -181,14 +184,22 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setCurrentPoints([]);
     setCurrentArea(0);
     clearDrawing();
-    console.log('🎨 Çizim başlatıldı');
+    
+    // Çizim sırasında çift tıklama yakınlaştırmasını devre dışı bırak
+    map.doubleClickZoom.disable();
+    
+    console.log('🎨 Çizim başlatıldı, double-click zoom devre dışı');
   };
 
   // Çizimi durdur
   const stopDrawing = () => {
     setIsDrawing(false);
     onDrawingStateChange?.(false);
-    console.log('🛑 Çizim durduruldu');
+    
+    // Çizim bittiğinde çift tıklama yakınlaştırmasını tekrar aktifleştir
+    map.doubleClickZoom.enable();
+    
+    console.log('🛑 Çizim durduruldu, double-click zoom aktif');
   };
 
   // Marker ekle
@@ -314,6 +325,9 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       stopDrawing();
     }
     clearDrawing();
+    
+    // Güvenlik için double-click zoom'u yeniden aktifleştir
+    map.doubleClickZoom.enable();
   };
 
   // Yardım mesajı göster
