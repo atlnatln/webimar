@@ -66,9 +66,9 @@ interface PolygonDrawerProps {
   polygonName?: string;
   hideControls?: boolean;
   autoStart?: boolean;
-  externalDrawingTrigger?: boolean;
-  externalStopTrigger?: boolean;
-  externalClearTrigger?: boolean;
+  externalDrawingTrigger?: number;
+  externalStopTrigger?: number;
+  externalClearTrigger?: number;
   existingPolygons?: Array<{
     polygon: DrawnPolygon;
     color: string;
@@ -85,9 +85,9 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   polygonName = 'Polygon',
   hideControls = false,
   autoStart = false,
-  externalDrawingTrigger = false,
-  externalStopTrigger = false,
-  externalClearTrigger = false,
+  externalDrawingTrigger = 0,
+  externalStopTrigger = 0,
+  externalClearTrigger = 0,
   existingPolygons = [],
 }) => {
   const map = useMap();
@@ -105,7 +105,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   // const linesRef = useRef<L.Polyline[]>([]); // KALDIRILDI
   // const polygonRef = useRef<L.Polygon | null>(null); // KALDIRILDI
   // const mapClickHandlerRef = useRef<((e: L.LeafletMouseEvent) => void) | null>(null); // KALDIRILDI, useMapEvents kullanılıyor
-  const helpMarkerRef = useRef<L.Marker | null>(null);
+  const helpMarkerRef = useRef<HTMLDivElement | null>(null);
 
   // Çizim katmanlarını başlat
   useEffect(() => {
@@ -181,7 +181,6 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setCurrentPoints([]);
     setCurrentArea(0);
     clearDrawing();
-    showHelpMessage();
     console.log('🎨 Çizim başlatıldı');
   };
 
@@ -189,7 +188,6 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const stopDrawing = () => {
     setIsDrawing(false);
     onDrawingStateChange?.(false);
-    hideHelpMessage();
     console.log('🛑 Çizim durduruldu');
   };
 
@@ -291,7 +289,6 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     markersLayerRef.current?.clearLayers();
     linesLayerRef.current?.clearLayers();
     polygonLayerRef.current?.clearLayers();
-    hideHelpMessage();
     
     onPolygonComplete?.(polygon);
     
@@ -321,55 +318,88 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   // Yardım mesajı göster
   const showHelpMessage = () => {
-    const helpMarker = L.marker(map.getCenter(), {
-      icon: L.divIcon({
-        className: 'help-marker',
-        html: `<div style="
-          background-color: rgba(52, 152, 219, 0.9);
-          color: white;
-          padding: 8px 12px;
-          border-radius: 4px;
-          font-size: 12px;
-          white-space: nowrap;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        ">📍 Polygon çizmek için haritaya tıklayın</div>`,
-        iconSize: [200, 30],
-        iconAnchor: [100, 15]
-      })
-    });
-    
-    if (drawingLayerRef.current) {
-      helpMarker.addTo(drawingLayerRef.current);
-      helpMarkerRef.current = helpMarker;
+    // Eğer zaten help mesajı varsa, hiçbir şey yapma
+    if (helpMarkerRef.current) {
+      return;
     }
+    
+    // CSS ile sabit konumlandırma için DOM elementini doğrudan oluştur
+    const helpDiv = document.createElement('div');
+    helpDiv.className = 'polygon-help-message';
+    helpDiv.innerHTML = '📍 Polygon çizmek için haritaya tıklayın';
+    helpDiv.style.cssText = `
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      z-index: 1000;
+      background-color: rgba(255, 255, 255, 0.92);
+      color: #2c3e50;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid #bdc3c7;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      pointer-events: none;
+      white-space: nowrap;
+    `;
+    
+    // Harita konteynerine ekle
+    const mapContainer = map.getContainer();
+    mapContainer.appendChild(helpDiv);
+    
+    // Referansı sakla (DOM element olarak)
+    helpMarkerRef.current = helpDiv;
   };
 
   // Yardım mesajını gizle
   const hideHelpMessage = () => {
-    if (helpMarkerRef.current && drawingLayerRef.current) {
-      drawingLayerRef.current.removeLayer(helpMarkerRef.current);
+    // Mevcut referansı temizle
+    if (helpMarkerRef.current) {
+      const mapContainer = map.getContainer();
+      if (mapContainer.contains(helpMarkerRef.current)) {
+        mapContainer.removeChild(helpMarkerRef.current);
+      }
       helpMarkerRef.current = null;
     }
+    
+    // Tüm polygon-help-message sınıfına sahip elementleri temizle (güvenlik için)
+    const mapContainer = map.getContainer();
+    const existingMessages = mapContainer.querySelectorAll('.polygon-help-message');
+    existingMessages.forEach(element => {
+      if (mapContainer.contains(element)) {
+        mapContainer.removeChild(element);
+      }
+    });
   };
 
   // External triggers
   useEffect(() => {
-    if (externalDrawingTrigger && !disabled) {
+    if (externalDrawingTrigger > 0 && !disabled) {
       startDrawing();
     }
   }, [externalDrawingTrigger]);
 
   useEffect(() => {
-    if (externalStopTrigger) {
+    if (externalStopTrigger > 0) {
       stopDrawing();
     }
   }, [externalStopTrigger]);
 
   useEffect(() => {
-    if (externalClearTrigger) {
+    if (externalClearTrigger > 0) {
       clearDrawing();
     }
   }, [externalClearTrigger]);
+
+  // Help mesajını isDrawing state'ine göre yönet
+  useEffect(() => {
+    if (isDrawing) {
+      showHelpMessage();
+    } else {
+      hideHelpMessage();
+    }
+  }, [isDrawing]);
 
   return (
     <>
