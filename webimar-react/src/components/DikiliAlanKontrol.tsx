@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
@@ -377,6 +377,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const [drawingTrigger, setDrawingTrigger] = useState(0);
   const [stopTrigger, setStopTrigger] = useState(0);
   const [clearTrigger, setClearTrigger] = useState(0);
+  const [editTrigger, setEditTrigger] = useState<{ timestamp: number; polygonIndex: number }>({ timestamp: 0, polygonIndex: -1 });
 
   // Edit modu için state'ler
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -386,14 +387,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   useEffect(() => {
     console.log('📊 State değişti:', { drawingMode, isDrawing, drawingTrigger, stopTrigger });
   }, [drawingMode, isDrawing, drawingTrigger, stopTrigger]);
-
-  useEffect(() => {
-    console.log('🔵 drawingTrigger değişti:', drawingTrigger);
-  }, [drawingTrigger]);
-
-  useEffect(() => {
-    console.log('🔴 stopTrigger değişti:', stopTrigger);
-  }, [stopTrigger]);
 
   // Ağaç verilerini yükle
   useEffect(() => {
@@ -571,9 +564,11 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const handlePolygonComplete = (polygon: DrawnPolygon) => {
     console.log('✅ handlePolygonComplete çağrıldı:', { drawingMode, area: polygon.area });
     if (drawingMode === 'tarla') {
+      console.log('🟤 Tarla polygon set ediliyor:', polygon);
       setTarlaPolygon(polygon);
       setTarlaAlani(Math.round(polygon.area));
     } else if (drawingMode === 'dikili') {
+      console.log('🟢 Dikili polygon set ediliyor:', polygon);
       setDikiliPolygon(polygon);
       setDikiliAlan(Math.round(polygon.area));
     }
@@ -592,26 +587,72 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     }
   };
 
+  const handlePolygonEdit = (polygon: DrawnPolygon, index: number) => {
+    console.log('✏️ Polygon düzenlendi:', { polygon, index, currentStates: { tarlaAlani, dikiliAlan } });
+    
+    // Mevcut polygon yapısına göre index'i belirle
+    if (index === 0 && tarlaPolygon && !dikiliPolygon) {
+      // Sadece tarla varsa, index 0 = tarla
+      setTarlaPolygon(polygon);
+      setTarlaAlani(Math.round(polygon.area));
+      console.log('🟤 Tarla alanı güncellendi:', Math.round(polygon.area));
+    } else if (index === 0 && tarlaPolygon && dikiliPolygon) {
+      // İkisi de varsa, index 0 = tarla
+      setTarlaPolygon(polygon);
+      setTarlaAlani(Math.round(polygon.area));
+      console.log('🟤 Tarla alanı güncellendi (ikisi de var):', Math.round(polygon.area));
+    } else if (index === 1 && tarlaPolygon && dikiliPolygon) {
+      // İkisi de varsa, index 1 = dikili
+      setDikiliPolygon(polygon);
+      setDikiliAlan(Math.round(polygon.area));
+      console.log('🟢 Dikili alanı güncellendi:', Math.round(polygon.area));
+    } else if (index === 0 && !tarlaPolygon && dikiliPolygon) {
+      // Sadece dikili varsa, index 0 = dikili
+      setDikiliPolygon(polygon);
+      setDikiliAlan(Math.round(polygon.area));
+      console.log('🟢 Dikili alanı güncellendi (sadece dikili):', Math.round(polygon.area));
+    }
+  };
+
   // Drawing state change handler'ı kaldırıldı çünkü infinite loop yaratıyordu
 
   const clearAllPolygons = () => {
+    console.log('🧹 clearAllPolygons çağrıldı');
+    
     // Önce çizimi durdur
     if (isDrawing) {
       setStopTrigger(Date.now());
       setIsDrawing(false);
     }
     
-    // Temizleme işlemini gerçekleştir
-    setClearTrigger(Date.now());
+    // ÖNEMLİ: State'leri hemen sıfırla
     setTarlaPolygon(null);
     setDikiliPolygon(null);
     setTarlaAlani(0);
     setDikiliAlan(0);
     setDrawingMode(null);
-    
-    // Hesaplama sonucunu da temizle
     setHesaplamaSonucu(null);
+    
+    // Temizleme tetikleyicisini de hemen çalıştır 
+    setClearTrigger(Date.now());
+    console.log('🧹 Clear trigger ayarlandı, tüm state\'ler temizlendi');
   };
+
+  // existingPolygons'u useMemo ile optimize et (infinite loop önlemi)
+  const existingPolygons = useMemo(() => [
+    ...(tarlaPolygon ? [{
+      polygon: tarlaPolygon,
+      color: '#8B4513',
+      name: 'Tarla Alanı',
+      id: 'tarla'
+    }] : []),
+    ...(dikiliPolygon ? [{
+      polygon: dikiliPolygon,
+      color: '#27ae60',
+      name: 'Dikili Alan',
+      id: 'dikili'
+    }] : [])
+  ], [tarlaPolygon, dikiliPolygon]);
 
   // Tab değişikliği işleyicisi
   const handleTabChange = (tab: 'manuel' | 'harita') => {
@@ -868,14 +909,14 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     🗺️ Haritadan Alınan Veriler
                   </div>
                   {tarlaPolygon && (
-                    <div>✅ Tarla Alanı: {formatArea(tarlaPolygon.area).m2} m² ({formatArea(tarlaPolygon.area).donum} dönüm)</div>
+                    <div>✅ Tarla Alanı: {formatArea(tarlaAlani).m2} m² ({formatArea(tarlaAlani).donum} dönüm)</div>
                   )}
                   {dikiliPolygon && (
-                    <div>✅ Dikili Alan: {formatArea(dikiliPolygon.area).m2} m² ({formatArea(dikiliPolygon.area).donum} dönüm)</div>
+                    <div>✅ Dikili Alan: {formatArea(dikiliAlan).m2} m² ({formatArea(dikiliAlan).donum} dönüm)</div>
                   )}
                   {(tarlaPolygon || dikiliPolygon) && (
                     <div style={{ fontWeight: '600', color: '#2563eb' }}>
-                      📊 Toplam Parsel: {formatArea((tarlaPolygon?.area || 0) + (dikiliPolygon?.area || 0)).m2} m² ({formatArea((tarlaPolygon?.area || 0) + (dikiliPolygon?.area || 0)).donum} dönüm)
+                      📊 Toplam Parsel: {formatArea(dikiliAlan + tarlaAlani).m2} m² ({formatArea(dikiliAlan + tarlaAlani).donum} dönüm)
                     </div>
                   )}
                   <div style={{ fontSize: '12px', marginTop: '8px', color: '#666' }}>
@@ -1266,25 +1307,17 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   <PolygonDrawer
                     onPolygonComplete={handlePolygonComplete}
                     onPolygonClear={handlePolygonClear}
+                    onPolygonEdit={handlePolygonEdit}
                     disabled={!drawingMode} // Sadece drawing mode yoksa disabled
                     polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
                     polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
-                    hideControls={true}
+                    hideControls={false} // Edit butonlarının görünmesi için false yap
+                    enableEdit={true}
                     externalDrawingTrigger={drawingTrigger}
                     externalStopTrigger={stopTrigger}
                     externalClearTrigger={clearTrigger}
-                    existingPolygons={[
-                      ...(tarlaPolygon && drawingMode !== 'tarla' ? [{
-                        polygon: tarlaPolygon,
-                        color: '#8B4513',
-                        name: 'Tarla Alanı'
-                      }] : []),
-                      ...(dikiliPolygon && drawingMode !== 'dikili' ? [{
-                        polygon: dikiliPolygon,
-                        color: '#27ae60',
-                        name: 'Dikili Alan'
-                      }] : [])
-                    ]}
+                    externalEditTrigger={editTrigger}
+                    existingPolygons={existingPolygons}
                   />
                 </MapContainer>
               </MapWrapper>
@@ -1292,23 +1325,92 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
               {/* Alan gösterimi */}
               <AreaDisplayContainer>
                 <AreaDisplayBox $color="#8B4513">
-                  <AreaLabel>🟤 Tarla Alanı</AreaLabel>
-                  <AreaValue>
-                    {tarlaPolygon ? formatArea(tarlaPolygon.area).m2 : '0'} m²
-                  </AreaValue>
-                  <AreaSubtext>
-                    {tarlaPolygon ? `${formatArea(tarlaPolygon.area).donum} dönüm` : 'Çizilmedi'}
-                  </AreaSubtext>
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <AreaLabel>🟤 Tarla Alanı</AreaLabel>
+                        <AreaValue>
+                          {tarlaAlani > 0 ? formatArea(tarlaAlani).m2 : '0'} m²
+                        </AreaValue>
+                        <AreaSubtext>
+                          {tarlaAlani > 0 ? `${formatArea(tarlaAlani).donum} dönüm` : 'Çizilmedi'}
+                        </AreaSubtext>
+                      </div>
+                      {tarlaPolygon && (
+                        <button
+                          onClick={() => {
+                            // Tarla edit modu - index 0 (tarla her zaman ilk sırada)
+                            setDrawingMode('tarla');
+                            setEditTrigger({ timestamp: Date.now(), polygonIndex: 0 });
+                          }}
+                          style={{
+                            background: 'rgba(243, 156, 18, 0.1)',
+                            border: '1px solid #f39c12',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s',
+                            minWidth: '32px',
+                            minHeight: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(243, 156, 18, 0.2)'}
+                          onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(243, 156, 18, 0.1)'}
+                          title="Tarla alanını düzenle"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                    </div>
+                  </>
                 </AreaDisplayBox>
                 
                 <AreaDisplayBox $color="#27ae60">
-                  <AreaLabel>🟢 Dikili Alan</AreaLabel>
-                  <AreaValue>
-                    {dikiliPolygon ? formatArea(dikiliPolygon.area).m2 : '0'} m²
-                  </AreaValue>
-                  <AreaSubtext>
-                    {dikiliPolygon ? `${formatArea(dikiliPolygon.area).donum} dönüm` : 'Çizilmedi'}
-                  </AreaSubtext>
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <AreaLabel>🟢 Dikili Alan</AreaLabel>
+                        <AreaValue>
+                          {dikiliAlan > 0 ? formatArea(dikiliAlan).m2 : '0'} m²
+                        </AreaValue>
+                        <AreaSubtext>
+                          {dikiliAlan > 0 ? `${formatArea(dikiliAlan).donum} dönüm` : 'Çizilmedi'}
+                        </AreaSubtext>
+                      </div>
+                      {dikiliPolygon && (
+                        <button
+                          onClick={() => {
+                            // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
+                            setDrawingMode('dikili');
+                            const dikiliIndex = tarlaPolygon ? 1 : 0;
+                            setEditTrigger({ timestamp: Date.now(), polygonIndex: dikiliIndex });
+                          }}
+                          style={{
+                            background: 'rgba(39, 174, 96, 0.1)',
+                            border: '1px solid #27ae60',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s',
+                            minWidth: '32px',
+                            minHeight: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(39, 174, 96, 0.2)'}
+                          onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(39, 174, 96, 0.1)'}
+                          title="Dikili alanı düzenle"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                    </div>
+                  </>
                 </AreaDisplayBox>
               </AreaDisplayContainer>
               
