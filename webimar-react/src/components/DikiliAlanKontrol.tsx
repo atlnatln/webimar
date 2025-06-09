@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
@@ -383,10 +383,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingAgacSayisi, setEditingAgacSayisi] = useState<number>(0);
 
-  // Debug: State değişikliklerini izle
-  useEffect(() => {
-    console.log('📊 State değişti:', { drawingMode, isDrawing, drawingTrigger, stopTrigger });
-  }, [drawingMode, isDrawing, drawingTrigger, stopTrigger]);
+  // Removed debug state change log to reduce console noise
 
   // Ağaç verilerini yükle
   useEffect(() => {
@@ -1338,9 +1335,11 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       </div>
                       {tarlaPolygon && (
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            console.log('🎯 Tarla edit butonu tıklandı!', e);
                             // Tarla edit modu - index 0 (tarla her zaman ilk sırada)
-                            setDrawingMode('tarla');
                             setEditTrigger({ timestamp: Date.now(), polygonIndex: 0 });
                           }}
                           style={{
@@ -1382,9 +1381,11 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       </div>
                       {dikiliPolygon && (
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            console.log('🎯 Dikili edit butonu tıklandı!', e);
                             // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
-                            setDrawingMode('dikili');
                             const dikiliIndex = tarlaPolygon ? 1 : 0;
                             setEditTrigger({ timestamp: Date.now(), polygonIndex: dikiliIndex });
                           }}
