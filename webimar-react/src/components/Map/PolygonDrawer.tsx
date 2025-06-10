@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
-import { useMap, useMapEvents } from 'react-leaflet'; // useMapEvents eklendi, useCallback eklendi
+import { useMap, useMapEvents } from 'react-leaflet';
 import styled from 'styled-components';
 
 // Global window interface extension
@@ -85,9 +85,10 @@ const InfoPanel = styled.div`
 // Drawing Mode Control Components
 const DrawingModeContainer = styled.div`
   position: absolute;
-  top: 70px;
-  left: 10px;
-  background: rgba(255, 255, 255, 0.95);
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
   border: 2px solid #34495e;
   border-radius: 12px;
@@ -96,7 +97,14 @@ const DrawingModeContainer = styled.div`
   z-index: 1000;
   pointer-events: auto;
   min-width: 320px;
-  max-width: 420px;
+  max-width: 500px;
+  
+  @media (max-width: 768px) {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: calc(100% - 20px);
+  }
 `;
 
 const DrawingModeButton = styled.button<{ $active: boolean; $color: string }>`
@@ -165,13 +173,19 @@ interface PolygonDrawerProps {
   onPolygonClear?: () => void;
   onDrawingStateChange?: (isDrawing: boolean) => void;
   onPolygonEdit?: (polygon: DrawnPolygon, index: number) => void;
+  onEditModeEnd?: () => void; // Edit mode'dan çıkıldığında trigger'ı reset etmek için
+  onChange?: (polygons: Array<{
+    polygon: DrawnPolygon;
+    color: string;
+    name: string;
+    id?: string;
+  }>) => void; // Polygon coordinates'i güncellemek için
   disabled?: boolean;
   polygonColor?: string;
   polygonName?: string;
   hideControls?: boolean;
   autoStart?: boolean;
   externalDrawingTrigger?: number;
-  externalStopTrigger?: number;
   externalClearTrigger?: number;
   externalEditTrigger?: { timestamp: number; polygonIndex: number };
   enableEdit?: boolean;
@@ -201,13 +215,14 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   onPolygonClear,
   onDrawingStateChange,
   onPolygonEdit,
+  onEditModeEnd,
+  onChange,
   disabled = false,
   polygonColor = '#e74c3c',
   polygonName = 'Polygon',
   hideControls = false,
   autoStart = false,
   externalDrawingTrigger = 0,
-  externalStopTrigger = 0,
   externalClearTrigger = 0,
   externalEditTrigger = { timestamp: 0, polygonIndex: -1 },
   enableEdit = false,
@@ -224,48 +239,6 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const [editingPoints, setEditingPoints] = useState<PolygonPoint[]>([]);
   const [currentPoints, setCurrentPoints] = useState<PolygonPoint[]>([]);
   const [currentArea, setCurrentArea] = useState<number>(0);
-
-  // Drawing mode management functions
-  const startDrawingMode = (mode: 'tarla' | 'dikili') => {
-    console.log('🎯 PolygonDrawer startDrawingMode çağrıldı:', mode, {
-      currentDrawingMode: drawingMode,
-      isDrawing,
-      onDrawingModeChange: !!onDrawingModeChange,
-      startDrawing: !!startDrawing,
-      disabled
-    });
-    
-    // Eğer aynı mod aktifse, hiçbir şey yapma
-    if (drawingMode === mode && isDrawing) {
-      console.log('⚠️ Aynı mod zaten aktif, hiçbir şey yapılmıyor');
-      return;
-    }
-    
-    // Farklı bir mod aktifse, önce dur
-    if (isDrawing && drawingMode !== mode) {
-      console.log('🔄 Farklı mod aktif, önce durduruluyor...');
-      stopDrawing();
-      
-      // Kısa bir gecikme ile yeni modu başlat
-      setTimeout(() => {
-        console.log('⏰ Timeout sonrası yeni mod başlatılıyor:', mode);
-        onDrawingModeChange?.(mode);
-        startDrawing();
-      }, 100);
-      return;
-    }
-    
-    // Normal başlatma
-    console.log('✅ Normal başlatma yapılıyor:', mode);
-    onDrawingModeChange?.(mode);
-    startDrawing();
-  };
-
-  const stopDrawingMode = () => {
-    console.log('🛑 PolygonDrawer stopDrawingMode çağrıldı');
-    stopDrawing();
-    onDrawingModeChange?.(null);
-  };
 
   // isEditing state'ini ref'e senkron tut
   useEffect(() => {
@@ -284,6 +257,8 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const tempEditPolygonRef = useRef<L.Polygon | null>(null); // Geçici edit polygon referansı
   const isEditingRef = useRef<boolean>(false); // isEditing state'inin güncel değeri için
   const dragThrottleRef = useRef<NodeJS.Timeout | null>(null); // Drag event throttle'ı için
+  const currentEditingIndexRef = useRef<number>(-1); // Edit edilen polygon index'ini sakla
+  const currentTargetPolygonRef = useRef<any>(null); // Edit edilen polygon bilgisini sakla
   
   // const markersRef = useRef<L.Marker[]>([]); // KALDIRILDI
   // const linesRef = useRef<L.Polyline[]>([]); // KALDIRILDI
@@ -390,15 +365,27 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   // Çizimi başlat
   const startDrawing = () => {
-    console.log('🎨 startDrawing çağrıldı:', { disabled, isDrawing, onDrawingStateChange: !!onDrawingStateChange });
+    console.log('🎨 startDrawing çağrıldı:', { 
+      disabled, 
+      isDrawing, 
+      isEditing,
+      onDrawingStateChange: !!onDrawingStateChange,
+      drawingMode,
+      currentPoints: currentPoints.length
+    });
     
     if (disabled || isDrawing) {
       console.log('⚠️ startDrawing iptal edildi:', { disabled, isDrawing });
       return;
     }
     
+    // Edit modundan çık
+    if (isEditing) {
+      console.log('🔄 Edit modu durduruluyor (startDrawing)');
+      stopEditMode();
+    }
+    
     setIsDrawing(true);
-    onDrawingStateChange?.(true);
     setCurrentPoints([]);
     setCurrentArea(0);
     clearDrawing();
@@ -406,16 +393,21 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     // Çizim sırasında çift tıklama yakınlaştırmasını devre dışı bırak
     map.doubleClickZoom.disable();
     
+    // Parent'a bildir - çok önemli, en sonda yap!
+    onDrawingStateChange?.(true);
+    
     console.log('✅ Çizim başlatıldı, double-click zoom devre dışı');
   };
 
   // Çizimi durdur
   const stopDrawing = () => {
     setIsDrawing(false);
-    onDrawingStateChange?.(false);
     
     // Çizim bittiğinde çift tıklama yakınlaştırmasını tekrar aktifleştir
     map.doubleClickZoom.enable();
+    
+    // Parent'a bildir - çok önemli, en sonda yap!
+    onDrawingStateChange?.(false);
     
     console.log('🛑 Çizim durduruldu, double-click zoom aktif');
   };
@@ -602,8 +594,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     console.log('🎯 startEditMode çağrıldı, index:', polygonIndex);
     
     if (isDrawing) {
-      alert('Önce çizim modunu durdurun!');
-      return;
+      console.log('⚠️ Drawing mode aktif, önce durduruluyor');
+      setIsDrawing(false);
+      onDrawingStateChange?.(false);
+      map.doubleClickZoom.enable();
     }
     
     // Eğer zaten edit modundaysak, önceki edit modunu durdur
@@ -620,6 +614,8 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setIsEditing(true);
     isEditingRef.current = true; // Ref'i de güncelle
     setEditingPolygonIndex(polygonIndex);
+    currentEditingIndexRef.current = polygonIndex; // Index'i ref'e sakla
+    currentTargetPolygonRef.current = existingPolygons[polygonIndex]; // Polygon bilgisini ref'e sakla
     const polygonPoints = [...existingPolygons[polygonIndex].polygon.points];
     setEditingPoints(polygonPoints);
     
@@ -631,70 +627,81 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     
     // İlk visual update'i başlat - polygon'u gizle ve edit polygon'u göster
     setTimeout(() => {
-      performVisualUpdate(polygonPoints, polygonIndex);
+      updateEditPolygonVisual(polygonPoints, polygonIndex);
     }, 50);
   };
 
   const stopEditMode = () => {
-    const currentEditingIndex = editingPolygonIndex;
+    if (!isEditing || currentEditingIndexRef.current === -1) {
+      console.log('❌ Stop edit mode: Invalid state', { isEditing, currentEditingIndex: currentEditingIndexRef.current });
+      return;
+    }
+
+    const editingIndex = currentEditingIndexRef.current;
     
-    setIsEditing(false);
-    isEditingRef.current = false; // Ref'i de güncelle
-    setEditingPolygonIndex(-1);
-    setEditingPoints([]);
-    
-    // Ref'i de temizle
-    editingPointsRef.current = [];
-    
-    // Edit markerlarını temizle
-    clearEditMarkers();
-    
-    // Asıl polygon'u tekrar görünür hale getir - ID-bazlı matching kullan
-    if (completedPolygonsLayerRef.current && currentEditingIndex >= 0 && existingPolygons[currentEditingIndex]) {
-      const targetPolygon = existingPolygons[currentEditingIndex];
-      const originalColor = targetPolygon.color;
-      const targetId = targetPolygon.id;
-      
-      console.log('🔍 stopEditMode: Polygon geri yükleniyor, hedef ID:', targetId, 'renk:', originalColor);
-      
-      // ID-bazlı matching ile doğru polygon'u bul
-      completedPolygonsLayerRef.current.eachLayer((layer) => {
-        const polygon = layer as L.Polygon & { options?: any };
-        
-        if (polygon && polygon.options && polygon.options.polygonId === targetId) {
-          // Bu doğru polygon, tekrar görünür yap
-          polygon.setStyle({ 
-            opacity: 0.8, 
-            fillOpacity: 0.3,
-            color: originalColor,
-            fillColor: originalColor 
-          });
-          console.log('✅ stopEditMode: Polygon başarıyla geri yüklendi:', targetPolygon.name, 'ID:', targetId);
-          return; // Layer bulundu, döngüyü bitir
+    console.log('🛑 Edit mode durduruluyuor, index:', editingIndex);
+
+    // Edit UI elementlerini temizle
+    if (tempEditPolygonRef.current && editLayerRef.current) {
+      console.log('🧹 Edit UI elemanları temizleniyor');
+      editLayerRef.current.removeLayer(tempEditPolygonRef.current);
+      tempEditPolygonRef.current = null;
+    }
+
+    if (editMarkersRef.current.length > 0) {
+      editMarkersRef.current.forEach(marker => {
+        if (editLayerRef.current && editLayerRef.current.hasLayer(marker)) {
+          editLayerRef.current.removeLayer(marker);
         }
       });
-      
-      // Güvenlik kontrolü: Eğer polygon bulunamazsa fallback mekanizma
-      setTimeout(() => {
-        if (completedPolygonsLayerRef.current) {
-          let found = false;
-          completedPolygonsLayerRef.current.eachLayer((layer) => {
-            const polygon = layer as L.Polygon & { options?: any };
-            if (polygon && polygon.options && polygon.options.polygonId === targetId) {
-              found = true;
-            }
-          });
-          
-          if (!found) {
-            console.warn('⚠️ stopEditMode: Polygon ID ile bulunamadı, fallback mekanizma çalıştırılıyor');
-            // Fallback olarak tüm gizli polygonları göster
-            if (window.showAllHiddenPolygons) {
-              window.showAllHiddenPolygons();
-            }
-          }
-        }
-      }, 100);
+      editMarkersRef.current = [];
     }
+
+    // State temizleme
+    setIsEditing(false);
+    isEditingRef.current = false;
+    setEditingPolygonIndex(-1);
+    setEditingPoints([]);
+    currentEditingIndexRef.current = -1;
+    currentTargetPolygonRef.current = null;
+    editingPointsRef.current = [];
+
+    // Drawing state'ini temizle
+    if (isDrawing) {
+      console.log('🛑 stopEditMode: Drawing state temizleniyor');
+      setIsDrawing(false);
+      onDrawingStateChange?.(false);
+      map.doubleClickZoom.enable();
+    }
+
+    // CRITICAL: Layer'ı yeniden yükle - Fresh start
+    console.log('🔄 Polygon\'lar yeniden yükleniyor - fresh reload');
+    isLoadingPolygonsRef.current = true;
+    
+    // Kısa delay ile tam reload
+    setTimeout(() => {
+      if (completedPolygonsLayerRef.current) {
+        completedPolygonsLayerRef.current.clearLayers();
+      }
+      
+      // ExistingPolygons'ı yeniden yükle
+      if (existingPolygons && existingPolygons.length > 0) {
+        existingPolygons.forEach((item, index) => {
+          const uniqueId = item.id || `existing-${index}-${item.name}`;
+          console.log('📍 Fresh reload polygon:', uniqueId);
+          addPermanentPolygon(item.polygon.points, item.color, item.name, uniqueId);
+        });
+      }
+      
+      isLoadingPolygonsRef.current = false;
+      console.log('✅ Edit mode durduruldu ve polygon\'lar yenilendi');
+    }, 150);
+
+    // onEditModeEnd callback'i çağır
+    if (onEditModeEnd) {
+      onEditModeEnd();
+    }
+
   };
 
   const createEditableMarkers = (points: PolygonPoint[], polygonIndex: number) => {
@@ -734,13 +741,13 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
           clearTimeout(dragThrottleRef.current);
         }
         
-        // Throttle ile visual update
+        // Daha uzun throttle ile visual update
         dragThrottleRef.current = setTimeout(() => {
           const newPoints = [...editingPointsRef.current];
           newPoints[index] = { lat: newLatlng.lat, lng: newLatlng.lng };
           editingPointsRef.current = newPoints;
           updateEditPolygonVisual(newPoints, polygonIndex);
-        }, 50);
+        }, 100); // 50ms → 100ms ile daha performanslı
       });
       
       // Drag end'de sadece final update (parent notification ile)
@@ -776,6 +783,9 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       // Ref'i güncelle
       editingPointsRef.current = newPoints;
       
+      // Visual update'i hemen başlat (debounced değil)
+      updateEditPolygonVisual(newPoints, currentEditingIndexRef.current);
+      
       // Sadece parent component'e bildir (visual update ayrı)
       if (newPoints.length >= 3) {
         try {
@@ -795,7 +805,39 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
           
           parentNotificationTimeout.current = setTimeout(() => {
             onPolygonEdit?.(editedPolygon, polygonIndex);
-          }, 300); // 200ms → 300ms ile daha stabil alan hesaplaması
+            
+            // CRITICAL FIX: existingPolygons'ı da güncelle
+            if (onChange) {
+              const updatedPolygons = existingPolygons.map((polygonItem, index) => {
+                if (index === polygonIndex) {
+                  console.log('🔄 onChange ile polygon güncelleniyor:', { 
+                    index, 
+                    originalPoints: polygonItem.polygon.points?.length, 
+                    newPoints: newPoints.length 
+                  });
+                  
+                  return {
+                    ...polygonItem,
+                    polygon: {
+                      ...polygonItem.polygon,
+                      points: newPoints,
+                      area: Math.round(area)
+                    }
+                  };
+                }
+                return polygonItem;
+              });
+              
+              console.log('🚨 onChange callback çağrılıyor! Updated polygons:', updatedPolygons);
+              console.log('🚨 OnChange var mı?', !!onChange);
+              console.log('🚨 Original polygons:', existingPolygons);
+              
+              onChange(updatedPolygons);
+              console.log('✅ onChange callback çağrıldı, updated polygons:', updatedPolygons.length);
+            } else {
+              console.error('❌ onChange callback yok! Parent component onChange prop\'u geçmemiş');
+            }
+          }, 500); // 300ms → 500ms ile daha stabil alan hesaplaması
         } catch (error) {
           console.error('Alan hesaplama hatası:', error);
         }
@@ -803,7 +845,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       
       return newPoints;
     });
-  }, [onPolygonEdit]);
+  }, [onPolygonEdit, onChange, existingPolygons]);
 
   // Throttled visual update fonksiyonu
   const throttledVisualUpdate = useRef<NodeJS.Timeout | null>(null);
@@ -812,60 +854,54 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const isUpdatingVisual = useRef<boolean>(false);
   
   const updateEditPolygonVisual = useCallback((points: PolygonPoint[], polygonIndex: number) => {
-    if (!editLayerRef.current || points.length < 3) {
-      return;
-    }
-    
-    // Edit modunda değilsek işlem yapma
-    if (!isEditingRef.current) {
-      return;
-    }
-    
-    // Önceki throttle'ı temizle
-    if (throttledVisualUpdate.current) {
-      clearTimeout(throttledVisualUpdate.current);
-    }
-    
-    // Daha uzun debounce ile performans optimizasyonu
-    throttledVisualUpdate.current = setTimeout(() => {
-      performVisualUpdate(points, polygonIndex);
-    }, 150); // 100ms → 150ms ile daha stabil performans
-  }, []);
-  
-  const performVisualUpdate = (points: PolygonPoint[], polygonIndex: number) => {
     // Execution guard - aynı anda birden fazla visual update önle
     if (isUpdatingVisual.current) {
-      console.log('⚠️ performVisualUpdate zaten çalışıyor, atlaniyor');
+      console.log('⚠️ updateEditPolygonVisual zaten çalışıyor, atlanıyor');
       return;
     }
     
     const now = Date.now();
-    if (now - lastVisualUpdateTime.current < 100) {
-      console.log('⚠️ performVisualUpdate çok sık çağrılıyor, atlaniyor');
+    if (now - lastVisualUpdateTime.current < 200) { // 200ms throttle
+      console.log('⚠️ updateEditPolygonVisual çok sık çağrılıyor, atlanıyor');
       return;
     }
     
     isUpdatingVisual.current = true;
     lastVisualUpdateTime.current = now;
-    console.log('🔄 performVisualUpdate başlatıldı - ID:', polygonIndex);
+    console.log('🔄 updateEditPolygonVisual başlatıldı - ID:', polygonIndex);
     
     if (!editLayerRef.current || points.length < 3) {
       isUpdatingVisual.current = false;
       return;
     }
     
-    // Tekrar edit modu kontrolü - güvenlik için
+    // Edit modunda değilsek işlem yapma
     if (!isEditingRef.current) {
+      console.log('⚠️ Edit modu değil, updateEditPolygonVisual atlanıyor');
+      isUpdatingVisual.current = false;
+      return;
+    }
+    
+    // Polygon index validation - Ref'ten kontrol et
+    if (polygonIndex < 0 || polygonIndex !== currentEditingIndexRef.current) {
+      console.log('⚠️ Geçersiz polygon index:', polygonIndex, 'current edit index:', currentEditingIndexRef.current);
+      isUpdatingVisual.current = false;
+      return;
+    }
+    
+    // Target polygon bilgisini ref'ten al
+    const targetPolygon = currentTargetPolygonRef.current;
+    if (!targetPolygon) {
+      console.log('⚠️ Target polygon ref bulunamadı');
       isUpdatingVisual.current = false;
       return;
     }
     
     // Asıl polygon'u gizle - ID-based matching kullan
-    if (completedPolygonsLayerRef.current && existingPolygons[polygonIndex]) {
-      const targetPolygon = existingPolygons[polygonIndex];
+    if (completedPolygonsLayerRef.current && targetPolygon) {
       const targetId = targetPolygon.id;
       
-      console.log('🔍 performVisualUpdate: Polygon gizleniyor, hedef ID:', targetId);
+      console.log('🔍 updateEditPolygonVisual: Polygon gizleniyor, hedef ID:', targetId);
       
       // ID-bazlı matching ile doğru polygon'u bul ve gizle
       completedPolygonsLayerRef.current.eachLayer((layer) => {
@@ -874,7 +910,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
         if (polygon && polygon.options && polygon.options.polygonId === targetId) {
           // Bu doğru polygon, gizle
           polygon.setStyle({ opacity: 0, fillOpacity: 0 });
-          console.log('✅ performVisualUpdate: Polygon başarıyla gizlendi:', targetPolygon.name, 'ID:', targetId);
+          console.log('✅ updateEditPolygonVisual: Polygon başarıyla gizlendi:', targetPolygon.name, 'ID:', targetId);
           return; // Layer bulundu, döngüyü bitir
         }
       });
@@ -905,7 +941,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       const turfPolygon = turf.polygon([coordinates]);
       const area = turf.area(turfPolygon);
       const areaInDonum = (area / 10000).toFixed(2);
-      const polygonName = existingPolygons[polygonIndex]?.name || 'Polygon';
+      const polygonName = targetPolygon?.name || 'Polygon'; // Ref'ten polygon adını al
       
       editPolygon.bindTooltip(`
         <strong>${polygonName}</strong><br>
@@ -922,14 +958,30 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       editPolygon.addTo(editLayerRef.current);
       tempEditPolygonRef.current = editPolygon;
       
+      // Gerçek zamanlı koordinat güncellemesi için performVisualUpdate'i çağır
+      const newPoints: [number, number][] = points.map(p => [p.lng, p.lat]);
+      performVisualUpdate(polygonIndex, newPoints);
+      
     } catch (error) {
       console.error('🔄 Edit polygon güncelleme hatası:', error);
     } finally {
       // Execution guard'ı temizle
       isUpdatingVisual.current = false;
-      console.log('✅ performVisualUpdate tamamlandı');
+      console.log('✅ updateEditPolygonVisual tamamlandı');
     }
-  };
+  }, []);
+  
+  // Visual update'i gerçek zamanlı olarak uygula - sadece edit feedback için
+  const performVisualUpdate = useCallback((polygonIndex: number, newPoints: [number, number][]) => {
+    console.log('📐 performVisualUpdate çağrıldı:', { polygonIndex, newPoints: newPoints.length });
+    
+    // Bu fonksiyon sadece visual feedback için kullanılıyor
+    // onChange callback'ini çağırmıyoruz çünkü bu sürekli tetikleniyor
+    // Asıl update'i sadece dragend'de updateEditingPoint üzerinden yapıyoruz
+    
+    console.log('📐 Visual feedback için polygon coordinates kaydediliyor...');
+    
+  }, []);
 
   const saveEditChanges = () => {
     if (editingPolygonIndex === -1 || editingPoints.length < 3) return;
@@ -1121,30 +1173,48 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     });
   };
 
-  // External triggers
+  // External triggers - SAFE VERSION with infinite loop prevention
   useEffect(() => {
-    if (externalDrawingTrigger > 0 && !disabled) {
+    if (externalDrawingTrigger > 0 && !disabled && !isDrawing) {
+      console.log('🔥 External drawing trigger:', externalDrawingTrigger, 'State:', { disabled, isDrawing });
       startDrawing();
+    } else if (externalDrawingTrigger > 0) {
+      console.log('⚠️ External drawing trigger ignored:', externalDrawingTrigger, 'State:', { disabled, isDrawing });
     }
-  }, [externalDrawingTrigger]);
-
-  useEffect(() => {
-    if (externalStopTrigger > 0) {
-      stopDrawing();
-    }
-  }, [externalStopTrigger]);
+  }, [externalDrawingTrigger]); // SADECE externalDrawingTrigger dependency
 
   useEffect(() => {
     if (externalClearTrigger > 0) {
+      console.log('🔥 External clear trigger:', externalClearTrigger);
       fullClear(); // clearDrawing yerine fullClear kullan
     }
   }, [externalClearTrigger]);
 
+  // Edit trigger'ı sadece timestamp değiştiğinde dinle, existingPolygons dependency'sini kaldır
+  const lastProcessedEditTimestamp = useRef<number>(0);
+  
   useEffect(() => {
-    if (externalEditTrigger.timestamp > 0 && existingPolygons.length > 0 && externalEditTrigger.polygonIndex >= 0) {
-      startEditMode(externalEditTrigger.polygonIndex);
+    // Aynı timestamp'i tekrar işleme (memory leak önlemi)
+    if (externalEditTrigger.timestamp <= lastProcessedEditTimestamp.current) {
+      return;
     }
-  }, [externalEditTrigger]);
+    
+    if (externalEditTrigger.timestamp > 0 && existingPolygons.length > 0 && externalEditTrigger.polygonIndex >= 0) {
+      console.log('🔥 External edit trigger:', externalEditTrigger, 'polygons:', existingPolygons.length);
+      
+      // Index validation
+      if (externalEditTrigger.polygonIndex < existingPolygons.length) {
+        // Ref'leri güncelle
+        currentEditingIndexRef.current = externalEditTrigger.polygonIndex;
+        currentTargetPolygonRef.current = existingPolygons[externalEditTrigger.polygonIndex];
+        
+        startEditMode(externalEditTrigger.polygonIndex);
+        lastProcessedEditTimestamp.current = externalEditTrigger.timestamp; // Timestamp'i işaretlenmiş olarak kaydet
+      } else {
+        console.warn('⚠️ External edit trigger: Geçersiz polygon index:', externalEditTrigger.polygonIndex, 'max:', existingPolygons.length - 1);
+      }
+    }
+  }, [externalEditTrigger.timestamp]); // SADECE timestamp dependency
 
   // Help mesajını isDrawing state'ine göre yönet
   useEffect(() => {
@@ -1155,52 +1225,73 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     }
   }, [isDrawing]);
 
-  // Mevcut poligonları yükle - sadece layer temizlendiğinde veya ilk yüklemede
+  // Mevcut poligonları yükle - CRITICAL FIX: Layer management
   const lastLoadedPolygonsRef = useRef<typeof existingPolygons>([]);
+  const isLoadingPolygonsRef = useRef<boolean>(false);
   
   useEffect(() => {
-    // Edit modundayken yeniden yükleme yapma (performans optimizasyonu)
-    if (isEditing) {
+    // Edit modundayken veya yükleme işlemi devam ediyorken yeniden yükleme yapma
+    if (isEditing || isLoadingPolygonsRef.current) {
       return;
     }
     
-    // Eğer aynı poligonlar zaten yüklenmişse, tekrar yükleme
-    if (lastLoadedPolygonsRef.current === existingPolygons) {
-      return;
-    }
+    // Deep comparison ile gerçek değişiklik kontrolü
+    const hasChanged = !lastLoadedPolygonsRef.current || 
+                      lastLoadedPolygonsRef.current.length !== existingPolygons.length ||
+                      existingPolygons.some((polygon, index) => {
+                        const lastPolygon = lastLoadedPolygonsRef.current[index];
+                        return !lastPolygon || 
+                               lastPolygon.id !== polygon.id ||
+                               lastPolygon.polygon.points.length !== polygon.polygon.points.length;
+                      });
     
-    // Sadece polygon sayısı değiştiğinde veya tamamen farklı array'de yenile
-    const needsReload = !lastLoadedPolygonsRef.current || 
-                       lastLoadedPolygonsRef.current.length !== existingPolygons.length;
-    
-    if (!needsReload) {
+    if (!hasChanged) {
       return;
     }
     
     console.log('🔄 Poligonlar yeniden yükleniyor, sayı:', existingPolygons.length);
+    isLoadingPolygonsRef.current = true;
     
-    // İlk olarak katmanı temizle (önceki poligonları kaldır)
+    // CRITICAL: Önce tüm katmanları temizle - duplicate prevention
     if (completedPolygonsLayerRef.current) {
+      console.log('🧹 Katman temizleniyor, mevcut layer sayısı:', Object.keys(completedPolygonsLayerRef.current.getLayers()).length);
       completedPolygonsLayerRef.current.clearLayers();
     }
     
-    // Mevcut poligonları yükle - addPermanentPolygon fonksiyonunu kullan
-    if (existingPolygons && existingPolygons.length > 0) {
-      existingPolygons.forEach((item, index) => {
-        const uniqueId = item.id || `existing-${index}-${item.name}`;
-        addPermanentPolygon(item.polygon.points, item.color, item.name, uniqueId);
-      });
-    }
+    // Kısa delay ile layer temizlemenin tam olmasını bekle
+    setTimeout(() => {
+      if (existingPolygons && existingPolygons.length > 0) {
+        existingPolygons.forEach((item, index) => {
+          const uniqueId = item.id || `existing-${index}-${item.name}`;
+          console.log('📍 Polygon yükleniyor:', uniqueId, 'color:', item.color);
+          addPermanentPolygon(item.polygon.points, item.color, item.name, uniqueId);
+        });
+      }
+      
+      // Loading flag'ini temizle ve son yüklenen poligonları kaydet
+      lastLoadedPolygonsRef.current = [...existingPolygons]; // Deep copy
+      isLoadingPolygonsRef.current = false;
+      console.log('✅ Polygon yükleme tamamlandı, toplam:', existingPolygons.length);
+    }, 100); // Layer clear için kısa delay
     
-    // Son yüklenen poligonları kaydet
-    lastLoadedPolygonsRef.current = existingPolygons;
-  }, [existingPolygons, isEditing]); // addPermanentPolygon'u dependency'den kaldır
+  }, [existingPolygons, isEditing]);
 
   return (
     <>
       {/* Drawing Mode Controls */}
       {showDrawingModeControls && (
-        <DrawingModeContainer>
+        <DrawingModeContainer
+          onClick={(e) => {
+            // Container seviyesinde tüm event'leri durdur
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={(e) => {
+            // Mouse down'da da event'leri durdur
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
           <div style={{ marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>
             Çizim Modu:
           </div>
@@ -1215,15 +1306,58 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
             </DrawingStatusIndicator>
           )}
           
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: '8px', 
+              alignItems: 'center',
+              pointerEvents: 'auto'
+            }}
+            onClick={(e) => {
+              // Container seviyesinde event propagation'ı durdur
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <DrawingModeButton
               $active={drawingMode === 'tarla'}
               $color="#8B4513"
+              onMouseDown={(e) => {
+                // Mouse down'da hemen event'i durdur
+                e.stopPropagation();
+                e.preventDefault();
+              }}
               onClick={(e) => {
                 console.log('🟤 TARLA butonuna tıklandı! Event:', e);
-                e.preventDefault();
                 e.stopPropagation();
-                startDrawingMode('tarla');
+                e.preventDefault();
+                
+                // Inline mode değiştirme
+                if (drawingMode === 'tarla' && isDrawing) {
+                  console.log('⚠️ Aynı mod zaten aktif');
+                  return;
+                }
+                
+                if (isDrawing && drawingMode !== 'tarla') {
+                  setIsDrawing(false);
+                  onDrawingStateChange?.(false);
+                  map.doubleClickZoom.enable();
+                }
+                
+                onDrawingModeChange?.('tarla');
+                
+                setTimeout(() => {
+                  setIsDrawing(true);
+                  onDrawingStateChange?.(true);
+                  setCurrentPoints([]);
+                  setCurrentArea(0);
+                  // Çizim katmanlarını temizle
+                  markersLayerRef.current?.clearLayers();
+                  linesLayerRef.current?.clearLayers();
+                  polygonLayerRef.current?.clearLayers();
+                  map.doubleClickZoom.disable();
+                }, 50);
               }}
               disabled={false}
             >
@@ -1233,11 +1367,41 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
             <DrawingModeButton
               $active={drawingMode === 'dikili'}
               $color="#27ae60"
+              onMouseDown={(e) => {
+                // Mouse down'da hemen event'i durdur
+                e.stopPropagation();
+                e.preventDefault();
+              }}
               onClick={(e) => {
                 console.log('🟢 DİKİLİ butonuna tıklandı! Event:', e);
-                e.preventDefault();
                 e.stopPropagation();
-                startDrawingMode('dikili');
+                e.preventDefault();
+                
+                // Inline mode değiştirme
+                if (drawingMode === 'dikili' && isDrawing) {
+                  console.log('⚠️ Aynı mod zaten aktif');
+                  return;
+                }
+                
+                if (isDrawing && drawingMode !== 'dikili') {
+                  setIsDrawing(false);
+                  onDrawingStateChange?.(false);
+                  map.doubleClickZoom.enable();
+                }
+                
+                onDrawingModeChange?.('dikili');
+                
+                setTimeout(() => {
+                  setIsDrawing(true);
+                  onDrawingStateChange?.(true);
+                  setCurrentPoints([]);
+                  setCurrentArea(0);
+                  // Çizim katmanlarını temizle
+                  markersLayerRef.current?.clearLayers();
+                  linesLayerRef.current?.clearLayers();
+                  polygonLayerRef.current?.clearLayers();
+                  map.doubleClickZoom.disable();
+                }, 50);
               }}
               disabled={false}
             >
@@ -1246,7 +1410,21 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
             
             {/* Stop drawing button */}
             {isDrawing && (
-              <DrawButton onClick={stopDrawingMode}>
+              <DrawButton 
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  console.log('🛑 Çizimi durdur butonuna tıklandı');
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setIsDrawing(false);
+                  onDrawingStateChange?.(false);
+                  onDrawingModeChange?.(null);
+                  map.doubleClickZoom.enable();
+                }}
+              >
                 ⏹️ Çizimi Durdur
               </DrawButton>
             )}
