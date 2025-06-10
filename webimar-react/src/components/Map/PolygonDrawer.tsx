@@ -111,6 +111,15 @@ interface PolygonDrawerProps {
   }>;
 }
 
+// Utility function for area formatting
+export const formatArea = (area: number) => {
+  return {
+    m2: area.toLocaleString('tr-TR'),
+    donum: (area / 1000).toFixed(2),
+    hectare: (area / 10000).toFixed(4)
+  };
+};
+
 const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   onPolygonComplete,
   onPolygonClear,

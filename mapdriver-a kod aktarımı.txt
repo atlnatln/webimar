@@ -1,0 +1,69 @@
+# DikiliAlanKontrol'u İdeal Container Bileşenine Dönüştürme
+
+## Mevcut Durum Analizi
+DikiliAlanKontrol.tsx şu anda hem UI yönetimi hem de harita/çizim mantığını barındırıyor. Bu, tek sorumluluk prensibine aykırı ve kod karmaşıklığına neden oluyor.
+
+## Hedef Container Mimarisi
+
+### 1. Veri Akışı Yönetimi (Data Flow Management)
+**Container Rolü:** Üst seviye state yönetimi ve veri akışı koordinasyonu
+- Dikili alan ve tarla alanı değerlerini merkezi olarak yönet
+- Alt bileşenlerden gelen verileri topla ve işle
+- Parent bileşene sonuçları ilet
+
+### 2. İş Mantığı Koordinasyonu (Business Logic Coordination)
+**Container Rolü:** Ağaç hesaplama ve yeterlilik mantığının orkestrasyonu
+- Ağaç türü/sayısı verilerini yönet
+- Yeterlilik hesaplama işlemlerini koordine et
+- Sonuç validasyonunu yap
+
+### 3. Alt Bileşen Yönetimi (Child Component Management)
+**Container Rolü:** Alt bileşenlerin lifecycle ve prop yönetimi
+- PolygonDrawer bileşenine gerekli prop'ları ilet
+- Manuel form bileşenlerini koordine et
+- Tab geçişlerini yönet
+
+## Refactoring Adımları
+
+### Adım 1: Harita İşlevlerini PolygonDrawer'a Taşı
+- `formatArea` fonksiyonunu PolygonDrawer'a taşı
+- Çizim modu yönetimini PolygonDrawer'ın iç mantığına dönüştür
+- Alan gösterimi UI'ını PolygonDrawer içine entegre et
+
+### Adım 2: Pure Functions Ayırma
+- Ağaç hesaplama mantığını ayrı utility fonksiyonlara çıkar
+- Alan dönüşüm işlemlerini standalone fonksiyonlara dönüştür
+- Validasyon mantığını bağımsız fonksiyonlara ayır
+
+### Adım 3: State Simplification
+- Sadece üst seviye iş akışı state'lerini tut
+- Alt bileşen state'lerini prop drilling yerine callback'lerle yönet
+- Gereksiz re-render'ları önle
+
+### Adım 4: Event Handler Abstraction
+- Alt bileşenlerden gelen event'leri merkezi olarak yönet
+- Callback fonksiyonları standardize et
+- Error handling'i merkezi hale getir
+
+## Beklenen Sonuçlar
+
+### Kod Kalitesi
+- DikiliAlanKontrol dosyası %40-50 daha kısa olacak
+- Tek sorumluluk prensibi sağlanacak
+- Test edilebilirlik artacak
+
+### Sürdürülebilirlik
+- Harita mantığı değişikliklerinde DikiliAlanKontrol etkilenmeyecek
+- Yeni özellik ekleme daha kolay olacak
+- Bug izolasyonu gelişecek
+
+### Performans
+- Gereksiz re-render'lar azalacak
+- Memo optimizasyonları uygulanabilecek
+- Bundle size optimizasyonu sağlanacak
+
+## İmplementasyon Notları
+- React.memo kullanarak alt bileşenleri optimize et
+- useCallback ile callback fonksiyonları memorize et
+- Custom hook'lar ile mantık paylaşımını sağla
+- TypeScript interface'leri ile prop tiplerini net tanımla

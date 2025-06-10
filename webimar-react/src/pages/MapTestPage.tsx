@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-import PolygonDrawer, { DrawnPolygon } from '../components/Map/PolygonDrawer';
+import PolygonDrawer, { DrawnPolygon, formatArea } from '../components/Map/PolygonDrawer';
 import KMLLayerManager from '../components/Map/KMLLayerManager';
 import { healthCheck, checkCoordinate } from '../services/apiService';
 
@@ -277,17 +277,6 @@ const MapTestPage: React.FC = () => {
 
   const formatCoordinate = (coord: number) => {
     return coord.toFixed(6);
-  };
-
-  const formatArea = (area: number) => {
-    const m2 = area;
-    const donum = area / 1000; // 1 dönüm = 1000 m² (yaygın kullanım)
-    const hectare = area / 10000; // 1 hektar = 10000 m²
-    return {
-      m2: m2.toLocaleString('tr-TR', { maximumFractionDigits: 2 }),
-      donum: donum.toLocaleString('tr-TR', { maximumFractionDigits: 2 }),
-      hectare: hectare.toLocaleString('tr-TR', { maximumFractionDigits: 2 })
-    };
   };
 
   return (

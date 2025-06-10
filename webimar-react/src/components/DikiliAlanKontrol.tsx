@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
+import PolygonDrawer, { DrawnPolygon, formatArea } from './Map/PolygonDrawer';
 import 'leaflet/dist/leaflet.css';
 
 // Stil bileşenleri
@@ -660,14 +660,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       // Haritadan alınan alan bilgileri zaten state'te mevcut
       // dikiliAlan ve tarlaAlani değerleri polygon'lardan geldiği için korunacak
     }
-  };
-
-  const formatArea = (area: number) => {
-    return {
-      m2: area.toLocaleString('tr-TR'),
-      donum: (area / 1000).toFixed(2),
-      hectare: (area / 10000).toFixed(4)
-    };
   };
 
   // Hesaplama yap
