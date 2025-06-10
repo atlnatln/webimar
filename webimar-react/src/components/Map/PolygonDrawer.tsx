@@ -37,7 +37,7 @@ if (typeof document !== 'undefined' && !document.getElementById('polygon-tooltip
 
 const DrawingControls = styled.div`
   position: absolute;
-  top: 60px;
+  top: 10px;
   right: 10px;
   z-index: 1000;
   display: flex;
@@ -49,16 +49,20 @@ const DrawButton = styled.button<{ $active?: boolean }>`
   background: ${props => props.$active ? '#e74c3c' : '#3498db'};
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: 6px;
+  padding: 10px 14px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 500;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: background-color 0.2s ease;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  z-index: 1001;
+  position: relative;
   
   &:hover {
     background: ${props => props.$active ? '#c0392b' : '#2980b9'};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
   
   &:disabled {
@@ -76,6 +80,74 @@ const InfoPanel = styled.div`
   font-size: 11px;
   max-width: 200px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+// Drawing Mode Control Components
+const DrawingModeContainer = styled.div`
+  position: absolute;
+  top: 70px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 2px solid #34495e;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  pointer-events: auto;
+  min-width: 320px;
+  max-width: 420px;
+`;
+
+const DrawingModeButton = styled.button<{ $active: boolean; $color: string }>`
+  padding: 10px 16px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  border: 2px solid ${props => props.$color};
+  background: ${props => props.$active ? props.$color : 'white'};
+  color: ${props => props.$active ? 'white' : props.$color};
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1001;
+  white-space: nowrap;
+  
+  &:hover {
+    background: ${props => props.$color};
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:disabled {
+    background: #95a5a6;
+    border-color: #95a5a6;
+    color: white;
+    cursor: not-allowed;
+  }
+`;
+
+const DrawingStatusIndicator = styled.div<{ $color: string }>`
+  background: ${props => props.$color};
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+  }
 `;
 
 interface PolygonPoint {
@@ -109,6 +181,10 @@ interface PolygonDrawerProps {
     name: string;
     id?: string;
   }>;
+  // Drawing mode management
+  drawingMode?: 'tarla' | 'dikili' | null;
+  onDrawingModeChange?: (mode: 'tarla' | 'dikili' | null) => void;
+  showDrawingModeControls?: boolean;
 }
 
 // Utility function for area formatting
@@ -136,6 +212,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   externalEditTrigger = { timestamp: 0, polygonIndex: -1 },
   enableEdit = false,
   existingPolygons = [],
+  // Drawing mode management
+  drawingMode = null,
+  onDrawingModeChange,
+  showDrawingModeControls = false,
 }) => {
   const map = useMap();
   const [isDrawing, setIsDrawing] = useState(false);
@@ -144,7 +224,49 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   const [editingPoints, setEditingPoints] = useState<PolygonPoint[]>([]);
   const [currentPoints, setCurrentPoints] = useState<PolygonPoint[]>([]);
   const [currentArea, setCurrentArea] = useState<number>(0);
-  
+
+  // Drawing mode management functions
+  const startDrawingMode = (mode: 'tarla' | 'dikili') => {
+    console.log('🎯 PolygonDrawer startDrawingMode çağrıldı:', mode, {
+      currentDrawingMode: drawingMode,
+      isDrawing,
+      onDrawingModeChange: !!onDrawingModeChange,
+      startDrawing: !!startDrawing,
+      disabled
+    });
+    
+    // Eğer aynı mod aktifse, hiçbir şey yapma
+    if (drawingMode === mode && isDrawing) {
+      console.log('⚠️ Aynı mod zaten aktif, hiçbir şey yapılmıyor');
+      return;
+    }
+    
+    // Farklı bir mod aktifse, önce dur
+    if (isDrawing && drawingMode !== mode) {
+      console.log('🔄 Farklı mod aktif, önce durduruluyor...');
+      stopDrawing();
+      
+      // Kısa bir gecikme ile yeni modu başlat
+      setTimeout(() => {
+        console.log('⏰ Timeout sonrası yeni mod başlatılıyor:', mode);
+        onDrawingModeChange?.(mode);
+        startDrawing();
+      }, 100);
+      return;
+    }
+    
+    // Normal başlatma
+    console.log('✅ Normal başlatma yapılıyor:', mode);
+    onDrawingModeChange?.(mode);
+    startDrawing();
+  };
+
+  const stopDrawingMode = () => {
+    console.log('🛑 PolygonDrawer stopDrawingMode çağrıldı');
+    stopDrawing();
+    onDrawingModeChange?.(null);
+  };
+
   // isEditing state'ini ref'e senkron tut
   useEffect(() => {
     isEditingRef.current = isEditing;
@@ -268,7 +390,12 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   // Çizimi başlat
   const startDrawing = () => {
-    if (disabled || isDrawing) return;
+    console.log('🎨 startDrawing çağrıldı:', { disabled, isDrawing, onDrawingStateChange: !!onDrawingStateChange });
+    
+    if (disabled || isDrawing) {
+      console.log('⚠️ startDrawing iptal edildi:', { disabled, isDrawing });
+      return;
+    }
     
     setIsDrawing(true);
     onDrawingStateChange?.(true);
@@ -279,7 +406,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     // Çizim sırasında çift tıklama yakınlaştırmasını devre dışı bırak
     map.doubleClickZoom.disable();
     
-    console.log('🎨 Çizim başlatıldı, double-click zoom devre dışı');
+    console.log('✅ Çizim başlatıldı, double-click zoom devre dışı');
   };
 
   // Çizimi durdur
@@ -1071,6 +1198,62 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
   return (
     <>
+      {/* Drawing Mode Controls */}
+      {showDrawingModeControls && (
+        <DrawingModeContainer>
+          <div style={{ marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>
+            Çizim Modu:
+          </div>
+          
+          {/* Drawing status indicator */}
+          {isDrawing && drawingMode && (
+            <DrawingStatusIndicator $color={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}>
+              🎨 {drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'} çiziliyor...
+              <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+                (Haritaya tıklayarak çizin, çift tıklayarak bitirin)
+              </span>
+            </DrawingStatusIndicator>
+          )}
+          
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+            <DrawingModeButton
+              $active={drawingMode === 'tarla'}
+              $color="#8B4513"
+              onClick={(e) => {
+                console.log('🟤 TARLA butonuna tıklandı! Event:', e);
+                e.preventDefault();
+                e.stopPropagation();
+                startDrawingMode('tarla');
+              }}
+              disabled={false}
+            >
+              🟤 Tarla Alanı Çiz
+            </DrawingModeButton>
+            
+            <DrawingModeButton
+              $active={drawingMode === 'dikili'}
+              $color="#27ae60"
+              onClick={(e) => {
+                console.log('🟢 DİKİLİ butonuna tıklandı! Event:', e);
+                e.preventDefault();
+                e.stopPropagation();
+                startDrawingMode('dikili');
+              }}
+              disabled={false}
+            >
+              🟢 Dikili Alan Çiz
+            </DrawingModeButton>
+            
+            {/* Stop drawing button */}
+            {isDrawing && (
+              <DrawButton onClick={stopDrawingMode}>
+                ⏹️ Çizimi Durdur
+              </DrawButton>
+            )}
+          </div>
+        </DrawingModeContainer>
+      )}
+
       {!hideControls && (
         <DrawingControls>
           {!isDrawing && !isEditing ? (
@@ -1130,4 +1313,4 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 };
 
 export default PolygonDrawer;
-export type { DrawnPolygon, PolygonPoint };
+export type { DrawnPolygon, PolygonPoint, PolygonDrawerProps };

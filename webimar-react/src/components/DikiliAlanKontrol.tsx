@@ -1,8 +1,21 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import PolygonDrawer, { DrawnPolygon, formatArea } from './Map/PolygonDrawer';
+import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
 import 'leaflet/dist/leaflet.css';
+
+// Utility imports
+import { getAvailableTreeTypes } from '../utils/treeCalculation';
+import { formatArea } from '../utils/areaCalculation';
+
+// Custom hooks imports
+import {
+  useTreeData,
+  useVineyardForm,
+  useTreeEditing,
+  useMapState,
+  useVineyardCalculation
+} from '../hooks/useVineyardState';
 
 // Stil bileşenleri
 const KontrolPanel = styled.div<{ $isOpen: boolean }>`
@@ -273,27 +286,7 @@ const MapWrapper = styled.div`
   }
 `;
 
-const DrawingModeContainer = styled.div`
-  margin-bottom: 16px;
-`;
-
-const DrawingModeButton = styled.button<{ $active: boolean; $color: string }>`
-  padding: 8px 16px;
-  margin-right: 8px;
-  border: 2px solid ${props => props.$color};
-  background: ${props => props.$active ? props.$color : 'white'};
-  color: ${props => props.$active ? 'white' : props.$color};
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: ${props => props.$color};
-    color: white;
-  }
-`;
+// Drawing mode components removed - now handled by PolygonDrawer
 
 const AreaDisplayContainer = styled.div`
   display: grid;
@@ -327,23 +320,6 @@ const AreaSubtext = styled.div`
   margin-top: 2px;
 `;
 
-// Ağaç türleri verisi (eski sistemden)
-interface AgacTuru {
-  sira: number;
-  tur: string;
-  normal?: number;
-  bodur?: number;
-  yariBodur?: number;
-}
-
-interface EklenenAgac {
-  turid: string;
-  turAdi: string;
-  tipi: 'normal' | 'bodur' | 'yaribodur';
-  sayi: number;
-  gerekliAgacSayisi: number;
-}
-
 interface DikiliAlanKontrolProps {
   isOpen: boolean;
   onClose: () => void;
@@ -353,209 +329,69 @@ interface DikiliAlanKontrolProps {
 const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
   
-  // Mevcut state'ler
-  const [agacVerileri, setAgacVerileri] = useState<AgacTuru[]>([]);
-  const [eklenenAgaclar, setEklenenAgaclar] = useState<EklenenAgac[]>([]);
-  
-  // Form alanları
-  const [dikiliAlan, setDikiliAlan] = useState<number>(0);
-  const [tarlaAlani, setTarlaAlani] = useState<number>(0);
-  const [secilenAgacTuru, setSecilenAgacTuru] = useState<string>('');
-  const [secilenAgacTipi, setSecilenAgacTipi] = useState<'normal' | 'bodur' | 'yaribodur'>('normal');
-  const [agacSayisi, setAgacSayisi] = useState<number>(0);
-  
-  // Sonuç durumu
-  const [hesaplamaSonucu, setHesaplamaSonucu] = useState<any>(null);
-  
-  // Harita ile ilgili state'ler
-  const [drawingMode, setDrawingMode] = useState<'tarla' | 'dikili' | null>(null);
-  const [tarlaPolygon, setTarlaPolygon] = useState<DrawnPolygon | null>(null);
-  const [dikiliPolygon, setDikiliPolygon] = useState<DrawnPolygon | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  
-  // PolygonDrawer external kontrolü için
-  const [drawingTrigger, setDrawingTrigger] = useState(0);
-  const [stopTrigger, setStopTrigger] = useState(0);
-  const [clearTrigger, setClearTrigger] = useState(0);
-  const [editTrigger, setEditTrigger] = useState<{ timestamp: number; polygonIndex: number }>({ timestamp: 0, polygonIndex: -1 });
+  // Custom hooks for state management
+  const treeData = useTreeData();
+  const formHook = useVineyardForm();
+  const editHook = useTreeEditing();
+  const mapHook = useMapState();
+  const calculationHook = useVineyardCalculation();
 
-  // Edit modu için state'ler
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingAgacSayisi, setEditingAgacSayisi] = useState<number>(0);
+  // Destructure for easier access
+  const { agacVerileri, eklenenAgaclar, addTree, removeTree, updateTreeCount, clearAllTrees } = treeData;
+  const { formState, updateField, resetTreeSelection } = formHook;
+  const { editState, startEdit, updateEditCount, cancelEdit } = editHook;
+  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, triggerEdit } = mapHook;
+  const { hesaplamaSonucu, calculate, clearResult } = calculationHook;
 
-  // Removed debug state change log to reduce console noise
+  // Computed values for easier access
+  const { dikiliAlan, tarlaAlani, secilenAgacTuru, secilenAgacTipi, agacSayisi } = formState;
+  const { editingIndex, editingAgacSayisi } = editState;
+  const { drawingMode, tarlaPolygon, dikiliPolygon, editTrigger } = mapState;
 
-  // Ağaç verilerini yükle
-  useEffect(() => {
-    const agacData: AgacTuru[] = [
-      { sira: 1, tur: "Kestane", normal: 20 },
-      { sira: 2, tur: "Harnup", normal: 21 },
-      { sira: 3, tur: "İncir (Kurutmalık)", normal: 16 },
-      { sira: 4, tur: "İncir (Taze)", normal: 18 },
-      { sira: 5, tur: "Armut", normal: 20, bodur: 220, yariBodur: 70 },
-      { sira: 6, tur: "Elma", normal: 20, bodur: 220, yariBodur: 80 },
-      { sira: 7, tur: "Trabzon Hurması", normal: 40 },
-      { sira: 8, tur: "Kiraz", normal: 25, bodur: 50, yariBodur: 33 },
-      { sira: 9, tur: "Ayva", normal: 24, bodur: 100 },
-      { sira: 10, tur: "Nar", normal: 40 },
-      { sira: 11, tur: "Erik", normal: 18, bodur: 100, yariBodur: 34 },
-      { sira: 12, tur: "Kayısı", normal: 16, bodur: 50, yariBodur: 30 },
-      { sira: 13, tur: "Zerdali", normal: 20, bodur: 50, yariBodur: 30 },
-      { sira: 14, tur: "Muşmula", normal: 25 },
-      { sira: 15, tur: "Yenidünya", normal: 21 },
-      { sira: 16, tur: "Şeftali", normal: 40, bodur: 100, yariBodur: 67 },
-      { sira: 17, tur: "Vişne", normal: 18, bodur: 60, yariBodur: 40 },
-      { sira: 18, tur: "Ceviz", normal: 10 },
-      { sira: 19, tur: "Dut", normal: 20 },
-      { sira: 20, tur: "Üvez", normal: 40 },
-      { sira: 21, tur: "Ünnap", normal: 40 },
-      { sira: 22, tur: "Kızılcık", normal: 40 },
-      { sira: 23, tur: "Limon", normal: 21 },
-      { sira: 24, tur: "Portakal", normal: 27 },
-      { sira: 25, tur: "Turunç", normal: 27 },
-      { sira: 26, tur: "Altıntop", normal: 21 },
-      { sira: 27, tur: "Mandarin", normal: 27 },
-      { sira: 28, tur: "Avokado", normal: 21 },
-      { sira: 29, tur: "Fındık (Düz)", normal: 30 },
-      { sira: 30, tur: "Fındık (Eğimli)", normal: 50 },
-      { sira: 31, tur: "Gül", normal: 300, yariBodur: 750 },
-      { sira: 32, tur: "Çay", normal: 1800 },
-      { sira: 33, tur: "Kivi", normal: 60 },
-      { sira: 34, tur: "Böğürtlen", normal: 220 },
-      { sira: 35, tur: "Ahududu", normal: 600 },
-      { sira: 36, tur: "Likapa", normal: 260 },
-      { sira: 37, tur: "Muz (Örtü altı)", normal: 170 },
-      { sira: 38, tur: "Muz (Açıkta)", normal: 200 },
-      { sira: 39, tur: "Kuşburnu", normal: 111 },
-      { sira: 40, tur: "Mürver", normal: 85 },
-      { sira: 41, tur: "Frenk Üzümü", normal: 220 },
-      { sira: 42, tur: "Bektaşi Üzümü", normal: 220 },
-      { sira: 43, tur: "Aronya", normal: 170 }
-    ];
-    
-    setAgacVerileri(agacData);
-  }, []);
-
-  // Seçilen ağaç türünün mevcut tiplerini al
+  // Seçilen ağaç türünün mevcut tiplerini al - utility kullan
   const getMevcutTipler = (agacTuruId: string) => {
-    const agac = agacVerileri.find(a => a.sira.toString() === agacTuruId);
-    if (!agac) return [];
-    
-    const tipler = [];
-    if (agac.normal) tipler.push({ value: 'normal', label: 'Normal' });
-    if (agac.bodur) tipler.push({ value: 'bodur', label: 'Bodur' });
-    if (agac.yariBodur) tipler.push({ value: 'yaribodur', label: 'Yarı Bodur' });
-    
-    return tipler;
+    return getAvailableTreeTypes(agacTuruId, agacVerileri);
   };
 
-  // Ağaç ekle
+  // Ağaç ekle - custom hook kullan
   const agacEkle = () => {
-    if (!secilenAgacTuru || !agacSayisi || agacSayisi <= 0) {
-      alert('Lütfen ağaç türü ve geçerli bir sayı seçin');
-      return;
+    try {
+      addTree(secilenAgacTuru, secilenAgacTipi, agacSayisi);
+      resetTreeSelection();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Ağaç eklenirken hata oluştu');
     }
-
-    const agacTuru = agacVerileri.find(a => a.sira.toString() === secilenAgacTuru);
-    if (!agacTuru) return;
-
-    let gerekliSayi = 0;
-    switch (secilenAgacTipi) {
-      case 'normal':
-        gerekliSayi = agacTuru.normal || 0;
-        break;
-      case 'bodur':
-        gerekliSayi = agacTuru.bodur || 0;
-        break;
-      case 'yaribodur':
-        gerekliSayi = agacTuru.yariBodur || 0;
-        break;
-    }
-
-    const yeniAgac: EklenenAgac = {
-      turid: secilenAgacTuru,
-      turAdi: agacTuru.tur,
-      tipi: secilenAgacTipi,
-      sayi: agacSayisi,
-      gerekliAgacSayisi: gerekliSayi
-    };
-
-    setEklenenAgaclar([...eklenenAgaclar, yeniAgac]);
-    setSecilenAgacTuru('');
-    setAgacSayisi(0);
   };
 
-  // Ağaç sil
+  // Ağaç sil - custom hook kullan
   const agacSil = (index: number) => {
-    const yeniListe = eklenenAgaclar.filter((_, i) => i !== index);
-    setEklenenAgaclar(yeniListe);
+    removeTree(index);
   };
 
-  // Ağaç düzenleme başlat
+  // Ağaç düzenleme başlat - custom hook kullan
   const agacEdit = (index: number) => {
-    setEditingIndex(index);
-    setEditingAgacSayisi(eklenenAgaclar[index].sayi);
+    startEdit(index, eklenenAgaclar[index].sayi);
   };
 
-  // Ağaç düzenleme kaydet
+  // Ağaç düzenleme kaydet - custom hook kullan
   const agacEditSave = (index: number) => {
-    if (editingAgacSayisi <= 0) {
-      alert('Ağaç sayısı 0\'dan büyük olmalıdır!');
-      return;
+    try {
+      updateTreeCount(index, editingAgacSayisi);
+      cancelEdit();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Ağaç güncellenirken hata oluştu');
     }
-
-    const yeniListe = [...eklenenAgaclar];
-    yeniListe[index].sayi = editingAgacSayisi;
-    setEklenenAgaclar(yeniListe);
-    setEditingIndex(null);
-    setEditingAgacSayisi(0);
   };
 
-  // Ağaç düzenleme iptal
+  // Ağaç düzenleme iptal - custom hook kullan
   const agacEditCancel = () => {
-    setEditingIndex(null);
-    setEditingAgacSayisi(0);
+    cancelEdit();
   };
 
-  // Harita fonksiyonları
-  const startDrawingMode = (mode: 'tarla' | 'dikili') => {
-    console.log('🎯 startDrawingMode çağrıldı:', mode, 'mevcut drawingMode:', drawingMode, 'isDrawing:', isDrawing);
-    
-    // Eğer aynı mod aktifse, hiçbir şey yapma
-    if (drawingMode === mode && isDrawing) {
-      console.log('⚠️ Aynı mod zaten aktif, hiçbir şey yapılmıyor');
-      return;
-    }
-    
-    // Farklı bir mod aktifse, önce dur
-    if (isDrawing && drawingMode !== mode) {
-      console.log('🔄 Farklı mod aktif, önce durduruluyor...');
-      setStopTrigger(Date.now());
-      setIsDrawing(false);
-      
-      // Kısa bir gecikme ile yeni modu başlat
-      setTimeout(() => {
-        console.log('⏰ Timeout sonrası yeni mod başlatılıyor:', mode);
-        setDrawingMode(mode);
-        setIsDrawing(true);
-        setDrawingTrigger(Date.now());
-      }, 100);
-      return;
-    }
-    
-    // Normal başlatma
-    console.log('✅ Normal başlatma yapılıyor:', mode);
+  // Harita fonksiyonları - custom hook kullan
+  const handleDrawingModeChange = (mode: 'tarla' | 'dikili' | null) => {
+    console.log('🎯 DikiliAlanKontrol handleDrawingModeChange çağrıldı:', mode);
     setDrawingMode(mode);
-    setIsDrawing(true);
-    setDrawingTrigger(Date.now());
-  };
-
-  const stopDrawingMode = () => {
-    console.log('🛑 stopDrawingMode çağrıldı, mevcut state:', { drawingMode, isDrawing });
-    console.trace('🔍 stopDrawingMode çağrı yığını:'); // Call stack'i göster
-    setStopTrigger(Date.now()); // Timestamp kullan
-    setDrawingMode(null);
-    setIsDrawing(false);
   };
 
   const handlePolygonComplete = (polygon: DrawnPolygon) => {
@@ -563,77 +399,48 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     if (drawingMode === 'tarla') {
       console.log('🟤 Tarla polygon set ediliyor:', polygon);
       setTarlaPolygon(polygon);
-      setTarlaAlani(Math.round(polygon.area));
+      updateField('tarlaAlani', Math.round(polygon.area));
     } else if (drawingMode === 'dikili') {
       console.log('🟢 Dikili polygon set ediliyor:', polygon);
       setDikiliPolygon(polygon);
-      setDikiliAlan(Math.round(polygon.area));
+      updateField('dikiliAlan', Math.round(polygon.area));
     }
-    
-    // Çizimi sonlandırmıyoruz, kullanıcı aynı tipte yeni polygon çizebilir
-    // setIsDrawing(false); ← Bu satır kaldırıldı
   };
 
   const handlePolygonClear = () => {
     if (drawingMode === 'tarla') {
       setTarlaPolygon(null);
-      setTarlaAlani(0);
+      updateField('tarlaAlani', 0);
     } else if (drawingMode === 'dikili') {
       setDikiliPolygon(null);
-      setDikiliAlan(0);
+      updateField('dikiliAlan', 0);
     }
   };
 
   const handlePolygonEdit = (polygon: DrawnPolygon, index: number) => {
-    console.log('✏️ Polygon düzenlendi:', { polygon, index, currentStates: { tarlaAlani, dikiliAlan } });
+    console.log('✏️ Polygon düzenlendi:', { polygon, index });
     
     // Mevcut polygon yapısına göre index'i belirle
     if (index === 0 && tarlaPolygon && !dikiliPolygon) {
       // Sadece tarla varsa, index 0 = tarla
       setTarlaPolygon(polygon);
-      setTarlaAlani(Math.round(polygon.area));
-      console.log('🟤 Tarla alanı güncellendi:', Math.round(polygon.area));
+      updateField('tarlaAlani', Math.round(polygon.area));
     } else if (index === 0 && tarlaPolygon && dikiliPolygon) {
       // İkisi de varsa, index 0 = tarla
       setTarlaPolygon(polygon);
-      setTarlaAlani(Math.round(polygon.area));
-      console.log('🟤 Tarla alanı güncellendi (ikisi de var):', Math.round(polygon.area));
+      updateField('tarlaAlani', Math.round(polygon.area));
     } else if (index === 1 && tarlaPolygon && dikiliPolygon) {
       // İkisi de varsa, index 1 = dikili
       setDikiliPolygon(polygon);
-      setDikiliAlan(Math.round(polygon.area));
-      console.log('🟢 Dikili alanı güncellendi:', Math.round(polygon.area));
+      updateField('dikiliAlan', Math.round(polygon.area));
     } else if (index === 0 && !tarlaPolygon && dikiliPolygon) {
       // Sadece dikili varsa, index 0 = dikili
       setDikiliPolygon(polygon);
-      setDikiliAlan(Math.round(polygon.area));
-      console.log('🟢 Dikili alanı güncellendi (sadece dikili):', Math.round(polygon.area));
+      updateField('dikiliAlan', Math.round(polygon.area));
     }
   };
 
   // Drawing state change handler'ı kaldırıldı çünkü infinite loop yaratıyordu
-
-  const clearAllPolygons = () => {
-    console.log('🧹 clearAllPolygons çağrıldı');
-    
-    // Önce çizimi durdur
-    if (isDrawing) {
-      setStopTrigger(Date.now());
-      setIsDrawing(false);
-    }
-    
-    // ÖNEMLİ: State'leri hemen sıfırla
-    setTarlaPolygon(null);
-    setDikiliPolygon(null);
-    setTarlaAlani(0);
-    setDikiliAlan(0);
-    setDrawingMode(null);
-    setHesaplamaSonucu(null);
-    
-    // Temizleme tetikleyicisini de hemen çalıştır 
-    setClearTrigger(Date.now());
-    console.log('🧹 Clear trigger ayarlandı, tüm state\'ler temizlendi');
-  };
 
   // existingPolygons'u useMemo ile optimize et (infinite loop önlemi)
   const existingPolygons = useMemo(() => [
@@ -662,153 +469,9 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     }
   };
 
-  // Hesaplama yap
+  // Hesaplama yap - custom hook kullan
   const hesaplamaYap = () => {
-    if (tarlaAlani <= 0) {
-      setHesaplamaSonucu({
-        type: 'error',
-        message: 'Lütfen geçerli bir tarla alanı girin. Tarla alanı, dikili alan dahil toplam parsel büyüklüğüdür.'
-      });
-      return;
-    }
-
-    // Kriter 2 kontrolü: Tarla alanı >= 20000 m² ise ağaç kontrolü yapmadan devam et
-    const kriter2SaglaniyorMu = tarlaAlani >= 20000;
-    
-    if (!kriter2SaglaniyorMu) {
-      // Kriter 2 sağlanmıyorsa, Kriter 1 için gerekli kontrolleri yap
-      if (dikiliAlan < 5000) {
-        setHesaplamaSonucu({
-          type: 'error',
-          message: 'Dikili tarım arazilerinde bağ evi yapılabilmesi için dikili alan büyüklüğünün en az 0,5 hektar (5000 m²) olması gerekmektedir.'
-        });
-        return;
-      }
-
-      if (eklenenAgaclar.length === 0) {
-        setHesaplamaSonucu({
-          type: 'error',
-          message: 'Lütfen en az bir ağaç türü ekleyin.'
-        });
-        return;
-      }
-    }
-
-    // Kriter 2 sağlandığında da ağaç hesaplaması yap (gerçek değerleri göstermek için)
-    // Ama ağaç hesaplaması yoksa da devam edilebilir
-
-    // Kriter 1 için ağaç hesaplaması yap (eğer ağaç varsa)
-    // Her ağaç türü için kapladığı alanı hesapla
-    let toplamKaplanAlan = 0;
-    const agacDetaylari: any[] = [];
-
-    eklenenAgaclar.forEach(agac => {
-      // Ağacın kapladığı alanı hesapla
-      // Formül: Girilen ağaç sayısı ÷ (1000m²'de gerekli ağaç sayısı) = kaç 1000m²'lik alan kapladığı
-      const kaplanAlanHektar = agac.sayi / agac.gerekliAgacSayisi; // 1000m²'lik birim sayısı
-      const agacKaplanAlan = kaplanAlanHektar * 1000; // m² cinsinden
-      toplamKaplanAlan += agacKaplanAlan;
-
-      agacDetaylari.push({
-        turAdi: agac.turAdi,
-        sayi: agac.sayi,
-        kaplanAlan: Math.round(agacKaplanAlan),
-        binMetrekareBasinaGerekli: agac.gerekliAgacSayisi
-      });
-    });
-
-    // Sonuç hesaplama - dikili alan yeterlilik kontrolü
-    const dikiliAlanOrani = eklenenAgaclar.length > 0 ? 
-      Math.min((toplamKaplanAlan / dikiliAlan) * 100, 100) : 0; // Ağaç yoksa %0
-    const MINIMUM_YETERLILIK_ORANI = 100; // %100 minimum ağaç yoğunluğu kriteri
-
-    // Bağ evi yapabilmek için iki farklı kriter:
-    // Bağ evi kriterleri (Türkiye Tarım ve Orman Bakanlığı yönetmeliği):
-    // 1. Dikili alan ≥ 5000 m² + %100 ağaç yoğunluğu VEYA
-    // 2. Tarla alanı ≥ 20000 m² (tek başına yeterli)
-    
-    const agacYogunluguYeterli = dikiliAlanOrani >= MINIMUM_YETERLILIK_ORANI;
-    const dikiliAlanYeterli = dikiliAlan >= 5000;
-    const buyukTarlaAlani = tarlaAlani >= 20000;
-    
-    // Kriter 1: Dikili alan yeterli + ağaç yoğunluğu yeterli
-    const kriter1SaglandiMi = dikiliAlanYeterli && agacYogunluguYeterli;
-    
-    // Kriter 2: Büyük tarla alanı
-    const kriter2SaglandiMi = buyukTarlaAlani;
-    
-    // Genel uygunluk: herhangi bir kriter sağlanırsa uygun
-    const bagEviIcinUygun = kriter1SaglandiMi || kriter2SaglandiMi;
-
-    if (bagEviIcinUygun) {
-      // Bağ evi için uygun
-      let message = '';
-      let type: 'success' | 'warning' = 'success';
-      
-      if (kriter1SaglandiMi && kriter2SaglandiMi) {
-        // Her iki kriter de sağlanıyor
-        message = 'Bağ Evi Kontrolü Başarılı (Her İki Kriter Sağlanıyor)';
-        type = 'success';
-      } else if (kriter1SaglandiMi) {
-        // Sadece dikili alan + ağaç yoğunluğu kriteri sağlanıyor
-        message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan + Ağaç Yoğunluğu)';
-        type = 'success';
-      } else if (kriter2SaglandiMi) {
-        // Sadece büyük tarla alanı kriteri sağlanıyor
-        message = eklenenAgaclar.length > 0 ? 
-          'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı bilgi amaçlı)' :
-          'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı gerekmiyor)';
-        type = 'success';
-      }
-      
-      setHesaplamaSonucu({
-        type: type,
-        message: message,
-        yeterlilik: {
-          yeterli: true,
-          oran: dikiliAlanOrani,
-          minimumOran: MINIMUM_YETERLILIK_ORANI,
-          kriter1: kriter1SaglandiMi,
-          kriter2: kriter2SaglandiMi
-        },
-        alanBilgisi: {
-          kaplanAlan: Math.round(toplamKaplanAlan),
-          oran: Math.round(dikiliAlanOrani * 10) / 10,
-          agacDetaylari: agacDetaylari
-        }
-        // tarlaAlaniUyarisi kaldırıldı - başarılı durumlarda uyarı göstermeye gerek yok
-      });
-    } else {
-      // Bağ evi için uygun değil - hiçbir kriter sağlanmıyor
-      let message = 'Bağ Evi Kontrolü Başarısız';
-      
-      if (!dikiliAlanYeterli && !buyukTarlaAlani) {
-        message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Tarla Alanı < 20000 m²)';
-      } else if (!agacYogunluguYeterli && !buyukTarlaAlani) {
-        message = 'Bağ Evi Kontrolü Başarısız (Ağaç Yoğunluğu Yetersiz ve Tarla Alanı < 20000 m²)';
-      } else if (!dikiliAlanYeterli && !agacYogunluguYeterli) {
-        message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Ağaç Yoğunluğu Yetersiz)';
-      }
-      
-      setHesaplamaSonucu({
-        type: 'error',
-        message: message,
-        yeterlilik: {
-          yeterli: false,
-          oran: dikiliAlanOrani,
-          minimumOran: MINIMUM_YETERLILIK_ORANI,
-          eksikOran: MINIMUM_YETERLILIK_ORANI - dikiliAlanOrani,
-          kriter1: kriter1SaglandiMi,
-          kriter2: kriter2SaglandiMi
-        },
-        alanBilgisi: {
-          kaplanAlan: Math.round(toplamKaplanAlan),
-          oran: Math.round(dikiliAlanOrani * 10) / 10,
-          agacDetaylari: agacDetaylari
-        }
-        // tarlaAlaniUyarisi kaldırıldı - başarısız durumlarda da uyarı göstermeye gerek yok
-      });
-    }
+    calculate(dikiliAlan, tarlaAlani, eklenenAgaclar);
   };
 
   // Başarılı sonuçta devam et
@@ -920,7 +583,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   id="dikili-alan-input"
                   type="number"
                   value={dikiliAlan}
-                  onChange={(e) => setDikiliAlan(Number(e.target.value))}
+                  onChange={(e) => updateField('dikiliAlan', Number(e.target.value))}
                   placeholder="Örn: 12000"
                   min="1"
                 />
@@ -932,7 +595,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   id="tarla-alani-input"
                   type="number"
                   value={tarlaAlani}
-                  onChange={(e) => setTarlaAlani(Number(e.target.value))}
+                  onChange={(e) => updateField('tarlaAlani', Number(e.target.value))}
                   placeholder={dikiliAlan > 0 ? `En az ${dikiliAlan}` : "Örn: 15000"}
                   min={dikiliAlan > 0 ? dikiliAlan : 1}
                 />
@@ -960,8 +623,8 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   id="agac-turu-select"
                   value={secilenAgacTuru}
                   onChange={(e) => {
-                    setSecilenAgacTuru(e.target.value);
-                    setSecilenAgacTipi('normal');
+                    updateField('secilenAgacTuru', e.target.value);
+                    updateField('secilenAgacTipi', 'normal');
                   }}
                 >
                   <option value="">Ağaç türü seçin...</option>
@@ -979,7 +642,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   <Select
                     id="agac-tipi-select"
                     value={secilenAgacTipi}
-                    onChange={(e) => setSecilenAgacTipi(e.target.value as any)}
+                    onChange={(e) => updateField('secilenAgacTipi', e.target.value as any)}
                   >
                     {getMevcutTipler(secilenAgacTuru).map(tip => (
                       <option key={tip.value} value={tip.value}>
@@ -996,7 +659,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   id="agac-sayisi-input"
                   type="number"
                   value={agacSayisi || ''}
-                  onChange={(e) => setAgacSayisi(Number(e.target.value))}
+                  onChange={(e) => updateField('agacSayisi', Number(e.target.value))}
                   placeholder="Ağaç sayısını girin"
                   min="1"
                 />
@@ -1020,7 +683,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                             <input
                               type="number"
                               value={editingAgacSayisi}
-                              onChange={(e) => setEditingAgacSayisi(Number(e.target.value))}
+                              onChange={(e) => updateEditCount(Number(e.target.value))}
                               min="1"
                               style={{
                                 width: '60px',
@@ -1065,8 +728,8 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     🧮 Hesapla
                   </Button>
                   <Button onClick={() => {
-                    setEklenenAgaclar([]);
-                    setHesaplamaSonucu(null);
+                    clearAllTrees();
+                    clearResult();
                   }} $variant="secondary">
                     🗑️ Temizle
                   </Button>
@@ -1168,16 +831,14 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
 
                 {/* Buton gösterimi - yeterlilik başarılı veya kriter2 sağlanıyorsa */}
                 <div style={{ marginTop: '16px' }}>
-                  {((hesaplamaSonucu.type === 'success' || hesaplamaSonucu.type === 'warning') && hesaplamaSonucu.yeterlilik?.yeterli === true) || 
+                  {(hesaplamaSonucu.type === 'success' && hesaplamaSonucu.yeterlilik?.yeterli === true) || 
                    (hesaplamaSonucu.type === 'error' && hesaplamaSonucu.yeterlilik?.kriter2 === true) ? (
                     <div>
                       <p style={{ background: '#e8f5e8', padding: '8px', borderRadius: '4px', margin: '12px 0', fontSize: '14px' }}>
                         ✅ Bağ evi kontrolü başarılı. Arazide bağ evi yapılabilir.
                       </p>
                       <Button onClick={devamEt} $variant={
-                        hesaplamaSonucu.type === 'warning' ? 'warning' : 
-                        hesaplamaSonucu.type === 'error' && hesaplamaSonucu.yeterlilik?.kriter2 ? 'warning' : 
-                        'success'
+                        hesaplamaSonucu.type === 'success' ? 'success' : 'warning'
                       }>
                         ✅ Devam Et
                       </Button>
@@ -1210,75 +871,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                 Önce tarla alanını, sonra dikili alanı çizin.
               </InfoBox>
               
-              {/* Çizim modu seçimi */}
-              <DrawingModeContainer>
-                <div style={{ marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>
-                  Çizim Modu:
-                </div>
-                
-                {/* Çizim durumu göstergesi */}
-                {isDrawing && drawingMode && (
-                  <div style={{ 
-                    background: drawingMode === 'tarla' ? '#8B4513' : '#27ae60', 
-                    color: 'white', 
-                    padding: '6px 12px', 
-                    borderRadius: '4px', 
-                    marginBottom: '8px',
-                    fontSize: '13px',
-                    fontWeight: '600'
-                  }}>
-                    🎨 {drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'} çiziliyor... 
-                    <span style={{ marginLeft: '8px', fontSize: '12px' }}>
-                      (Haritaya tıklayarak çizin, çift tıklayarak bitirin)
-                    </span>
-                  </div>
-                )}
-                
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                  <DrawingModeButton
-                    $active={drawingMode === 'tarla'}
-                    $color="#8B4513"
-                    onClick={(e) => {
-                      console.log('🟤 TARLA butonuna tıklandı, mevcut state:', { drawingMode, isDrawing });
-                      e.preventDefault();
-                      startDrawingMode('tarla');
-                    }}
-                    disabled={false}
-                  >
-                    🟤 Tarla Alanı Çiz
-                  </DrawingModeButton>
-                  
-                  <DrawingModeButton
-                    $active={drawingMode === 'dikili'}
-                    $color="#27ae60"
-                    onClick={(e) => {
-                      console.log('🟢 DİKİLİ butonuna tıklandı, mevcut state:', { drawingMode, isDrawing });
-                      e.preventDefault();
-                      startDrawingMode('dikili');
-                    }}
-                    disabled={false}
-                  >
-                    🟢 Dikili Alan Çiz
-                  </DrawingModeButton>
-                  
-                  {/* Çizimi durdur butonu - sadece çizim aktifken */}
-                  {isDrawing && (
-                    <Button onClick={stopDrawingMode} $variant="warning">
-                      ⏹️ Çizimi Durdur
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      clearAllPolygons();
-                    }} 
-                    $variant="secondary"
-                  >
-                    🗑️ Tümünü Temizle
-                  </Button>
-                </div>
-              </DrawingModeContainer>
+              {/* Drawing mode controls now handled by PolygonDrawer */}
               
               {/* Harita */}
               <MapWrapper>
@@ -1292,21 +885,22 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   />
                   
-                  {/* Polygon çizim component'i - her zaman render et */}
+                  {/* Polygon çizim component'i - yeni drawing mode controls ile */}
                   <PolygonDrawer
                     onPolygonComplete={handlePolygonComplete}
                     onPolygonClear={handlePolygonClear}
                     onPolygonEdit={handlePolygonEdit}
-                    disabled={!drawingMode} // Sadece drawing mode yoksa disabled
+                    disabled={false}
                     polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
                     polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
-                    hideControls={false} // Edit butonlarının görünmesi için false yap
+                    hideControls={true} // Drawing mode controls PolygonDrawer'da gösterileceği için gizle
                     enableEdit={true}
-                    externalDrawingTrigger={drawingTrigger}
-                    externalStopTrigger={stopTrigger}
-                    externalClearTrigger={clearTrigger}
-                    externalEditTrigger={editTrigger}
                     existingPolygons={existingPolygons}
+                    externalEditTrigger={editTrigger}
+                    // Drawing mode management
+                    drawingMode={drawingMode}
+                    onDrawingModeChange={handleDrawingModeChange}
+                    showDrawingModeControls={true}
                   />
                 </MapContainer>
               </MapWrapper>
@@ -1332,7 +926,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                             e.preventDefault();
                             console.log('🎯 Tarla edit butonu tıklandı!', e);
                             // Tarla edit modu - index 0 (tarla her zaman ilk sırada)
-                            setEditTrigger({ timestamp: Date.now(), polygonIndex: 0 });
+                            triggerEdit(0);
                           }}
                           style={{
                             background: 'rgba(243, 156, 18, 0.1)',
@@ -1379,7 +973,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                             console.log('🎯 Dikili edit butonu tıklandı!', e);
                             // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
                             const dikiliIndex = tarlaPolygon ? 1 : 0;
-                            setEditTrigger({ timestamp: Date.now(), polygonIndex: dikiliIndex });
+                            triggerEdit(dikiliIndex);
                           }}
                           style={{
                             background: 'rgba(39, 174, 96, 0.1)',
