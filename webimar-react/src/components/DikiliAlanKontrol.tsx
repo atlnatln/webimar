@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import PolygonDrawer, { DrawnPolygon } from './Map/PolygonDrawer';
+import PolygonDrawer from './Map/PolygonDrawer';
 import 'leaflet/dist/leaflet.css';
 
 // Utility imports
@@ -16,6 +16,7 @@ import {
   useMapState,
   useVineyardCalculation
 } from '../hooks/useVineyardState';
+import { useEventHandlers, createEventLogger } from '../hooks/useEventHandlers';
 
 // Stil bileşenleri
 const KontrolPanel = styled.div<{ $isOpen: boolean }>`
@@ -348,99 +349,122 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const { editingIndex, editingAgacSayisi } = editState;
   const { drawingMode, tarlaPolygon, dikiliPolygon, editTrigger } = mapState;
 
+  // Event handling system
+  const eventLogger = createEventLogger('DikiliAlanKontrol');
+  const { callbacks, errorHandler } = useEventHandlers({
+    setTarlaPolygon,
+    setDikiliPolygon,
+    setDrawingMode,
+    triggerEdit,
+    updateField: (field: string, value: any) => updateField(field as any, value),
+    tarlaPolygon,
+    dikiliPolygon,
+    drawingMode
+  });
+
   // Seçilen ağaç türünün mevcut tiplerini al - utility kullan
   const getMevcutTipler = (agacTuruId: string) => {
     return getAvailableTreeTypes(agacTuruId, agacVerileri);
   };
 
-  // Ağaç ekle - custom hook kullan
+  // Tree management with centralized error handling
   const agacEkle = () => {
     try {
+      eventLogger.logEvent('agacEkle', { secilenAgacTuru, secilenAgacTipi, agacSayisi });
       addTree(secilenAgacTuru, secilenAgacTipi, agacSayisi);
       resetTreeSelection();
+      eventLogger.logEvent('agacEkle_success');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Ağaç eklenirken hata oluştu');
+      eventLogger.logError('agacEkle', error);
+      errorHandler.handleError(error as Error, 'agacEkle');
+      errorHandler.showUserError(error instanceof Error ? error.message : 'Ağaç eklenirken hata oluştu');
     }
   };
 
-  // Ağaç sil - custom hook kullan
   const agacSil = (index: number) => {
-    removeTree(index);
+    try {
+      eventLogger.logEvent('agacSil', { index });
+      removeTree(index);
+      eventLogger.logEvent('agacSil_success');
+    } catch (error) {
+      eventLogger.logError('agacSil', error);
+      errorHandler.handleError(error as Error, 'agacSil');
+      errorHandler.showUserError('Ağaç silme sırasında hata oluştu');
+    }
   };
 
-  // Ağaç düzenleme başlat - custom hook kullan
   const agacEdit = (index: number) => {
-    startEdit(index, eklenenAgaclar[index].sayi);
+    try {
+      eventLogger.logEvent('agacEdit', { index });
+      startEdit(index, eklenenAgaclar[index].sayi);
+    } catch (error) {
+      eventLogger.logError('agacEdit', error);
+      errorHandler.handleError(error as Error, 'agacEdit');
+      errorHandler.showUserError('Ağaç düzenleme modunu başlatma sırasında hata oluştu');
+    }
   };
 
-  // Ağaç düzenleme kaydet - custom hook kullan
   const agacEditSave = (index: number) => {
     try {
+      eventLogger.logEvent('agacEditSave', { index, editingAgacSayisi });
       updateTreeCount(index, editingAgacSayisi);
       cancelEdit();
+      eventLogger.logEvent('agacEditSave_success');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Ağaç güncellenirken hata oluştu');
+      eventLogger.logError('agacEditSave', error);
+      errorHandler.handleError(error as Error, 'agacEditSave');
+      errorHandler.showUserError(error instanceof Error ? error.message : 'Ağaç güncellenirken hata oluştu');
     }
   };
 
-  // Ağaç düzenleme iptal - custom hook kullan
   const agacEditCancel = () => {
-    cancelEdit();
-  };
-
-  // Harita fonksiyonları - custom hook kullan
-  const handleDrawingModeChange = (mode: 'tarla' | 'dikili' | null) => {
-    console.log('🎯 DikiliAlanKontrol handleDrawingModeChange çağrıldı:', mode);
-    setDrawingMode(mode);
-  };
-
-  const handlePolygonComplete = (polygon: DrawnPolygon) => {
-    console.log('✅ handlePolygonComplete çağrıldı:', { drawingMode, area: polygon.area });
-    if (drawingMode === 'tarla') {
-      console.log('🟤 Tarla polygon set ediliyor:', polygon);
-      setTarlaPolygon(polygon);
-      updateField('tarlaAlani', Math.round(polygon.area));
-    } else if (drawingMode === 'dikili') {
-      console.log('🟢 Dikili polygon set ediliyor:', polygon);
-      setDikiliPolygon(polygon);
-      updateField('dikiliAlan', Math.round(polygon.area));
+    try {
+      eventLogger.logEvent('agacEditCancel');
+      cancelEdit();
+    } catch (error) {
+      eventLogger.logError('agacEditCancel', error);
+      errorHandler.logError(error, 'agacEditCancel');
     }
   };
 
-  const handlePolygonClear = () => {
-    if (drawingMode === 'tarla') {
-      setTarlaPolygon(null);
-      updateField('tarlaAlani', 0);
-    } else if (drawingMode === 'dikili') {
-      setDikiliPolygon(null);
-      updateField('dikiliAlan', 0);
+  // Tab değişikliği işleyicisi - standardize edilmiş
+  const handleTabChange = (tab: 'manuel' | 'harita') => {
+    try {
+      eventLogger.logEvent('tabChange', { tab, previousTab: activeTab });
+      setActiveTab(tab);
+      callbacks.onTabChange(tab);
+    } catch (error) {
+      errorHandler.handleError(error as Error, 'handleTabChange');
+      errorHandler.showUserError('Sekme değiştirme sırasında hata oluştu');
     }
   };
 
-  const handlePolygonEdit = (polygon: DrawnPolygon, index: number) => {
-    console.log('✏️ Polygon düzenlendi:', { polygon, index });
-    
-    // Mevcut polygon yapısına göre index'i belirle
-    if (index === 0 && tarlaPolygon && !dikiliPolygon) {
-      // Sadece tarla varsa, index 0 = tarla
-      setTarlaPolygon(polygon);
-      updateField('tarlaAlani', Math.round(polygon.area));
-    } else if (index === 0 && tarlaPolygon && dikiliPolygon) {
-      // İkisi de varsa, index 0 = tarla
-      setTarlaPolygon(polygon);
-      updateField('tarlaAlani', Math.round(polygon.area));
-    } else if (index === 1 && tarlaPolygon && dikiliPolygon) {
-      // İkisi de varsa, index 1 = dikili
-      setDikiliPolygon(polygon);
-      updateField('dikiliAlan', Math.round(polygon.area));
-    } else if (index === 0 && !tarlaPolygon && dikiliPolygon) {
-      // Sadece dikili varsa, index 0 = dikili
-      setDikiliPolygon(polygon);
-      updateField('dikiliAlan', Math.round(polygon.area));
+  // Calculation management with error handling
+  const hesaplamaYap = () => {
+    try {
+      eventLogger.logEvent('hesaplamaYap', { dikiliAlan, tarlaAlani, agacSayisi: eklenenAgaclar.length });
+      calculate(dikiliAlan, tarlaAlani, eklenenAgaclar);
+      eventLogger.logEvent('hesaplamaYap_success');
+    } catch (error) {
+      eventLogger.logError('hesaplamaYap', error);
+      errorHandler.handleError(error as Error, 'hesaplamaYap');
+      errorHandler.showUserError('Hesaplama sırasında hata oluştu');
     }
   };
 
-  // Drawing state change handler'ı kaldırıldı çünkü infinite loop yaratıyordu
+  // Data cleanup with error handling
+  const temizleVeriler = () => {
+    try {
+      eventLogger.logEvent('temizleVeriler');
+      clearAllTrees();
+      clearResult();
+      eventLogger.logEvent('temizleVeriler_success');
+    } catch (error) {
+      eventLogger.logError('temizleVeriler', error);
+      errorHandler.handleError(error as Error, 'temizleVeriler');
+      errorHandler.showUserError('Veri temizleme sırasında hata oluştu');
+    }
+  };
 
   // existingPolygons'u useMemo ile optimize et (infinite loop önlemi)
   const existingPolygons = useMemo(() => [
@@ -458,50 +482,55 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     }] : [])
   ], [tarlaPolygon, dikiliPolygon]);
 
-  // Tab değişikliği işleyicisi
-  const handleTabChange = (tab: 'manuel' | 'harita') => {
-    setActiveTab(tab);
-    
-    // Haritadan manuel'e geçişte alan bilgilerini koru
-    if (tab === 'manuel') {
-      // Haritadan alınan alan bilgileri zaten state'te mevcut
-      // dikiliAlan ve tarlaAlani değerleri polygon'lardan geldiği için korunacak
+  // Business logic functions with error handling
+  const devamEt = () => {
+    try {
+      eventLogger.logEvent('devamEt', { 
+        yeterli: hesaplamaSonucu?.yeterlilik?.yeterli,
+        kriter2: hesaplamaSonucu?.yeterlilik?.kriter2 
+      });
+      
+      // Herhangi bir kriter sağlanıyorsa (success, warning veya kriter2 sağlanan error durumlarında) değer aktarımına izin ver
+      if (hesaplamaSonucu?.yeterlilik?.yeterli === true || hesaplamaSonucu?.yeterlilik?.kriter2 === true) {
+        onSuccess({
+          dikiliAlanKontrolSonucu: hesaplamaSonucu,
+          eklenenAgaclar: eklenenAgaclar,
+          dikiliAlan: dikiliAlan,
+          tarlaAlani: tarlaAlani
+        });
+        onClose();
+        eventLogger.logEvent('devamEt_success');
+      } else {
+        // Hiçbir kriter sağlanmıyor - uyarı göster
+        errorHandler.showUserError('Bağ evi kontrolü başarısız olduğu için değer aktarımı yapılamaz. Lütfen kriterleri sağlayın.');
+        eventLogger.logEvent('devamEt_failed', 'criteria_not_met');
+      }
+    } catch (error) {
+      eventLogger.logError('devamEt', error);
+      errorHandler.handleError(error as Error, 'devamEt');
+      errorHandler.showUserError('Sonuç aktarımı sırasında hata oluştu');
     }
   };
 
-  // Hesaplama yap - custom hook kullan
-  const hesaplamaYap = () => {
-    calculate(dikiliAlan, tarlaAlani, eklenenAgaclar);
-  };
-
-  // Başarılı sonuçta devam et
-  const devamEt = () => {
-    // Herhangi bir kriter sağlanıyorsa (success, warning veya kriter2 sağlanan error durumlarında) değer aktarımına izin ver
-    if (hesaplamaSonucu?.yeterlilik?.yeterli === true || hesaplamaSonucu?.yeterlilik?.kriter2 === true) {
+  const handleDirectCalculation = () => {
+    try {
+      eventLogger.logEvent('directCalculation', { dikiliAlan, tarlaAlani });
+      
+      // Poligon verilerini doğrudan aktarım yaparak ana forma gönder
       onSuccess({
-        dikiliAlanKontrolSonucu: hesaplamaSonucu,
-        eklenenAgaclar: eklenenAgaclar,
+        dikiliAlanKontrolSonucu: null, // Ağaç hesaplaması yapılmadı
+        eklenenAgaclar: [], // Boş ağaç listesi
         dikiliAlan: dikiliAlan,
-        tarlaAlani: tarlaAlani
+        tarlaAlani: tarlaAlani,
+        directTransfer: true // Bu bir doğrudan aktarım olduğunu belirt
       });
       onClose();
-    } else {
-      // Hiçbir kriter sağlanmıyor - uyarı göster
-      alert('Bağ evi kontrolü başarısız olduğu için değer aktarımı yapılamaz. Lütfen kriterleri sağlayın.');
+      eventLogger.logEvent('directCalculation_success');
+    } catch (error) {
+      eventLogger.logError('directCalculation', error);
+      errorHandler.handleError(error as Error, 'directCalculation');
+      errorHandler.showUserError('Doğrudan aktarım sırasında hata oluştu');
     }
-  };
-
-  // Doğrudan hesaplama sayfasına aktar (ağaç hesaplaması yapmadan)
-  const handleDirectCalculation = () => {
-    // Poligon verilerini doğrudan aktarım yaparak ana forma gönder
-    onSuccess({
-      dikiliAlanKontrolSonucu: null, // Ağaç hesaplaması yapılmadı
-      eklenenAgaclar: [], // Boş ağaç listesi
-      dikiliAlan: dikiliAlan,
-      tarlaAlani: tarlaAlani,
-      directTransfer: true // Bu bir doğrudan aktarım olduğunu belirt
-    });
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -727,10 +756,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   <Button onClick={hesaplamaYap} $variant="primary">
                     🧮 Hesapla
                   </Button>
-                  <Button onClick={() => {
-                    clearAllTrees();
-                    clearResult();
-                  }} $variant="secondary">
+                  <Button onClick={temizleVeriler} $variant="secondary">
                     🗑️ Temizle
                   </Button>
                 </div>
@@ -885,11 +911,11 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   />
                   
-                  {/* Polygon çizim component'i - yeni drawing mode controls ile */}
+                  {/* Polygon çizim component'i - standardize edilmiş callback'lerle */}
                   <PolygonDrawer
-                    onPolygonComplete={handlePolygonComplete}
-                    onPolygonClear={handlePolygonClear}
-                    onPolygonEdit={handlePolygonEdit}
+                    onPolygonComplete={callbacks.onPolygonComplete}
+                    onPolygonClear={callbacks.onPolygonClear}
+                    onPolygonEdit={callbacks.onPolygonEdit}
                     disabled={false}
                     polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
                     polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
@@ -899,7 +925,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     externalEditTrigger={editTrigger}
                     // Drawing mode management
                     drawingMode={drawingMode}
-                    onDrawingModeChange={handleDrawingModeChange}
+                    onDrawingModeChange={callbacks.onDrawingModeChange}
                     showDrawingModeControls={true}
                   />
                 </MapContainer>
@@ -924,9 +950,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            console.log('🎯 Tarla edit butonu tıklandı!', e);
-                            // Tarla edit modu - index 0 (tarla her zaman ilk sırada)
-                            triggerEdit(0);
+                            callbacks.onAreaDisplayEdit('tarla');
                           }}
                           style={{
                             background: 'rgba(243, 156, 18, 0.1)',
@@ -970,10 +994,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            console.log('🎯 Dikili edit butonu tıklandı!', e);
-                            // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
-                            const dikiliIndex = tarlaPolygon ? 1 : 0;
-                            triggerEdit(dikiliIndex);
+                            callbacks.onAreaDisplayEdit('dikili');
                           }}
                           style={{
                             background: 'rgba(39, 174, 96, 0.1)',
