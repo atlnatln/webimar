@@ -233,14 +233,6 @@ export const useMapState = () => {
     }));
   }, []);
 
-  // Edit trigger'ı reset etmek için (memory leak önleme)
-  const resetEditTrigger = useCallback(() => {
-    setMapState(prev => ({
-      ...prev,
-      editTrigger: { timestamp: 0, polygonIndex: -1 }
-    }));
-  }, []);
-
   const clearPolygons = useCallback(() => {
     setMapState(prev => ({
       ...prev,
@@ -255,7 +247,6 @@ export const useMapState = () => {
     setTarlaPolygon,
     setDikiliPolygon,
     triggerEdit,
-    resetEditTrigger,
     clearPolygons
   };
 };

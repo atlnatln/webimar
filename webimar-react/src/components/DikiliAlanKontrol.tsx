@@ -331,6 +331,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
   const [isDrawing, setIsDrawing] = useState(false); // Çizim durumu için state
   const [drawingTrigger, setDrawingTrigger] = useState(0); // PolygonDrawer'ı tetiklemek için
+  const [stopTrigger, setStopTrigger] = useState(0); // Çizimi durdurmak için
   
   // Custom hooks for state management
   const treeData = useTreeData();
@@ -343,13 +344,34 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   const { agacVerileri, eklenenAgaclar, addTree, removeTree, updateTreeCount, clearAllTrees } = treeData;
   const { formState, updateField, resetTreeSelection } = formHook;
   const { editState, startEdit, updateEditCount, cancelEdit } = editHook;
-  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, triggerEdit, resetEditTrigger } = mapHook;
+  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, triggerEdit } = mapHook;
   const { hesaplamaSonucu, calculate, clearResult } = calculationHook;
 
   // Computed values for easier access
   const { dikiliAlan, tarlaAlani, secilenAgacTuru, secilenAgacTipi, agacSayisi } = formState;
   const { editingIndex, editingAgacSayisi } = editState;
   const { drawingMode, tarlaPolygon, dikiliPolygon, editTrigger } = mapState;
+
+  // Event handling system
+  const eventLogger = createEventLogger('DikiliAlanKontrol');
+  const { callbacks, errorHandler } = useEventHandlers({
+    setTarlaPolygon,
+    setDikiliPolygon,
+    setDrawingMode,
+    triggerEdit,
+    updateField: (field: string, value: any) => updateField(field as any, value),
+    tarlaPolygon,
+    dikiliPolygon,
+    drawingMode
+  });
+
+  // Drawing state callback'ini callbacks'e ekle
+  const enhancedCallbacks = {
+    ...callbacks,
+    onDrawingStateChange: (drawing: boolean) => {
+      setIsDrawing(drawing);
+    }
+  };
 
   // Seçilen ağaç türünün mevcut tiplerini al - utility kullan
   const getMevcutTipler = (agacTuruId: string) => {
@@ -456,93 +478,20 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
   };
 
   // existingPolygons'u useMemo ile optimize et (infinite loop önlemi)
-  // SABİT INDEX SİSTEMİ: tarla=0, dikili=1 (her zaman tutarlı)
-  const existingPolygons = useMemo(() => {
-    const polygons = [];
-    
-    // Index 0: Tarla (varsa)
-    if (tarlaPolygon) {
-      polygons.push({
-        polygon: tarlaPolygon,
-        color: '#8B4513',
-        name: 'Tarla Alanı',
-        id: 'tarla'
-      });
-    }
-    
-    // Index 1: Dikili (varsa) - tarla yoksa bile index 1'de kalır
-    if (dikiliPolygon) {
-      // Tarla yoksa index 0'a dikili'yi koy, ama id sistem tutarlı olsun
-      if (!tarlaPolygon) {
-        polygons.push({
-          polygon: dikiliPolygon,
-          color: '#27ae60',
-          name: 'Dikili Alan',
-          id: 'dikili',
-          fixedIndex: 1 // Gerçek index'ini işaretle
-        });
-      } else {
-        polygons.push({
-          polygon: dikiliPolygon,
-          color: '#27ae60',
-          name: 'Dikili Alan',
-          id: 'dikili'
-        });
-      }
-    }
-    
-    return polygons;
-  }, [tarlaPolygon, dikiliPolygon]);
-
-  // Event handling system - existingPolygons tanımından sonra
-  const eventLogger = createEventLogger('DikiliAlanKontrol');
-  const { callbacks, errorHandler } = useEventHandlers({
-    setTarlaPolygon,
-    setDikiliPolygon,
-    setDrawingMode,
-    triggerEdit,
-    updateField: (field: string, value: any) => updateField(field as any, value),
-    tarlaPolygon,
-    dikiliPolygon,
-    drawingMode,
-    existingPolygons
-  });
-
-  // Drawing state callback'ini callbacks'e ekle
-  const enhancedCallbacks = {
-    ...callbacks,
-    onDrawingStateChange: (drawing: boolean) => {
-      setIsDrawing(drawing);
-    },
-    onEditModeEnd: () => {
-      // Edit mode bittiğinde trigger'ı reset et (memory leak önlemi)
-      console.log('🔄 Edit mode bitti, trigger reset ediliyor...');
-      setTimeout(() => {
-        resetEditTrigger();
-      }, 100); // Kısa delay ile reset
-    },
-    onChange: (updatedPolygons: Array<{
-      polygon: any;
-      color: string;
-      name: string;
-      id?: string;
-    }>) => {
-      console.log('🔄 DikiliAlanKontrol onChange çağrıldı:', updatedPolygons);
-      
-      // Individual polygon state'leri de güncelle
-      updatedPolygons.forEach((item) => {
-        if (item.id === 'tarla') {
-          setTarlaPolygon(item.polygon);
-          updateField('tarlaAlani', item.polygon.area || 0);
-          console.log('🟤 Tarla polygon güncellendi via onChange:', item.polygon);
-        } else if (item.id === 'dikili') {
-          setDikiliPolygon(item.polygon);
-          updateField('dikiliAlan', item.polygon.area || 0);
-          console.log('🟢 Dikili polygon güncellendi via onChange:', item.polygon);
-        }
-      });
-    }
-  };
+  const existingPolygons = useMemo(() => [
+    ...(tarlaPolygon ? [{
+      polygon: tarlaPolygon,
+      color: '#8B4513',
+      name: 'Tarla Alanı',
+      id: 'tarla'
+    }] : []),
+    ...(dikiliPolygon ? [{
+      polygon: dikiliPolygon,
+      color: '#27ae60',
+      name: 'Dikili Alan',
+      id: 'dikili'
+    }] : [])
+  ], [tarlaPolygon, dikiliPolygon]);
 
   // Business logic functions with error handling
   const devamEt = () => {
@@ -1003,16 +952,15 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                         return;
                       }
                       
-                      // Sadece mode değiştir ve çizimi başlat - stop trigger kullanma!
+                      // Önce modu değiştir
                       enhancedCallbacks.onDrawingModeChange?.('tarla');
                       
-                      // State'i doğrudan güncelle
+                      // Sonra çizimi başlat
                       setTimeout(() => {
-                        console.log('🎨 Tarla çizimi başlatılıyor...');
                         setIsDrawing(true);
-                        setDrawingTrigger(prev => prev + 1); // Sadece drawing trigger
+                        setDrawingTrigger(prev => prev + 1); // PolygonDrawer'ı tetikle
                         enhancedCallbacks.onDrawingStateChange?.(true);
-                      }, 100);
+                      }, 50);
                     }}
                     style={{ 
                       backgroundColor: drawingMode === 'tarla' ? '#8B4513' : '#ecf0f1',
@@ -1035,16 +983,15 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                         return;
                       }
                       
-                      // Sadece mode değiştir ve çizimi başlat - stop trigger kullanma!
+                      // Önce modu değiştir
                       enhancedCallbacks.onDrawingModeChange?.('dikili');
                       
-                      // State'i doğrudan güncelle
+                      // Sonra çizimi başlat
                       setTimeout(() => {
-                        console.log('🎨 Dikili çizimi başlatılıyor...');
                         setIsDrawing(true);
-                        setDrawingTrigger(prev => prev + 1); // Sadece drawing trigger
+                        setDrawingTrigger(prev => prev + 1); // PolygonDrawer'ı tetikle
                         enhancedCallbacks.onDrawingStateChange?.(true);
-                      }, 100);
+                      }, 50);
                     }}
                     style={{ 
                       backgroundColor: drawingMode === 'dikili' ? '#27ae60' : '#ecf0f1',
@@ -1063,7 +1010,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                         e.preventDefault();
                         e.stopPropagation();
                         setIsDrawing(false);
-                        // setStopTrigger KALDIRILDI - sadece state management
+                        setStopTrigger(prev => prev + 1); // PolygonDrawer'da çizimi durdur
                         enhancedCallbacks.onDrawingStateChange?.(false);
                         enhancedCallbacks.onDrawingModeChange?.(null);
                       }}
@@ -1102,8 +1049,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     onPolygonComplete={enhancedCallbacks.onPolygonComplete}
                     onPolygonClear={enhancedCallbacks.onPolygonClear}
                     onPolygonEdit={enhancedCallbacks.onPolygonEdit}
-                    onEditModeEnd={enhancedCallbacks.onEditModeEnd}
-                    onChange={enhancedCallbacks.onChange}
                     disabled={false}
                     polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
                     polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
@@ -1112,6 +1057,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     existingPolygons={existingPolygons}
                     externalEditTrigger={editTrigger}
                     externalDrawingTrigger={drawingTrigger}
+                    externalStopTrigger={stopTrigger}
                     // Drawing mode management
                     drawingMode={drawingMode}
                     onDrawingModeChange={enhancedCallbacks.onDrawingModeChange}

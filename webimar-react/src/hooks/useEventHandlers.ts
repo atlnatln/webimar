@@ -17,13 +17,6 @@ export interface EventHandlerContext {
   tarlaPolygon: DrawnPolygon | null;
   dikiliPolygon: DrawnPolygon | null;
   drawingMode: 'tarla' | 'dikili' | null;
-  existingPolygons: Array<{
-    polygon: DrawnPolygon;
-    color: string;
-    name: string;
-    id: string;
-    fixedIndex?: number;
-  }>;
 }
 
 export interface StandardizedCallbacks {
@@ -155,22 +148,13 @@ export const useEventHandlers = (context: EventHandlerContext): {
     try {
       if (type === 'tarla') {
         console.log('🎯 Tarla edit butonu tıklandı!');
-        // ID-based lookup: tarla polygon'unu existingPolygons'ta bul
-        const tarlaIndex = context.existingPolygons.findIndex(p => p.id === 'tarla');
-        if (tarlaIndex !== -1) {
-          context.triggerEdit(tarlaIndex);
-        } else {
-          console.warn('⚠️ Tarla polygon bulunamadı!');
-        }
+        // Tarla edit modu - index 0 (tarla her zaman ilk sırada)
+        context.triggerEdit(0);
       } else if (type === 'dikili') {
         console.log('🎯 Dikili edit butonu tıklandı!');
-        // ID-based lookup: dikili polygon'unu existingPolygons'ta bul
-        const dikiliIndex = context.existingPolygons.findIndex(p => p.id === 'dikili');
-        if (dikiliIndex !== -1) {
-          context.triggerEdit(dikiliIndex);
-        } else {
-          console.warn('⚠️ Dikili polygon bulunamadı!');
-        }
+        // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
+        const dikiliIndex = context.tarlaPolygon ? 1 : 0;
+        context.triggerEdit(dikiliIndex);
       }
     } catch (error) {
       handleError(error as Error, 'onAreaDisplayEdit');
