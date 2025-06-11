@@ -194,6 +194,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
   const editingPointsRef = useRef<PolygonPoint[]>([]);
   const editMarkersRef = useRef<L.Marker[]>([]);
   const dragThrottleRef = useRef<{ [key: number]: NodeJS.Timeout }>({});
+  const startEditModeRef = useRef<((index: number) => void) | null>(null);
 
   // Initialize layers once
   useEffect(() => {
@@ -486,7 +487,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
       
       console.log('🔍 Edit için polygon index bulundu:', index);
       if (index >= 0) {
-        startEditMode(index);
+        startEditModeRef.current?.(index);
       } else {
         console.log('❌ Polygon index bulunamadı!');
       }
@@ -664,6 +665,11 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     }, 50);
   }, [isDrawing, existingPolygons, onPolygonEdit, map, updateEditVisual]);
 
+  // Update startEditMode ref
+  useEffect(() => {
+    startEditModeRef.current = startEditMode;
+  }, [startEditMode]);
+
   // Stop edit mode
   const stopEditMode = useCallback(() => {
     console.log('🛑 stopEditMode çağrıldı! editingIndex:', editingIndex);
@@ -706,8 +712,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     existingPolygons.forEach((item) => {
       addPermanentPolygon(item.polygon);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingPolygons, editingIndex]); // addPermanentPolygon is stable
+  }, [existingPolygons, editingIndex, addPermanentPolygon]);
 
   // External edit trigger
   useEffect(() => {
@@ -730,8 +735,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     } else {
       console.log('❌ External edit trigger pasif - timestamp:', externalEditTrigger.timestamp, 'index:', externalEditTrigger.polygonIndex);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalEditTrigger]); // startEditMode is stable
+  }, [externalEditTrigger, startEditMode, stopEditMode, editingIndex]);
 
   // Drawing mode buttons handler
   const handleModeChange = useCallback((mode: 'tarla' | 'dikili') => {

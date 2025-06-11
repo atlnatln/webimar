@@ -958,10 +958,27 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       e.preventDefault();
                       e.stopPropagation();
                       
-                      // Sadece mod değiştir, drawing otomatik başlayacak
-                      if (drawingMode !== 'tarla') {
-                        enhancedCallbacks.onDrawingModeChange?.('tarla');
+                      // Aynı mod zaten aktifse hiçbir şey yapma
+                      if (drawingMode === 'tarla' && isDrawing) {
+                        console.log('⚠️ Aynı mod zaten aktif');
+                        return;
                       }
+                      
+                      // Aynı mod ama çizim değilse, sadece çizimi başlat
+                      if (drawingMode === 'tarla' && !isDrawing) {
+                        console.log('🔄 Aynı mod, sadece çizimi başlat');
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                        return;
+                      }
+                      
+                      // Farklı mode - önce modu değiştir, sonra çizimi başlat
+                      enhancedCallbacks.onDrawingModeChange?.('tarla');
+                      
+                      setTimeout(() => {
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                      }, 50);
                     }}
                     style={{ 
                       backgroundColor: drawingMode === 'tarla' ? '#8B4513' : '#ecf0f1',
@@ -979,10 +996,27 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       e.preventDefault();
                       e.stopPropagation();
                       
-                      // Sadece mod değiştir, drawing otomatik başlayacak
-                      if (drawingMode !== 'dikili') {
-                        enhancedCallbacks.onDrawingModeChange?.('dikili');
+                      // Aynı mod zaten aktifse hiçbir şey yapma
+                      if (drawingMode === 'dikili' && isDrawing) {
+                        console.log('⚠️ Aynı mod zaten aktif');
+                        return;
                       }
+                      
+                      // Aynı mod ama çizim değilse, sadece çizimi başlat
+                      if (drawingMode === 'dikili' && !isDrawing) {
+                        console.log('🔄 Aynı mod, sadece çizimi başlat');
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                        return;
+                      }
+                      
+                      // Farklı mode - önce modu değiştir, sonra çizimi başlat
+                      enhancedCallbacks.onDrawingModeChange?.('dikili');
+                      
+                      setTimeout(() => {
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                      }, 50);
                     }}
                     style={{ 
                       backgroundColor: drawingMode === 'dikili' ? '#27ae60' : '#ecf0f1',
