@@ -5,7 +5,8 @@ import styled from 'styled-components';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-import PolygonDrawer, { DrawnPolygon, formatArea } from '../components/Map/PolygonDrawer';
+import PolygonDrawer, { DrawnPolygon } from '../components/Map/PolygonDrawer';
+import { formatArea } from '../utils/areaCalculation';
 import KMLLayerManager from '../components/Map/KMLLayerManager';
 import { healthCheck, checkCoordinate } from '../services/apiService';
 

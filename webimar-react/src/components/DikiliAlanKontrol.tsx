@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import PolygonDrawerOptimized from './Map/PolygonDrawerOptimized';
+import PolygonDrawer from './Map/PolygonDrawer';
 import 'leaflet/dist/leaflet.css';
 
 // Utility imports
@@ -380,7 +380,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       // Form field'larını da temizle
       formHook.updateField('tarlaAlani', 0);
       formHook.updateField('dikiliAlan', 0);
-      // PolygonDrawerOptimized'daki katmanları da temizle
+      // PolygonDrawer'daki katmanları da temizle
       callbacks.onPolygonClear?.();
       // Global temizleme fonksiyonunu da çağır
       if (typeof window !== 'undefined' && (window as any).__polygonDrawerClear) {
@@ -1076,7 +1076,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                   />
                   
                   {/* Polygon çizim component'i - optimized version */}
-                  <PolygonDrawerOptimized
+                  <PolygonDrawer
                     onPolygonComplete={enhancedCallbacks.onPolygonComplete}
                     onPolygonClear={enhancedCallbacks.onPolygonClear}
                     onPolygonEdit={enhancedCallbacks.onPolygonEdit}
