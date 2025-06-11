@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import PolygonDrawer from './Map/PolygonDrawer';
+import PolygonDrawerOptimized from './Map/PolygonDrawerOptimized';
 import 'leaflet/dist/leaflet.css';
 
 // Utility imports
@@ -330,8 +330,6 @@ interface DikiliAlanKontrolProps {
 const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
   const [isDrawing, setIsDrawing] = useState(false); // Çizim durumu için state
-  const [drawingTrigger, setDrawingTrigger] = useState(0); // PolygonDrawer'ı tetiklemek için
-  const [stopTrigger, setStopTrigger] = useState(0); // Çizimi durdurmak için
   
   // Custom hooks for state management
   const treeData = useTreeData();
@@ -370,6 +368,19 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
     ...callbacks,
     onDrawingStateChange: (drawing: boolean) => {
       setIsDrawing(drawing);
+    },
+    // Tümünü temizle için özel callback
+    onFullClear: () => {
+      console.log('🧹 Tümünü temizle butonu tıklandı');
+      // Önce drawing mode'u null yap
+      setDrawingMode(null);
+      // Sonra hem tarla hem dikili state'lerini temizle (drawingMode'dan bağımsız)
+      setTarlaPolygon(null);
+      setDikiliPolygon(null);
+      // Form field'larını da temizle
+      formHook.updateField('tarlaAlani', 0);
+      formHook.updateField('dikiliAlan', 0);
+      console.log('✅ Tüm polygon state\'leri manuel olarak temizlendi');
     }
   };
 
@@ -947,18 +958,25 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       e.preventDefault();
                       e.stopPropagation();
                       
+                      // Aynı mod zaten aktifse hiçbir şey yapma
                       if (drawingMode === 'tarla' && isDrawing) {
                         console.log('⚠️ Aynı mod zaten aktif');
                         return;
                       }
                       
-                      // Önce modu değiştir
+                      // Aynı mod ama çizim değilse, sadece çizimi başlat
+                      if (drawingMode === 'tarla' && !isDrawing) {
+                        console.log('🔄 Aynı mod, sadece çizimi başlat');
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                        return;
+                      }
+                      
+                      // Farklı mode - önce modu değiştir, sonra çizimi başlat
                       enhancedCallbacks.onDrawingModeChange?.('tarla');
                       
-                      // Sonra çizimi başlat
                       setTimeout(() => {
                         setIsDrawing(true);
-                        setDrawingTrigger(prev => prev + 1); // PolygonDrawer'ı tetikle
                         enhancedCallbacks.onDrawingStateChange?.(true);
                       }, 50);
                     }}
@@ -978,18 +996,25 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                       e.preventDefault();
                       e.stopPropagation();
                       
+                      // Aynı mod zaten aktifse hiçbir şey yapma
                       if (drawingMode === 'dikili' && isDrawing) {
                         console.log('⚠️ Aynı mod zaten aktif');
                         return;
                       }
                       
-                      // Önce modu değiştir
+                      // Aynı mod ama çizim değilse, sadece çizimi başlat
+                      if (drawingMode === 'dikili' && !isDrawing) {
+                        console.log('🔄 Aynı mod, sadece çizimi başlat');
+                        setIsDrawing(true);
+                        enhancedCallbacks.onDrawingStateChange?.(true);
+                        return;
+                      }
+                      
+                      // Farklı mode - önce modu değiştir, sonra çizimi başlat
                       enhancedCallbacks.onDrawingModeChange?.('dikili');
                       
-                      // Sonra çizimi başlat
                       setTimeout(() => {
                         setIsDrawing(true);
-                        setDrawingTrigger(prev => prev + 1); // PolygonDrawer'ı tetikle
                         enhancedCallbacks.onDrawingStateChange?.(true);
                       }, 50);
                     }}
@@ -1010,7 +1035,6 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                         e.preventDefault();
                         e.stopPropagation();
                         setIsDrawing(false);
-                        setStopTrigger(prev => prev + 1); // PolygonDrawer'da çizimi durdur
                         enhancedCallbacks.onDrawingStateChange?.(false);
                         enhancedCallbacks.onDrawingModeChange?.(null);
                       }}
@@ -1024,7 +1048,7 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      enhancedCallbacks.onPolygonClear?.();
+                      enhancedCallbacks.onFullClear?.();
                     }}
                   >
                     🗑️ Tümünü Temizle
@@ -1044,25 +1068,21 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   />
                   
-                  {/* Polygon çizim component'i - standardize edilmiş callback'lerle */}
-                  <PolygonDrawer
+                  {/* Polygon çizim component'i - optimized version */}
+                  <PolygonDrawerOptimized
                     onPolygonComplete={enhancedCallbacks.onPolygonComplete}
                     onPolygonClear={enhancedCallbacks.onPolygonClear}
                     onPolygonEdit={enhancedCallbacks.onPolygonEdit}
                     disabled={false}
                     polygonColor={drawingMode === 'tarla' ? '#8B4513' : '#27ae60'}
                     polygonName={drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'}
-                    hideControls={true} // Drawing mode controls DikiliAlanKontrol'da gösterileceği için gizle
-                    enableEdit={true}
+                    hideControls={true}
                     existingPolygons={existingPolygons}
-                    externalEditTrigger={editTrigger}
-                    externalDrawingTrigger={drawingTrigger}
-                    externalStopTrigger={stopTrigger}
-                    // Drawing mode management
                     drawingMode={drawingMode}
                     onDrawingModeChange={enhancedCallbacks.onDrawingModeChange}
                     onDrawingStateChange={enhancedCallbacks.onDrawingStateChange}
-                    showDrawingModeControls={false} // Kontroller DikiliAlanKontrol'da gösteriliyor
+                    showDrawingModeControls={false}
+                    externalEditTrigger={editTrigger}
                   />
                 </MapContainer>
               </MapWrapper>

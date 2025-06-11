@@ -25,6 +25,53 @@ const GlobalStyle = `
   .polygon-tooltip:before {
     border-top-color: #3498db !important;
   }
+  
+  /* Edit marker görünürlüğünü garanti altına al */
+  .edit-marker {
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    cursor: move !important;
+  }
+  
+  .edit-marker > div, .edit-marker .marker-handle {
+    pointer-events: auto !important;
+    z-index: 1000 !important;
+    position: relative !important;
+    cursor: move !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+  }
+  
+  .draggable-marker {
+    transition: transform 0.1s ease !important;
+  }
+  
+  .draggable-marker:hover .marker-handle {
+    transform: scale(1.1) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+  }
+  
+  .draggable-marker:active .marker-handle {
+    transform: scale(1.2) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.6) !important;
+  }
+  
+  /* Edit layer pane için özel stil */
+  .leaflet-edit-pane {
+    z-index: 999 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Leaflet marker için drag optimizasyonu */
+  .leaflet-marker-draggable {
+    cursor: move !important;
+  }
+  
+  .leaflet-marker-draggable:hover {
+    z-index: 2000 !important;
+  }
 `;
 
 // Global style'ı head'e ekle
@@ -277,7 +324,15 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     }
     // Edit modu için ayrı katman oluştur
     if (!editLayerRef.current) {
+      // Edit layer için özel pane oluştur
+      if (!map.getPane('editPane')) {
+        const editPane = map.createPane('editPane');
+        editPane.style.zIndex = '999';
+        editPane.style.pointerEvents = 'auto';
+      }
+      
       editLayerRef.current = L.layerGroup().addTo(map);
+      console.log('✅ Edit layer oluşturuldu ve haritaya eklendi');
     }
     
     return () => {
@@ -373,14 +428,13 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     linesLayerRef.current?.clearLayers();
     polygonLayerRef.current?.clearLayers();
     
-    // Parent'a bildir
-    onPolygonClear?.();
+    // NOT: onPolygonClear çağrılmıyor - çizim başladığında modu korumak için
     
     // Çizim sırasında çift tıklama yakınlaştırmasını devre dışı bırak
     map.doubleClickZoom.disable();
     
     console.log('✅ Çizim başlatıldı, double-click zoom devre dışı');
-  }, [disabled, isDrawing, onDrawingStateChange, onPolygonClear, map]);
+  }, [disabled, isDrawing, onDrawingStateChange, map]);
 
   // Çizimi durdur
   const stopDrawing = useCallback(() => {
@@ -798,7 +852,24 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   }, [editingPolygonIndex, existingPolygons]);
 
   const createEditableMarkers = useCallback((points: PolygonPoint[], polygonIndex: number) => {
-    if (!editLayerRef.current) return;
+    console.log('🎯 createEditableMarkers çağrıldı:', { 
+      points: points.length, 
+      polygonIndex, 
+      isEditing: isEditingRef.current, 
+      editLayerExists: !!editLayerRef.current 
+    });
+    
+    if (!editLayerRef.current) {
+      console.error('❌ editLayerRef.current null!');
+      return;
+    }
+    
+    // Layer'ın haritaya eklendiğini kontrol et
+    console.log('🔍 Edit layer haritada mı?', map.hasLayer(editLayerRef.current));
+    console.log('🔍 Edit layer visible mı?', editLayerRef.current.options);
+    
+    // Layer sayısını kontrol et
+    console.log('🔍 Edit layer içindeki layer sayısı:', Object.keys(editLayerRef.current.getLayers()).length);
     
     // editingPointsRef'i güncelle
     editingPointsRef.current = [...points];
@@ -838,19 +909,22 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     points.forEach((point, index) => {
       const marker = L.marker([point.lat, point.lng], {
         draggable: true,
+        pane: 'editPane', // Özel pane'e ekle
         icon: L.divIcon({
           className: 'edit-marker',
           html: `<div style="
             background-color: #f39c12;
             border-radius: 50%;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border: 3px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.5);
             cursor: move;
+            position: relative;
+            z-index: 1000;
           "></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
         })
       });
       
@@ -889,7 +963,37 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       
       marker.addTo(editLayerRef.current!);
       editMarkersRef.current.push(marker);
+      console.log(`✅ Edit marker ${index} eklendi:`, marker.getLatLng());
+      console.log(`🔍 Marker ${index} haritada görünür mü?`, map.hasLayer(marker));
+      console.log(`🔍 Marker ${index} pane:`, marker.options.pane);
     });
+    
+    console.log('🎯 Toplam oluşturulan edit marker sayısı:', editMarkersRef.current.length);
+    console.log('🔍 Edit layer\'daki toplam layer sayısı:', Object.keys(editLayerRef.current.getLayers()).length);
+    
+    // Edit layer'ın görünürlüğünü doğrudan kontrol et
+    setTimeout(() => {
+      console.log('🔍 Edit layer visible mi? (delayed check):', editLayerRef.current && map.hasLayer(editLayerRef.current));
+      console.log('🔍 EditPane var mı?', !!map.getPane('editPane'));
+      const editPane = map.getPane('editPane');
+      if (editPane) {
+        console.log('🔍 EditPane style:', {
+          zIndex: editPane.style.zIndex,
+          pointerEvents: editPane.style.pointerEvents,
+          display: editPane.style.display
+        });
+      }
+      
+      // Bir global debug fonksiyonu ekle
+      (window as any).showEditMarkers = () => {
+        console.log('🔍 Edit marker debug:', {
+          totalMarkers: editMarkersRef.current.length,
+          editLayerExists: !!editLayerRef.current,
+          editLayerOnMap: editLayerRef.current && map.hasLayer(editLayerRef.current),
+          markersOnMap: editMarkersRef.current.map(m => map.hasLayer(m))
+        });
+      };
+    }, 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1006,7 +1110,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     };
     
     // ÖNEMLİ: Polygon'u kalıcı katmana ekle (kaybolmasını önler)
-    const uniqueId = `completed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Drawing mode'a göre sabit ID kullan (duplicate önlemi)
+    const uniqueId = drawingMode === 'tarla' ? 'tarla' : 
+                     drawingMode === 'dikili' ? 'dikili' : 
+                     `completed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     addPermanentPolygon(currentPoints, polygonColor, polygonName, uniqueId);
     
     // Sadece çizim katmanlarını temizle (kalıcı polygon korunur)
@@ -1063,7 +1170,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     // Güvenlik için double-click zoom'u yeniden aktifleştir
     map.doubleClickZoom.enable();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingPolygons.length, isEditing, isDrawing, onDrawingStateChange, onPolygonClear, map]);
+  }, [existingPolygons.length, isEditing, isDrawing, onDrawingStateChange, map]);
 
 
 
@@ -1089,15 +1196,14 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       linesLayerRef.current?.clearLayers();
       polygonLayerRef.current?.clearLayers();
       
-      // Parent'a bildir
-      onPolygonClear?.();
+      // NOT: onPolygonClear çağrılmıyor - çizim başladığında modu korumak için
       
       // Çizim sırasında çift tıklama yakınlaştırmasını devre dışı bırak
       map.doubleClickZoom.disable();
       
       console.log('✅ Çizim başlatıldı, double-click zoom devre dışı');
     }
-  }, [externalDrawingTrigger, disabled, isDrawing, onDrawingStateChange, onPolygonClear, map]);
+  }, [externalDrawingTrigger, disabled, isDrawing, onDrawingStateChange, map]);
 
   useEffect(() => {
     if (externalStopTrigger > 0) {
@@ -1156,7 +1262,8 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       // Güvenlik için double-click zoom'u yeniden aktifleştir
       map.doubleClickZoom.enable();
     }
-  }, [externalClearTrigger, existingPolygons.length, isEditing, isDrawing, onDrawingStateChange, onPolygonClear, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalClearTrigger, existingPolygons.length, isEditing, isDrawing, onDrawingStateChange, map]);
 
   useEffect(() => {
     if (externalEditTrigger.timestamp > 0 && existingPolygons.length > 0 && externalEditTrigger.polygonIndex >= 0) {
@@ -1193,6 +1300,136 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       
       // createEditableMarkers inline
       if (editLayerRef.current) {
+        // Edit marker'ları oluştur
+        console.log('🎯 createEditableMarkers çağrıldı:', { 
+          points: polygonPoints.length, 
+          polygonIndex, 
+          isEditing: isEditingRef.current, 
+          editLayerExists: !!editLayerRef.current 
+        });
+        
+        // Önce mevcut edit marker'ları temizle
+        editLayerRef.current.clearLayers();
+        
+        // Her nokta için draggable marker oluştur
+        polygonPoints.forEach((point, index) => {
+          if (editLayerRef.current) {
+            const marker = L.marker([point.lat, point.lng], {
+              draggable: true,
+              // Daha responsive drag için optimized icon ve options
+              icon: L.divIcon({
+                html: '<div class="marker-handle" style="width: 16px; height: 16px; background: #f39c12; border: 3px solid white; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.4); cursor: move; transition: transform 0.1s ease;"></div>',
+                className: 'edit-marker draggable-marker',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+              }),
+              // Drag sensitivity için interaktif seçenekler
+              interactive: true,
+              bubblingMouseEvents: false,
+              // Z-index ayarları
+              zIndexOffset: 1000,
+              pane: 'editPane'
+            });
+            
+            console.log('🔧 Edit marker oluşturuldu:', { lat: point.lat, lng: point.lng, index });
+            
+            // Drag start event - map kontrollerini devre dışı bırak
+            marker.on('dragstart', (e: any) => {
+              console.log('🟡 Drag başladı:', index);
+              // Drag sırasında diğer eventleri geçici olarak devre dışı bırak
+              map.dragging.disable();
+              map.touchZoom.disable();
+              map.doubleClickZoom.disable();
+              map.scrollWheelZoom.disable();
+              map.boxZoom.disable();
+              map.keyboard.disable();
+              
+              // Visual feedback
+              const markerElement = e.target.getElement();
+              if (markerElement) {
+                markerElement.style.transform = 'scale(1.2)';
+                markerElement.style.zIndex = '2000';
+              }
+            });
+            
+            // Drag event - throttle ile performance optimizasyonu
+            let dragThrottle: NodeJS.Timeout | null = null;
+            marker.on('drag', (e: any) => {
+              const newLatLng = e.target.getLatLng();
+              
+              // Throttle drag updates to improve performance
+              if (dragThrottle) {
+                clearTimeout(dragThrottle);
+              }
+              
+              dragThrottle = setTimeout(() => {
+                const updatedPoints = [...editingPointsRef.current];
+                updatedPoints[index] = { lat: newLatLng.lat, lng: newLatLng.lng };
+                editingPointsRef.current = updatedPoints;
+                setEditingPoints([...updatedPoints]);
+                
+                console.log('🔄 Marker sürüklendi:', { 
+                  index, 
+                  newLat: newLatLng.lat.toFixed(6), 
+                  newLng: newLatLng.lng.toFixed(6) 
+                });
+                
+                // Çizimin güncellenmesi için onChange callback'i çağır - Turf.js ile alan hesapla
+                if (onPolygonEdit && updatedPoints.length >= 3) {
+                  try {
+                    const coordinates = [...updatedPoints.map(p => [p.lng, p.lat]), [updatedPoints[0].lng, updatedPoints[0].lat]];
+                    const turfPolygon = turf.polygon([coordinates]);
+                    const area = turf.area(turfPolygon);
+                    
+                    const editedPolygon: DrawnPolygon = {
+                      points: updatedPoints,
+                      area: Math.round(area)
+                    };
+                    
+                    onPolygonEdit(editedPolygon, polygonIndex);
+                  } catch (error) {
+                    console.error('Drag sırasında alan hesaplama hatası:', error);
+                  }
+                }
+              }, 50); // 50ms throttle
+            });
+            
+            // Drag end event - map kontrollerini yeniden etkinleştir
+            marker.on('dragend', (e: any) => {
+              if (dragThrottle) {
+                clearTimeout(dragThrottle);
+                dragThrottle = null;
+              }
+              
+              const finalLatLng = e.target.getLatLng();
+              console.log('✅ Marker drag tamamlandı:', { 
+                index, 
+                finalLat: finalLatLng.lat.toFixed(6), 
+                finalLng: finalLatLng.lng.toFixed(6),
+                totalPoints: editingPointsRef.current.length 
+              });
+              
+              // Visual feedback geri al
+              const markerElement = e.target.getElement();
+              if (markerElement) {
+                markerElement.style.transform = 'scale(1)';
+                markerElement.style.zIndex = '1000';
+              }
+              
+              // Map kontrollerini yeniden etkinleştir
+              map.dragging.enable();
+              map.touchZoom.enable();
+              map.doubleClickZoom.enable();
+              map.scrollWheelZoom.enable();
+              map.boxZoom.enable();
+              map.keyboard.enable();
+            });
+            
+            marker.addTo(editLayerRef.current);
+            console.log('✅ Edit marker editPane\'e eklendi:', { lat: point.lat, lng: point.lng });
+          }
+        });
+        
         // İlk visual update'i başlat
         setTimeout(() => {
           if (typeof performVisualUpdate === 'function') {

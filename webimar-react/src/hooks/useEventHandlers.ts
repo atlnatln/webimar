@@ -85,15 +85,35 @@ export const useEventHandlers = (context: EventHandlerContext): {
     }
   }, [context, handleError, showUserError, logError]);
 
-  // Polygon clear handler
+  // Polygon clear handler - çizim sırasında mode korunmalı
   const onPolygonClear = useCallback(() => {
     try {
+      console.log('🧹 onPolygonClear çağrıldı, mevcut state:', {
+        drawingMode: context.drawingMode,
+        tarlaPolygon: !!context.tarlaPolygon,
+        dikiliPolygon: !!context.dikiliPolygon
+      });
+      
+      // Eğer aktif çizim modu varsa, sadece o mode'un önceki polygon'unu temizle
+      // (yeni çizim başladığında eski polygon'u kaldır, ama mode'u koru)
       if (context.drawingMode === 'tarla') {
         context.setTarlaPolygon(null);
         context.updateField('tarlaAlani', 0);
+        console.log('🧹 Tarla polygon state\'i temizlendi (mode korundu)');
+        // Drawing mode'u koruyoruz - setDrawingMode çağrılmıyor
       } else if (context.drawingMode === 'dikili') {
         context.setDikiliPolygon(null);
         context.updateField('dikiliAlan', 0);
+        console.log('🧹 Dikili polygon state\'i temizlendi (mode korundu)');
+        // Drawing mode'u koruyoruz - setDrawingMode çağrılmıyor
+      } else {
+        // Drawing mode null ise (tamamen temizle komutu), hepsini temizle
+        context.setTarlaPolygon(null);
+        context.setDikiliPolygon(null);
+        context.updateField('tarlaAlani', 0);
+        context.updateField('dikiliAlan', 0);
+        context.setDrawingMode(null);
+        console.log('🧹 Tüm polygon state\'leri tamamen temizlendi');
       }
     } catch (error) {
       handleError(error as Error, 'onPolygonClear');
