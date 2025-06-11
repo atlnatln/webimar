@@ -199,30 +199,58 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     };
   }, [map]);
 
-  // Optimized map click handler
-  const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
-    if (!isDrawing || editingIndex >= 0) return;
+  // Enhanced map click handler with double-click detection
+  const lastClickTimeRef = useRef<number>(0);
+  const handleMapClickWithDoubleClick = useCallback((e: L.LeafletMouseEvent) => {
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastClickTimeRef.current;
+    
+    console.log('🗺️ Harita tıklandı! isDrawing:', isDrawing, 'editingIndex:', editingIndex, 'timeDiff:', timeDiff);
+    
+    // Double-click detection (within 500ms)
+    if (timeDiff < 500 && isDrawing && currentPoints.length >= 3) {
+      console.log('🖱️ Manuel çift tıklama algılandı! (timeDiff:', timeDiff, 'ms)');
+      completePolygon();
+      lastClickTimeRef.current = 0; // Reset
+      return;
+    }
+    
+    lastClickTimeRef.current = currentTime;
+    
+    if (!isDrawing || editingIndex >= 0) {
+      console.log('❌ Tıklama reddedildi - isDrawing:', isDrawing, 'editingIndex:', editingIndex);
+      return;
+    }
     
     const newPoint: PolygonPoint = {
       lat: e.latlng.lat,
       lng: e.latlng.lng
     };
     
+    console.log('✅ Yeni nokta ekleniyor:', newPoint);
+    
     setCurrentPoints(prev => {
       const newPoints = [...prev, newPoint];
+      console.log('📍 Toplam nokta sayısı:', newPoints.length);
       updateDrawingVisual(newPoints);
       return newPoints;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDrawing, editingIndex]); // updateDrawingVisual is stable
+  }, [isDrawing, editingIndex, currentPoints.length]); // updateDrawingVisual, completePolygon are stable
 
   // Map events
   useMapEvents({
-    click: handleMapClick,
+    click: handleMapClickWithDoubleClick, // Use enhanced handler
     dblclick: (e) => {
+      console.log('🖱️ Çift tıklama algılandı! isDrawing:', isDrawing, 'points:', currentPoints.length);
+      
       if (isDrawing && currentPoints.length >= 3) {
+        console.log('✅ Polygon tamamlanıyor...');
         e.originalEvent?.stopPropagation();
+        e.originalEvent?.preventDefault();
         completePolygon();
+      } else {
+        console.log('❌ Çift tıklama reddedildi - isDrawing:', isDrawing, 'points:', currentPoints.length);
       }
     }
   });
@@ -269,8 +297,14 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
 
   // Start drawing
   const startDrawing = useCallback(() => {
-    if (disabled) return;
+    console.log('🎯 startDrawing çağrıldı! disabled:', disabled, 'isDrawing:', isDrawing);
     
+    if (disabled) {
+      console.log('❌ Drawing disabled, çıkılıyor');
+      return;
+    }
+    
+    console.log('✅ Drawing başlatılıyor...');
     setIsDrawing(true);
     setCurrentPoints([]);
     setEditingIndex(-1);
@@ -281,20 +315,32 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     editMarkersRef.current = [];
     
     map.doubleClickZoom.disable();
+    console.log('🗺️ Harita hazır, click event handler aktif!');
   }, [disabled, onDrawingStateChange, map]);
 
   // Stop drawing
   const stopDrawing = useCallback(() => {
+    console.log('🛑 stopDrawing çağrıldı! isDrawing:', isDrawing, 'currentPoints:', currentPoints.length);
+    
     setIsDrawing(false);
     onDrawingStateChange?.(false);
     drawingLayerRef.current?.clearLayers();
     setCurrentPoints([]);
     map.doubleClickZoom.enable();
-  }, [onDrawingStateChange, map]);
+    
+    console.log('✅ Drawing durduruldu ve katmanlar temizlendi');
+  }, [onDrawingStateChange, map, isDrawing, currentPoints.length]);
 
   // Complete polygon
   const completePolygon = useCallback(() => {
-    if (currentPoints.length < 3) return;
+    console.log('🏁 completePolygon çağrıldı! points:', currentPoints.length);
+    
+    if (currentPoints.length < 3) {
+      console.log('❌ Yeterli nokta yok, minimum 3 gerekli');
+      return;
+    }
+
+    console.log('✅ Polygon tamamlanıyor, alan hesaplanıyor...');
 
     // Calculate area
     const coordinates = [...currentPoints.map(p => [p.lng, p.lat]), [currentPoints[0].lng, currentPoints[0].lat]];
@@ -306,6 +352,8 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
       area
     };
 
+    console.log('📐 Alan hesaplandı:', area, 'm²');
+
     // Add to permanent layer
     addPermanentPolygon(polygon);
     
@@ -313,6 +361,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     setCurrentPoints([]);
     drawingLayerRef.current?.clearLayers();
     
+    console.log('✅ Polygon tamamlandı ve katmana eklendi');
     onPolygonComplete?.(polygon);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPoints, onPolygonComplete]); // addPermanentPolygon is stable
@@ -321,19 +370,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
   const addPermanentPolygon = useCallback((polygonData: DrawnPolygon) => {
     if (!polygonsLayerRef.current) return;
 
-    const uniqueId = drawingMode === 'tarla' ? 'tarla' : 
-                     drawingMode === 'dikili' ? 'dikili' : 
-                     `polygon-${Date.now()}`;
-
-    // Check if already exists
-    let exists = false;
-    polygonsLayerRef.current.eachLayer((layer: any) => {
-      if (layer.options?.polygonId === uniqueId) {
-        exists = true;
-      }
-    });
-
-    if (exists) return;
+    const uniqueId = `${drawingMode || 'polygon'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const polygon = L.polygon(polygonData.points.map(p => [p.lat, p.lng]), {
       color: polygonColor,
@@ -351,18 +388,30 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
       (${polygonData.area} m²)
     `, { className: 'polygon-tooltip' });
 
-    // Add click for edit
+    // Add click for edit - simplified
     polygon.on('click', (e) => {
+      console.log('🎯 Polygon tıklandı! uniqueId:', uniqueId);
       e.originalEvent?.stopPropagation();
-      const index = existingPolygons.findIndex(item => 
-        item.id === uniqueId || 
-        (item.polygon.points.length === polygonData.points.length && 
-         item.polygon.points.every((point, i) => 
-           Math.abs(point.lat - polygonData.points[i].lat) < 0.000001 &&
-           Math.abs(point.lng - polygonData.points[i].lng) < 0.000001
-         ))
-      );
-      if (index >= 0) startEditMode(index);
+      
+      // Find polygon in existingPolygons array
+      const index = existingPolygons.findIndex(item => {
+        if (item.id === uniqueId) return true;
+        
+        // Fallback: compare by points and area
+        return item.polygon.points.length === polygonData.points.length &&
+               Math.abs(item.polygon.area - polygonData.area) < 100 &&
+               item.polygon.points.every((point, i) => 
+                 Math.abs(point.lat - polygonData.points[i].lat) < 0.000001 &&
+                 Math.abs(point.lng - polygonData.points[i].lng) < 0.000001
+               );
+      });
+      
+      console.log('🔍 Edit için polygon index bulundu:', index);
+      if (index >= 0) {
+        startEditMode(index);
+      } else {
+        console.log('❌ Polygon index bulunamadı!');
+      }
     });
 
     polygon.addTo(polygonsLayerRef.current);
@@ -370,64 +419,148 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
 
   // Optimized edit mode
   const startEditMode = useCallback((polygonIndex: number) => {
-    if (isDrawing || !existingPolygons[polygonIndex]) return;
+    console.log('🎯 startEditMode çağrıldı! polygonIndex:', polygonIndex, 'isDrawing:', isDrawing);
+    
+    if (isDrawing || !existingPolygons[polygonIndex]) {
+      console.log('❌ Edit mode başlatılamadı - isDrawing:', isDrawing, 'polygon exists:', !!existingPolygons[polygonIndex]);
+      return;
+    }
 
+    console.log('✅ Edit mode başlatılıyor...');
     setEditingIndex(polygonIndex);
     setIsDrawing(false);
     
     const points = existingPolygons[polygonIndex].polygon.points;
     editingPointsRef.current = [...points];
+    console.log('🔍 Edit edilecek noktalar:', points.length, points);
 
     // Clear previous edit markers
     editLayerRef.current?.clearLayers();
     editMarkersRef.current = [];
 
-    // Create edit markers
+    // Create edit markers - with proper event handling from original code
     points.forEach((point, index) => {
+      console.log('🔨 Edit marker oluşturuluyor! index:', index, 'point:', point);
+      
       const marker = L.marker([point.lat, point.lng], {
         draggable: true,
+        // Responsive drag için optimize edilmiş ayarlar (orijinal koddan)
+        interactive: true,
+        bubblingMouseEvents: false,
+        zIndexOffset: 1000,
+        pane: 'editPane',
         icon: L.divIcon({
-          html: '<div style="width: 16px; height: 16px; background: #f39c12; border: 3px solid white; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.4); cursor: move;"></div>',
-          className: 'edit-marker',
+          html: '<div class="marker-handle" style="width: 16px; height: 16px; background: #f39c12; border: 3px solid white; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.4); cursor: move; transition: transform 0.1s ease;"></div>',
+          className: 'edit-marker draggable-marker',
           iconSize: [22, 22],
           iconAnchor: [11, 11]
-        }),
-        pane: 'editPane'
+        })
       });
 
-      // Optimized drag handler
+      console.log('✅ Marker oluşturuldu! draggable:', marker.options.draggable);
+
+      // Test marker click first
+      marker.on('click', () => {
+        console.log('🎯 Edit marker tıklandı! index:', index);
+      });
+
+      // Drag start event - tüm map kontrollerini devre dışı bırak (orijinal koddan)
+      marker.on('dragstart', (e: any) => {
+        console.log('🎯 Marker drag başladı! index:', index);
+        
+        // Drag sırasında tüm map kontrollerini devre dışı bırak
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        
+        // Visual feedback
+        const markerElement = e.target.getElement();
+        if (markerElement) {
+          markerElement.style.transform = 'scale(1.2)';
+          markerElement.style.zIndex = '2000';
+        }
+      });
+
+      // Drag event - throttle ile performance optimizasyonu (orijinal koddan)
+      let dragThrottle: NodeJS.Timeout | null = null;
       marker.on('drag', (e: any) => {
         const newLatLng = e.target.getLatLng();
         
-        // Clear previous throttle for this marker
-        if (dragThrottleRef.current[index]) {
-          clearTimeout(dragThrottleRef.current[index]);
+        // Throttle drag updates
+        if (dragThrottle) {
+          clearTimeout(dragThrottle);
         }
-
-        // Throttled update
-        dragThrottleRef.current[index] = setTimeout(() => {
-          editingPointsRef.current[index] = { lat: newLatLng.lat, lng: newLatLng.lng };
+        
+        dragThrottle = setTimeout(() => {
+          const updatedPoints = [...editingPointsRef.current];
+          updatedPoints[index] = { lat: newLatLng.lat, lng: newLatLng.lng };
+          editingPointsRef.current = updatedPoints;
+          setCurrentPoints([...updatedPoints]);
           
-          // Update parent immediately with throttle
-          if (onPolygonEdit && editingPointsRef.current.length >= 3) {
+          console.log('🔄 Marker sürüklendi:', { 
+            index, 
+            newLat: newLatLng.lat.toFixed(6), 
+            newLng: newLatLng.lng.toFixed(6) 
+          });
+          
+          // Çizimin güncellenmesi için onChange callback'i çağır
+          if (onPolygonEdit && updatedPoints.length >= 3) {
             try {
-              const coordinates = [...editingPointsRef.current.map(p => [p.lng, p.lat]), [editingPointsRef.current[0].lng, editingPointsRef.current[0].lat]];
+              const coordinates = [...updatedPoints.map(p => [p.lng, p.lat]), [updatedPoints[0].lng, updatedPoints[0].lat]];
               const turfPolygon = turf.polygon([coordinates]);
-              const area = Math.round(turf.area(turfPolygon));
+              const area = turf.area(turfPolygon);
               
-              onPolygonEdit({
-                points: [...editingPointsRef.current],
-                area
-              }, polygonIndex);
+              const editedPolygon: DrawnPolygon = {
+                points: updatedPoints,
+                area: Math.round(area)
+              };
+              
+              onPolygonEdit(editedPolygon, polygonIndex);
             } catch (error) {
-              console.error('Area calculation error:', error);
+              console.error('Drag sırasında alan hesaplama hatası:', error);
             }
           }
-        }, 100);
+        }, 50);
       });
 
+      // Drag end event - map kontrollerini yeniden etkinleştir (orijinal koddan)
+      marker.on('dragend', (e: any) => {
+        if (dragThrottle) {
+          clearTimeout(dragThrottle);
+          dragThrottle = null;
+        }
+        
+        const finalLatLng = e.target.getLatLng();
+        console.log('✅ Marker drag tamamlandı:', { 
+          index, 
+          finalLat: finalLatLng.lat.toFixed(6), 
+          finalLng: finalLatLng.lng.toFixed(6),
+          totalPoints: editingPointsRef.current.length 
+        });
+        
+        // Visual feedback geri al
+        const markerElement = e.target.getElement();
+        if (markerElement) {
+          markerElement.style.transform = 'scale(1)';
+          markerElement.style.zIndex = '1000';
+        }
+        
+        // Tüm map kontrollerini yeniden etkinleştir
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+      });
+
+      console.log('📌 Event handlerlar eklendi, marker ekleniyor...');
       marker.addTo(editLayerRef.current!);
       editMarkersRef.current.push(marker);
+      console.log('✅ Marker katmana eklendi! Total markers:', editMarkersRef.current.length);
     });
 
     // Hide original polygon
@@ -469,8 +602,13 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
 
   // External edit trigger
   useEffect(() => {
+    console.log('🔔 External edit trigger değişti:', externalEditTrigger);
+    
     if (externalEditTrigger.timestamp > 0 && externalEditTrigger.polygonIndex >= 0) {
+      console.log('✅ External edit trigger aktif! polygonIndex:', externalEditTrigger.polygonIndex);
       startEditMode(externalEditTrigger.polygonIndex);
+    } else {
+      console.log('❌ External edit trigger pasif - timestamp:', externalEditTrigger.timestamp, 'index:', externalEditTrigger.polygonIndex);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalEditTrigger]); // startEditMode is stable
@@ -483,6 +621,17 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     setTimeout(() => startDrawing(), 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawingMode, isDrawing, onDrawingModeChange]); // startDrawing is stable
+
+  // Auto-start/stop drawing when mode changes and we're not editing
+  useEffect(() => {
+    if (drawingMode && !isDrawing && editingIndex < 0) {
+      console.log('🎯 Drawing mode değişti, otomatik drawing başlatılıyor:', drawingMode);
+      startDrawing();
+    } else if (!drawingMode && isDrawing) {
+      console.log('🛑 Drawing mode null oldu, otomatik drawing durduruluyor');
+      stopDrawing();
+    }
+  }, [drawingMode, isDrawing, editingIndex, startDrawing, stopDrawing]);
 
   return (
     <>
