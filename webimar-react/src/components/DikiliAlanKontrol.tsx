@@ -380,7 +380,14 @@ const DikiliAlanKontrol: React.FC<DikiliAlanKontrolProps> = ({ isOpen, onClose, 
       // Form field'larını da temizle
       formHook.updateField('tarlaAlani', 0);
       formHook.updateField('dikiliAlan', 0);
-      console.log('✅ Tüm polygon state\'leri manuel olarak temizlendi');
+      // PolygonDrawerOptimized'daki katmanları da temizle
+      callbacks.onPolygonClear?.();
+      // Global temizleme fonksiyonunu da çağır
+      if (typeof window !== 'undefined' && (window as any).__polygonDrawerClear) {
+        console.log('🎯 Global temizleme fonksiyonu çağrılıyor...');
+        (window as any).__polygonDrawerClear();
+      }
+      console.log('✅ Tüm polygon state\'leri ve harita katmanları temizlendi');
     }
   };
 
