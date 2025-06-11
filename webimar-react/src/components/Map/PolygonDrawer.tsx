@@ -393,44 +393,10 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     });
 
     polygon.addTo(polygonsLayerRef.current);
-  }, [drawingMode, polygonColor, polygonName, existingPolygons, isDrawing]);
+  }, [existingPolygons, isDrawing]); // Removed unnecessary dependencies
 
-  // Start edit mode
-  const startEditMode = useCallback((polygonIndex: number) => {
-    console.log('🎯 startEditMode çağrıldı! polygonIndex:', polygonIndex);
-    
-    if (isDrawing || !existingPolygons[polygonIndex]) {
-      console.log('❌ Edit mode başlatılamadı');
-      return;
-    }
-
-    // If already editing same polygon, return
-    if (editingIndex === polygonIndex) {
-      console.log('⚠️ Bu polygon zaten edit modunda');
-      return;
-    }
-
-    // If editing another polygon, stop it first
-    if (editingIndex >= 0) {
-      console.log('🔄 Önce mevcut edit mode bitiriliyor');
-      
-      editLayerRef.current?.clearLayers();
-      editMarkersRef.current = [];
-      editingPointsRef.current = [];
-      setEditingIndex(-1);
-
-      // Wait for layer refresh then start new edit
-      setTimeout(() => {
-        console.log('🔄 Delayed olarak yeni edit başlatılıyor');
-        startNewEdit(polygonIndex);
-      }, 100);
-      return;
-    }
-
-    startNewEdit(polygonIndex);
-  }, [isDrawing, existingPolygons, editingIndex]);
-
-  const startNewEdit = (polygonIndex: number) => {
+  // Start new edit helper function
+  const startNewEdit = useCallback((polygonIndex: number) => {
     // Restore all polygons visibility first
     polygonsLayerRef.current?.eachLayer((layer: any) => {
       layer.setStyle({ opacity: 0.8, fillOpacity: 0.3 });
@@ -542,7 +508,42 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setTimeout(() => {
       updateEditVisual(points);
     }, 50);
-  };
+  }, [existingPolygons, onPolygonEdit, updateEditVisual, map]);
+
+  // Start edit mode
+  const startEditMode = useCallback((polygonIndex: number) => {
+    console.log('🎯 startEditMode çağrıldı! polygonIndex:', polygonIndex);
+    
+    if (isDrawing || !existingPolygons[polygonIndex]) {
+      console.log('❌ Edit mode başlatılamadı');
+      return;
+    }
+
+    // If already editing same polygon, return
+    if (editingIndex === polygonIndex) {
+      console.log('⚠️ Bu polygon zaten edit modunda');
+      return;
+    }
+
+    // If editing another polygon, stop it first
+    if (editingIndex >= 0) {
+      console.log('🔄 Önce mevcut edit mode bitiriliyor');
+      
+      editLayerRef.current?.clearLayers();
+      editMarkersRef.current = [];
+      editingPointsRef.current = [];
+      setEditingIndex(-1);
+
+      // Wait for layer refresh then start new edit
+      setTimeout(() => {
+        console.log('🔄 Delayed olarak yeni edit başlatılıyor');
+        startNewEdit(polygonIndex);
+      }, 100);
+      return;
+    }
+
+    startNewEdit(polygonIndex);
+  }, [isDrawing, existingPolygons, editingIndex, startNewEdit]);
 
   // Update startEditMode ref
   useEffect(() => {
@@ -615,9 +616,15 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     setTimeout(() => startDrawing(), 50);
   }, [drawingMode, isDrawing, onDrawingModeChange, startDrawing]);
 
-  // Auto-start/stop drawing when mode changes
+  // Auto-start/stop drawing when mode changes (but not during edit)
   useEffect(() => {
-    if (drawingMode && !isDrawing && editingIndex < 0) {
+    // Don't auto-start drawing if we're editing a polygon
+    if (editingIndex >= 0) {
+      console.log('⚠️ Edit modunda olduğu için auto-drawing atlandı');
+      return;
+    }
+    
+    if (drawingMode && !isDrawing) {
       console.log('🎯 Drawing mode değişti, otomatik başlatılıyor:', drawingMode);
       startDrawing();
     } else if (!drawingMode && isDrawing) {
@@ -626,10 +633,16 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
     }
   }, [drawingMode, isDrawing, editingIndex, startDrawing, stopDrawing]);
 
-  // Listen for external edit triggers
+  // Listen for external edit triggers (with throttling)
+  const lastEditTriggerRef = useRef<number>(0);
   useEffect(() => {
-    if (externalEditTrigger && externalEditTrigger.timestamp > 0 && externalEditTrigger.polygonIndex >= 0) {
+    if (externalEditTrigger && 
+        externalEditTrigger.timestamp > 0 && 
+        externalEditTrigger.timestamp > lastEditTriggerRef.current &&
+        externalEditTrigger.polygonIndex >= 0) {
+      
       console.log('🎯 External edit trigger algılandı:', externalEditTrigger);
+      lastEditTriggerRef.current = externalEditTrigger.timestamp;
       const { polygonIndex } = externalEditTrigger;
       
       if (polygonIndex < existingPolygons.length) {
