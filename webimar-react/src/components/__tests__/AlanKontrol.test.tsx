@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import DikiliAlanKontrol from '../DikiliAlanKontrol';
+import AlanKontrol from '../AlanKontrol';
 
 // Mock Leaflet components
 jest.mock('react-leaflet', () => ({
@@ -26,7 +26,7 @@ Object.defineProperty(window, 'alert', {
   writable: true,
 });
 
-describe('DikiliAlanKontrol Component', () => {
+describe('AlanKontrol Component', () => {
   const mockOnClose = jest.fn();
   const mockOnSuccess = jest.fn();
 
@@ -42,21 +42,21 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should render component when isOpen is true', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
-    expect(screen.getByText('🌳 Dikili Alan Kontrolü')).toBeInTheDocument();
+    expect(screen.getByText('🌳 Alan Kontrolü')).toBeInTheDocument();
     expect(screen.getByText('📝 Manuel Kontrol')).toBeInTheDocument();
     expect(screen.getByText('🗺️ Haritadan Kontrol')).toBeInTheDocument();
   });
 
   test('should not render when isOpen is false', () => {
-    render(<DikiliAlanKontrol {...defaultProps} isOpen={false} />);
+    render(<AlanKontrol {...defaultProps} isOpen={false} />);
     
-    expect(screen.queryByText('🌳 Dikili Alan Kontrolü')).not.toBeInTheDocument();
+    expect(screen.queryByText('🌳 Alan Kontrolü')).not.toBeInTheDocument();
   });
 
   test('should switch between tabs', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Default should be manuel tab
     expect(screen.getByText('📏 Alan Bilgisi')).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should have drawing buttons in harita tab', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Switch to harita tab
     fireEvent.click(screen.getByText('🗺️ Haritadan Kontrol'));
@@ -79,7 +79,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should show proper text in manuel tab', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Should be in manuel tab by default
     expect(screen.getByText('📏 Alan Bilgisi')).toBeInTheDocument();
@@ -89,14 +89,14 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should have close and action buttons', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     expect(screen.getByText('×')).toBeInTheDocument(); // Close button
     expect(screen.getByText('➕ Ağaç Ekle')).toBeInTheDocument();
   });
 
   test('should call onClose when close button is clicked', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     fireEvent.click(screen.getByText('×')); // Close button
     
@@ -104,7 +104,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should handle form inputs in manuel tab', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Test dikili alan input using placeholder
     const dikiliAlanInput = screen.getByPlaceholderText('Örn: 12000');
@@ -120,7 +120,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should add and remove tree entries', async () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Fill tree form and add a tree
     const treeTypeSelect = screen.getByLabelText('Ağaç Türü');
@@ -158,7 +158,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should handle tree form inputs', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Test tree type input - use label selector for better specificity
     const treeTypeInput = screen.getByLabelText('Ağaç Türü');
@@ -174,7 +174,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should validate required fields', async () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Fill in required fields but set dikili alan to less than 5000 to trigger validation
     const dikiliAlanInput = screen.getByLabelText('Dikili Alan (m²)');
@@ -209,7 +209,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should perform calculation with valid data', async () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Fill in required fields using labels for better specificity
     const dikiliAlanInput = screen.getByLabelText('Dikili Alan (m²)');
@@ -252,7 +252,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should switch to harita tab and show map controls', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Switch to harita tab
     fireEvent.click(screen.getByText('🗺️ Haritadan Kontrol'));
@@ -266,7 +266,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should handle polygon drawing mode changes', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Switch to harita tab
     fireEvent.click(screen.getByText('🗺️ Haritadan Kontrol'));
@@ -286,7 +286,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should clear all polygons when clear button is clicked', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Switch to harita tab
     fireEvent.click(screen.getByText('🗺️ Haritadan Kontrol'));
@@ -300,7 +300,7 @@ describe('DikiliAlanKontrol Component', () => {
   });
 
   test('should handle ESC key to close modal', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Simulate ESC key press on the modal container
     const modal = screen.getByRole('dialog');
@@ -311,7 +311,7 @@ describe('DikiliAlanKontrol Component', () => {
 
   // Yeni test: Çizim modları arasında geçiş testi - kullanıcının bildirdiği sorun
   test('should handle drawing mode transitions correctly without double-clicking', () => {
-    render(<DikiliAlanKontrol {...defaultProps} />);
+    render(<AlanKontrol {...defaultProps} />);
     
     // Switch to harita tab
     fireEvent.click(screen.getByText('🗺️ Haritadan Kontrol'));

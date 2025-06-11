@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import { DetailedCalculationInput, CalculationResult, StructureType } from '../types';
 import { apiService } from '../services/api';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
-import DikiliAlanKontrol from './DikiliAlanKontrol';
+import AlanKontrol from './AlanKontrol';
 
 // Cursor yanıp sönme animasyonu
 const blink = keyframes`
@@ -893,11 +893,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         </form>
       </FormContent>
 
-      {/* Dikili Alan Kontrolü Paneli */}
-      <DikiliAlanKontrol
+      {/* Alan Kontrolü Paneli */}
+      <AlanKontrol
         isOpen={dikiliKontrolOpen}
         onClose={handleDikiliKontrolClose}
         onSuccess={handleDikiliKontrolSuccess}
+        alanTipi="dikiliAlan"
       />
     </FormContainer>
   );
