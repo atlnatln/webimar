@@ -4,7 +4,7 @@ import * as turf from '@turf/turf';
 import { useMap, useMapEvents } from 'react-leaflet';
 import styled from 'styled-components';
 
-// Global CSS - Simplified
+// Global CSS - Simplified with stable markers
 const GlobalStyle = `
   .polygon-tooltip {
     background: rgba(255, 255, 255, 0.95) !important;
@@ -22,13 +22,37 @@ const GlobalStyle = `
     cursor: move !important;
   }
   
-  .edit-marker:hover {
+  .draggable-marker {
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+  }
+  
+  .draggable-marker .marker-handle {
+    width: 16px !important;
+    height: 16px !important;
+    background: #f39c12 !important;
+    border: 3px solid white !important;
+    border-radius: 50% !important;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
+    cursor: move !important;
+    pointer-events: auto !important;
+    position: absolute !important;
+    top: 3px !important;
+    left: 3px !important;
+    z-index: 1001 !important;
+  }
+  
+  .draggable-marker:hover .marker-handle {
     transform: scale(1.1) !important;
   }
   
   .leaflet-edit-pane {
     z-index: 999 !important;
     pointer-events: auto !important;
+  }
+  
+  .leaflet-marker-pane .leaflet-marker-icon.edit-marker {
+    z-index: 1000 !important;
   }
 `;
 
@@ -295,6 +319,60 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     }
   }, [polygonColor]);
 
+  // Edit visual update function - display real-time polygon during editing
+  const updateEditVisual = useCallback((points: PolygonPoint[]) => {
+    console.log('🎨 updateEditVisual çağrıldı! points:', points.length);
+    
+    if (!editLayerRef.current || points.length < 3) {
+      console.log('❌ updateEditVisual iptal - editLayer:', !!editLayerRef.current, 'points:', points.length);
+      return;
+    }
+    
+    // Remove existing edit polygon (keep markers)
+    editLayerRef.current.eachLayer((layer: any) => {
+      if (layer instanceof L.Polygon) {
+        console.log('🗑️ Eski edit polygon kaldırılıyor');
+        editLayerRef.current!.removeLayer(layer);
+      }
+    });
+    
+    // Add updated edit polygon
+    const editPolygon = L.polygon(points.map(p => [p.lat, p.lng]), {
+      color: '#f39c12',
+      weight: 3,
+      fillColor: '#f39c12',
+      fillOpacity: 0.2,
+      dashArray: '5, 5'
+    });
+    
+    console.log('✅ Yeni edit polygon oluşturuldu');
+    
+    // Calculate and show area
+    try {
+      const coordinates = [...points.map(p => [p.lng, p.lat]), [points[0].lng, points[0].lat]];
+      const turfPolygon = turf.polygon([coordinates]);
+      const area = turf.area(turfPolygon);
+      const areaInDonum = (area / 10000).toFixed(2);
+      
+      console.log('📐 Edit polygon alan hesaplandı:', Math.round(area), 'm²');
+      
+      editPolygon.bindTooltip(`
+        <strong>📝 Düzenleniyor</strong><br>
+        Alan: ${areaInDonum} dönüm<br>
+        (${Math.round(area)} m²)
+      `, { 
+        className: 'polygon-tooltip',
+        permanent: true,
+        direction: 'center'
+      });
+    } catch (error) {
+      console.error('❌ Edit area calculation error:', error);
+    }
+    
+    editPolygon.addTo(editLayerRef.current);
+    console.log('✅ Edit polygon katmana eklendi');
+  }, []);
+
   // Start drawing
   const startDrawing = useCallback(() => {
     console.log('🎯 startDrawing çağrıldı! disabled:', disabled, 'isDrawing:', isDrawing);
@@ -450,7 +528,7 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
         zIndexOffset: 1000,
         pane: 'editPane',
         icon: L.divIcon({
-          html: '<div class="marker-handle" style="width: 16px; height: 16px; background: #f39c12; border: 3px solid white; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,0.4); cursor: move; transition: transform 0.1s ease;"></div>',
+          html: '<div class="marker-handle"></div>',
           className: 'edit-marker draggable-marker',
           iconSize: [22, 22],
           iconAnchor: [11, 11]
@@ -479,8 +557,11 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
         // Visual feedback
         const markerElement = e.target.getElement();
         if (markerElement) {
-          markerElement.style.transform = 'scale(1.2)';
-          markerElement.style.zIndex = '2000';
+          const handleElement = markerElement.querySelector('.marker-handle');
+          if (handleElement) {
+            handleElement.style.transform = 'scale(1.2)';
+            handleElement.style.zIndex = '2000';
+          }
         }
       });
 
@@ -505,6 +586,9 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
             newLat: newLatLng.lat.toFixed(6), 
             newLng: newLatLng.lng.toFixed(6) 
           });
+          
+          // Immediate visual update during drag
+          updateEditVisual(updatedPoints);
           
           // Çizimin güncellenmesi için onChange callback'i çağır
           if (onPolygonEdit && updatedPoints.length >= 3) {
@@ -544,8 +628,11 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
         // Visual feedback geri al
         const markerElement = e.target.getElement();
         if (markerElement) {
-          markerElement.style.transform = 'scale(1)';
-          markerElement.style.zIndex = '1000';
+          const handleElement = markerElement.querySelector('.marker-handle');
+          if (handleElement) {
+            handleElement.style.transform = 'scale(1)';
+            handleElement.style.zIndex = '1001';
+          }
         }
         
         // Tüm map kontrollerini yeniden etkinleştir
@@ -570,10 +657,18 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
         layer.setStyle({ opacity: 0, fillOpacity: 0 });
       }
     });
-  }, [isDrawing, existingPolygons, onPolygonEdit]);
+
+    // Show initial edit visual
+    setTimeout(() => {
+      updateEditVisual(points);
+    }, 50);
+  }, [isDrawing, existingPolygons, onPolygonEdit, map, updateEditVisual]);
 
   // Stop edit mode
   const stopEditMode = useCallback(() => {
+    console.log('🛑 stopEditMode çağrıldı! editingIndex:', editingIndex);
+    
+    const currentEditingIndex = editingIndex;
     setEditingIndex(-1);
     editLayerRef.current?.clearLayers();
     editMarkersRef.current = [];
@@ -582,11 +677,25 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     Object.values(dragThrottleRef.current).forEach(clearTimeout);
     dragThrottleRef.current = {};
 
-    // Restore polygon visibility
-    polygonsLayerRef.current?.eachLayer((layer: any) => {
-      layer.setStyle({ opacity: 0.8, fillOpacity: 0.3 });
-    });
-  }, []);
+    // Restore ONLY the edited polygon visibility, not all polygons
+    if (currentEditingIndex >= 0 && existingPolygons[currentEditingIndex]) {
+      const targetId = existingPolygons[currentEditingIndex].id;
+      console.log('🔄 Polygon restore edilecek ID:', targetId);
+      
+      polygonsLayerRef.current?.eachLayer((layer: any) => {
+        if (layer.options?.polygonId === targetId) {
+          console.log('✅ Hedef polygon restore edildi');
+          layer.setStyle({ opacity: 0.8, fillOpacity: 0.3 });
+        }
+      });
+    } else {
+      console.log('🔄 Tüm polygonlar restore ediliyor (fallback)');
+      // Fallback: restore all polygons
+      polygonsLayerRef.current?.eachLayer((layer: any) => {
+        layer.setStyle({ opacity: 0.8, fillOpacity: 0.3 });
+      });
+    }
+  }, [editingIndex, existingPolygons]);
 
   // Load existing polygons - simplified
   useEffect(() => {
@@ -606,7 +715,18 @@ const PolygonDrawerOptimized: React.FC<PolygonDrawerOptimizedProps> = ({
     
     if (externalEditTrigger.timestamp > 0 && externalEditTrigger.polygonIndex >= 0) {
       console.log('✅ External edit trigger aktif! polygonIndex:', externalEditTrigger.polygonIndex);
-      startEditMode(externalEditTrigger.polygonIndex);
+      
+      // Eğer başka bir edit mode aktifse, önce onu bitir
+      if (editingIndex >= 0 && editingIndex !== externalEditTrigger.polygonIndex) {
+        console.log('🔄 Önceki edit mode durduruluyor, index:', editingIndex);
+        stopEditMode();
+        // Small delay to ensure clean state transition
+        setTimeout(() => {
+          startEditMode(externalEditTrigger.polygonIndex);
+        }, 100);
+      } else {
+        startEditMode(externalEditTrigger.polygonIndex);
+      }
     } else {
       console.log('❌ External edit trigger pasif - timestamp:', externalEditTrigger.timestamp, 'index:', externalEditTrigger.polygonIndex);
     }
