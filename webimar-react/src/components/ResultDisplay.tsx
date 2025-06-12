@@ -114,12 +114,6 @@ const ResultValue = styled.div`
   margin-bottom: 4px;
 `;
 
-const ResultUnit = styled.span`
-  color: #6b7280;
-  font-size: 14px;
-  font-weight: 400;
-`;
-
 const ResultDescription = styled.p`
   color: #6b7280;
   font-size: 14px;
@@ -151,6 +145,176 @@ const ErrorMessage = styled.p`
 // Backend constants.py ile senkronize yapı türü display isimleri - artık context'ten geliyor
 const getCalculationTypeDisplayName = (type: StructureType, structureTypeLabels: Record<StructureType, string>): string => {
   return structureTypeLabels[type] || type;
+};
+
+// Dinamik alan konfigürasyonu
+interface FieldConfig {
+  key: string | string[]; // Tek alan veya alternatif alanlar
+  label: string;
+  unit: string;
+  description: string;
+  formatter?: (value: any, data?: any) => string;
+  condition?: (data: any) => boolean;
+}
+
+const fieldConfigs: FieldConfig[] = [
+  {
+    key: ['alan_m2', 'arazi_alani'],
+    label: 'Toplam Alan',
+    unit: 'm²',
+    description: 'Girilen parselin toplam alanı'
+  },
+  {
+    key: 'kapasite',
+    label: 'Maksimum Kapasite',
+    unit: 'baş',
+    description: 'Bu alanda yetiştirilebilecek maksimum hayvan sayısı'
+  },
+  {
+    key: 'yapi_alani',
+    label: 'Yapı Alanı',
+    unit: 'm²',
+    description: 'İnşa edilebilecek maksimum yapı alanı'
+  },
+  {
+    key: 'insaat_alani',
+    label: 'İnşaat Alanı',
+    unit: 'm²',
+    description: 'Toplam inşaat alanı'
+  },
+  {
+    key: 'taban_alani',
+    label: 'Taban Alanı',
+    unit: 'm²',
+    description: 'Yapının taban alanı'
+  },
+  {
+    key: 'sera_alani',
+    label: 'Sera Alanı',
+    unit: 'm²',
+    description: 'Kurulabilecek sera alanı'
+  },
+  {
+    key: ['depolama_kapasitesi', 'depo_alani'],
+    label: 'Depo Alanı',
+    unit: '',
+    description: '',
+    formatter: (value: any, data: any) => {
+      if (data.depolama_kapasitesi) {
+        return `${formatNumber(data.depolama_kapasitesi)} ton`;
+      }
+      if (data.depo_alani) {
+        return `${formatNumber(data.depo_alani)} m²`;
+      }
+      return `${formatNumber(value)} m²`;
+    },
+    condition: (data: any) => data.depolama_kapasitesi || data.depo_alani
+  },
+  {
+    key: 'silo_kapasitesi',
+    label: 'Silo Kapasitesi',
+    unit: 'ton',
+    description: 'Silo depolama kapasitesi'
+  },
+  {
+    key: 'soguk_depo_kapasitesi',
+    label: 'Soğuk Depo Kapasitesi',
+    unit: 'ton',
+    description: 'Soğuk depo kapasitesi'
+  },
+  {
+    key: 'uretim_kapasitesi',
+    label: 'Üretim Kapasitesi',
+    unit: 'kg/yıl',
+    description: 'Yıllık üretim kapasitesi'
+  },
+  {
+    key: 'kovan_sayisi',
+    label: 'Maksimum Kovan Sayısı',
+    unit: 'adet',
+    description: 'Kurulabilecek maksimum kovan sayısı'
+  },
+  {
+    key: 'havuz_alani',
+    label: 'Havuz Alanı',
+    unit: 'm²',
+    description: 'Su ürünleri havuz alanı'
+  },
+  {
+    key: 'maksimum_insaat_alani',
+    label: 'Maksimum İnşaat Alanı',
+    unit: 'm²',
+    description: 'Bağ evi için maksimum inşaat alanı'
+  },
+  {
+    key: 'uretim_alani',
+    label: 'Üretim Alanı',
+    unit: 'm²',
+    description: 'Aktif üretim alanı'
+  },
+  {
+    key: 'maksimum_emsal',
+    label: 'Maksimum Emsal Alanı',
+    unit: 'm²',
+    description: 'İzin verilen maksimum yapılaşma alanı'
+  },
+  {
+    key: 'kalan_emsal',
+    label: 'Kalan Emsal Hakkı',
+    unit: 'm²',
+    description: 'Müştemilatlar (araç yolu, idari bina, laboratuvar vb.) için kullanılabilir alan'
+  },
+  {
+    key: 'emsal_orani',
+    label: 'Emsal Oranı',
+    unit: '',
+    description: 'Uygulanabilir maksimum emsal oranı'
+  }
+];
+
+const getFieldValue = (data: any, key: string | string[]): any => {
+  if (Array.isArray(key)) {
+    for (const k of key) {
+      if (data[k] !== undefined && data[k] !== null) {
+        return data[k];
+      }
+    }
+    return null;
+  }
+  return data[key];
+};
+
+const renderFieldCards = (data: any) => {
+  return fieldConfigs.map((config, index) => {
+    const value = getFieldValue(data, config.key);
+    
+    // Alan yoksa veya koşul sağlanmıyorsa gösterme
+    if (!value && value !== 0) return null;
+    if (config.condition && !config.condition(data)) return null;
+    
+    // Özel formatter varsa kullan
+    const formattedValue = config.formatter 
+      ? config.formatter(value, data)
+      : `${formatNumber(value)} ${config.unit}`;
+    
+    // Açıklama için özel mantık
+    let description = config.description;
+    if (Array.isArray(config.key) && config.key.includes('depolama_kapasitesi') && config.key.includes('depo_alani')) {
+      description = data.depolama_kapasitesi ? 'Maksimum depolama kapasitesi' : 'Depo taban alanı';
+    }
+    
+    return (
+      <ResultCard key={`field-${index}`}>
+        <ResultLabel>{config.label}</ResultLabel>
+        <ResultValue>
+          {formattedValue}
+        </ResultValue>
+        <ResultDescription>
+          {description}
+        </ResultDescription>
+      </ResultCard>
+    );
+  }).filter(Boolean);
 };
 
 const formatNumber = (value: number | string): string => {
@@ -218,253 +382,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
           <ResultTitle>{getCalculationTypeDisplayName(calculationType, structureTypeLabels)} Hesaplama Sonucu</ResultTitle>
           <ResultSubtitle>Hesaplama başarıyla tamamlandı</ResultSubtitle>
         </div>
-      </ResultHeader>
-
-      <ResultGrid>
-        {/* Alan Bilgileri */}
-        {(data.alan_m2 || data.arazi_alani) && (
-          <ResultCard>
-            <ResultLabel>Toplam Alan</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.alan_m2 || data.arazi_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Girilen parselin toplam alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Kapasite Bilgileri */}
-        {data.kapasite && (
-          <ResultCard>
-            <ResultLabel>Maksimum Kapasite</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.kapasite)} <ResultUnit>baş</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Bu alanda yetiştirilebilecek maksimum hayvan sayısı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Yapı Alanı */}
-        {data.yapi_alani && (
-          <ResultCard>
-            <ResultLabel>Yapı Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.yapi_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              İnşa edilebilecek maksimum yapı alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* İnşaat Alanı */}
-        {data.insaat_alani && (
-          <ResultCard>
-            <ResultLabel>İnşaat Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.insaat_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Toplam inşaat alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Taban Alanı */}
-        {data.taban_alani && (
-          <ResultCard>
-            <ResultLabel>Taban Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.taban_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Yapının taban alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Sera Alanı */}
-        {data.sera_alani && (
-          <ResultCard>
-            <ResultLabel>Sera Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.sera_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Kurulabilecek sera alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Depolama Kapasitesi */}
-        {(data.depolama_kapasitesi || data.depo_alani) && (
-          <ResultCard>
-            <ResultLabel>Depo Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.depolama_kapasitesi || data.depo_alani)} <ResultUnit>{data.depolama_kapasitesi ? 'ton' : 'm²'}</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              {data.depolama_kapasitesi ? 'Maksimum depolama kapasitesi' : 'Depo taban alanı'}
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Silo Kapasitesi */}
-        {data.silo_kapasitesi && (
-          <ResultCard>
-            <ResultLabel>Silo Kapasitesi</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.silo_kapasitesi)} <ResultUnit>ton</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Silo depolama kapasitesi
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Soğuk Depo Kapasitesi */}
-        {data.soguk_depo_kapasitesi && (
-          <ResultCard>
-            <ResultLabel>Soğuk Depo Kapasitesi</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.soguk_depo_kapasitesi)} <ResultUnit>ton</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Soğuk depo kapasitesi
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Üretim Kapasitesi */}
-        {data.uretim_kapasitesi && (
-          <ResultCard>
-            <ResultLabel>Üretim Kapasitesi</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.uretim_kapasitesi)} <ResultUnit>kg/yıl</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Yıllık üretim kapasitesi
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Kovan Sayısı */}
-        {data.kovan_sayisi && (
-          <ResultCard>
-            <ResultLabel>Maksimum Kovan Sayısı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.kovan_sayisi)} <ResultUnit>adet</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Kurulabilecek maksimum kovan sayısı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Havuz Alanı */}
-        {data.havuz_alani && (
-          <ResultCard>
-            <ResultLabel>Havuz Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.havuz_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Su ürünleri havuz alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Yumurta Kapasitesi */}
-        {data.yumurta_kapasitesi && (
-          <ResultCard>
-            <ResultLabel>Yumurta Kapasitesi</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.yumurta_kapasitesi)} <ResultUnit>adet/yıl</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Yıllık yumurta üretim kapasitesi
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Kuluçka Kapasitesi */}
-        {data.kulucka_kapasitesi && (
-          <ResultCard>
-            <ResultLabel>Kuluçka Kapasitesi</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.kulucka_kapasitesi)} <ResultUnit>adet</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Kuluçka makinesi kapasitesi
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Bağ Evi Özel Durumlar */}
-        {data.maksimum_insaat_alani && (
-          <ResultCard>
-            <ResultLabel>Maksimum İnşaat Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.maksimum_insaat_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Bağ evi için maksimum inşaat alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Üretim Alanı */}
-        {data.uretim_alani && (
-          <ResultCard>
-            <ResultLabel>Üretim Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.uretim_alani)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Aktif üretim alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {/* Lisanslı Depo Özel Alanları */}
-        {data.maksimum_emsal && (
-          <ResultCard>
-            <ResultLabel>Maksimum Emsal Alanı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.maksimum_emsal)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              İzin verilen maksimum yapılaşma alanı
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {data.kalan_emsal !== undefined && (
-          <ResultCard>
-            <ResultLabel>Kalan Emsal Hakkı</ResultLabel>
-            <ResultValue>
-              {formatNumber(data.kalan_emsal)} <ResultUnit>m²</ResultUnit>
-            </ResultValue>
-            <ResultDescription>
-              Müştemilatlar (araç yolu, idari bina, laboratuvar vb.) için kullanılabilir alan
-            </ResultDescription>
-          </ResultCard>
-        )}
-
-        {data.emsal_orani && (
-          <ResultCard>
-            <ResultLabel>Emsal Oranı</ResultLabel>
-            <ResultValue>
-              {data.emsal_orani}
-            </ResultValue>
-            <ResultDescription>
-              Uygulanabilir maksimum emsal oranı
-            </ResultDescription>
-          </ResultCard>
-        )}
+      </ResultHeader>      <ResultGrid>
+        {/* Dinamik alan kartları */}
+        {renderFieldCards(data)}
       </ResultGrid>
 
       {/* İzin Durumu */}
@@ -480,81 +400,12 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
         </ResultCard>
       )}
 
-      {/* Detaylı HTML Mesajı - Lisanslı Depo için */}
-      {data.html_mesaj && calculationType === 'lisansli-depo' && (
-        <ResultCard style={{ marginTop: '20px', padding: '0' }}>
-          <div 
-            style={{ padding: '20px' }}
-            dangerouslySetInnerHTML={{ __html: data.html_mesaj }}
-          />
-        </ResultCard>
-      )}
-
-      {/* Detaylı HTML Mesajı - Yıkama Tesisi için */}
-      {data.html_mesaj && calculationType === 'yikama-tesisi' && (
-        <ResultCard style={{ marginTop: '20px', padding: '0' }}>
-          <div 
-            style={{ padding: '20px' }}
-            dangerouslySetInnerHTML={{ __html: data.html_mesaj }}
-          />
-        </ResultCard>
-      )}
-
-      {/* Detaylı HTML Mesajı - Solucan Tesisi için */}
-      {data.mesaj && calculationType === 'solucan-tesisi' && (
-        <ResultCard style={{ marginTop: '20px', padding: '0' }}>
-          <div 
-            style={{ padding: '20px' }}
-            dangerouslySetInnerHTML={{ __html: data.mesaj }}
-          />
-        </ResultCard>
-      )}
-
-      {/* Detaylı HTML Mesajı - Mantar Tesisi için */}
-      {data.mesaj && calculationType === 'mantar-tesisi' && (
-        <ResultCard style={{ marginTop: '20px', padding: '0' }}>
-          <div 
-            style={{ padding: '20px' }}
-            dangerouslySetInnerHTML={{ __html: data.mesaj }}
-          />
-        </ResultCard>
-      )}
-
-
       {/* Detaylı HTML Mesajı - Tüm Tarımsal Yapılar için */}
-      {data.mesaj && (
-        calculationType === 'solucan-tesisi' || 
-        calculationType === 'mantar-tesisi' || 
-        calculationType === 'aricilik' || 
-        calculationType === 'hububat-silo' || 
-        calculationType === 'tarimsal-depo' || 
-        calculationType === 'lisansli-depo' || 
-        calculationType === 'yikama-tesisi' || 
-        calculationType === 'kurutma-tesisi' || 
-        calculationType === 'meyve-sebze-kurutma' || 
-        calculationType === 'zeytinyagi-fabrikasi' || 
-        calculationType === 'su-depolama' || 
-        calculationType === 'su-kuyulari' || 
-        calculationType === 'bag-evi' || 
-        calculationType === 'zeytinyagi-uretim-tesisi' || 
-        calculationType === 'soguk-hava-deposu' || 
-        calculationType === 'agil-kucukbas' || 
-        calculationType === 'kumes-gezen' || 
-        calculationType === 'kumes-hindi' || 
-        calculationType === 'kumes-yumurtaci' || 
-        calculationType === 'kumes-etci' || 
-        calculationType === 'kaz-ordek' || 
-        calculationType === 'hara' || 
-        calculationType === 'ipek-bocekciligi' || 
-        calculationType === 'evcil-hayvan' || 
-        calculationType === 'sut-sigirciligi' || 
-        calculationType === 'besi-sigirciligi' || 
-        calculationType === 'sera'
-      ) && (
+      {(data.mesaj || data.html_mesaj) && (
         <ResultCard style={{ marginTop: '20px', padding: '0' }}>
           <div 
             style={{ padding: '20px' }}
-            dangerouslySetInnerHTML={{ __html: data.mesaj }}
+            dangerouslySetInnerHTML={{ __html: data.mesaj || data.html_mesaj }}
           />
         </ResultCard>
       )}
