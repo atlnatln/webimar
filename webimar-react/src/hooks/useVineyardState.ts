@@ -120,14 +120,23 @@ export const useTreeData = () => {
 };
 
 // Custom hook for form state management
-export const useVineyardForm = () => {
+export const useVineyardForm = (initialDikiliAlan: number = 0, initialTarlaAlani: number = 0) => {
   const [formState, setFormState] = useState<VineyardFormState>({
-    dikiliAlan: 0,
-    tarlaAlani: 0,
+    dikiliAlan: initialDikiliAlan,
+    tarlaAlani: initialTarlaAlani,
     secilenAgacTuru: '',
     secilenAgacTipi: 'normal',
     agacSayisi: 0
   });
+  
+  // Initial değerler değiştiğinde state'i güncelle
+  useEffect(() => {
+    setFormState(prev => ({
+      ...prev,
+      dikiliAlan: initialDikiliAlan,
+      tarlaAlani: initialTarlaAlani
+    }));
+  }, [initialDikiliAlan, initialTarlaAlani]);
 
   // Update individual form fields
   const updateField = useCallback(<K extends keyof VineyardFormState>(

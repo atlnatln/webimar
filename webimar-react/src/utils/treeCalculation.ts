@@ -162,16 +162,15 @@ export const validateVineyardEligibility = (
   // Tree coverage calculation
   const { yogunlukOrani } = calculateTreeCoverage(eklenenAgaclar, dikiliAlan);
   
-  // Bağ evi kriterleri (Türkiye Tarım ve Orman Bakanlığı yönetmeliği):
-  // 1. Dikili alan ≥ 5000 m² + %100 ağaç yoğunluğu VEYA
+  // Bağ evi kriterleri (Backend API ile uyumlu):
+  // 1. Dikili alan ≥ 5000 m² (yeterli - ağaç yoğunluğu şartı YOK)
   // 2. Tarla alanı ≥ 20000 m² (tek başına yeterli)
   
-  const agacYogunluguYeterli = yogunlukOrani >= MINIMUM_YETERLILIK_ORANI;
   const dikiliAlanYeterli = dikiliAlan >= 5000;
   const buyukTarlaAlani = tarlaAlani >= 20000;
   
-  // Kriter 1: Dikili alan yeterli + ağaç yoğunluğu yeterli
-  const kriter1SaglandiMi = dikiliAlanYeterli && agacYogunluguYeterli;
+  // Kriter 1: Dikili alan yeterli (ağaç yoğunluğu şartı olmadan)
+  const kriter1SaglandiMi = dikiliAlanYeterli;
   
   // Kriter 2: Büyük tarla alanı
   const kriter2SaglandiMi = buyukTarlaAlani;
@@ -260,28 +259,25 @@ export const calculateVineyardResult = (
 
   if (yeterlilik.yeterli) {
     if (yeterlilik.kriter1) {
-      // Dikili alan + ağaç yoğunluğu kriteri sağlanıyor
-      message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan + Ağaç Yoğunluğu)';
+      // Dikili alan kriteri sağlanıyor
+      message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan ≥ 5000 m²)';
       type = 'success';
     } else if (yeterlilik.kriter2) {
-      // Sadece büyük tarla alanı kriteri sağlanıyor
+      // Büyük tarla alanı kriteri sağlanıyor
       message = eklenenAgaclar.length > 0 ? 
         'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı bilgi amaçlı)' :
-        'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı - Ağaç hesabı gerekmiyor)';
+        'Bağ Evi Kontrolü Başarılı (Büyük Tarla Alanı ≥ 20000 m²)';
       type = 'success';
     }
   } else {
     // Detaylı hata mesajları
     const dikiliAlanYeterli = dikiliAlan >= 5000;
-    const agacYogunluguYeterli = yeterlilik.oran >= 100;
     const buyukTarlaAlani = tarlaAlani >= 20000;
 
     if (!dikiliAlanYeterli && !buyukTarlaAlani) {
       message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Tarla Alanı < 20000 m²)';
-    } else if (!agacYogunluguYeterli && !buyukTarlaAlani) {
-      message = 'Bağ Evi Kontrolü Başarısız (Ağaç Yoğunluğu Yetersiz ve Tarla Alanı < 20000 m²)';
-    } else if (!dikiliAlanYeterli && !agacYogunluguYeterli) {
-      message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Ağaç Yoğunluğu Yetersiz)';
+    } else {
+      message = 'Bağ Evi Kontrolü Başarısız';
     }
   }
 
@@ -289,7 +285,8 @@ export const calculateVineyardResult = (
     type,
     message,
     yeterlilik,
-    alanBilgisi: eklenenAgaclar.length > 0 ? {
+    // Ağaç bilgilerini sadece büyük tarla alanı durumunda göster
+    alanBilgisi: (eklenenAgaclar.length > 0 && yeterlilik.kriter2 && !yeterlilik.kriter1) ? {
       kaplanAlan: Math.round(coverage.toplamKaplanAlan),
       oran: parseFloat(coverage.yogunlukOrani.toFixed(1)),
       agacDetaylari: coverage.agacDetaylari

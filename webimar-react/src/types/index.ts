@@ -28,6 +28,9 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // Bağ evi için özel alanlar
   tarla_alani?: number;
   dikili_alani?: number;
+  
+  // Manuel ağaç kontrolü sonucu
+  manuel_kontrol_sonucu?: any;
 
   // Koordinat bilgileri
   latitude?: number;

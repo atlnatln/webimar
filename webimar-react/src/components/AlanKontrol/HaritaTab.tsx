@@ -146,7 +146,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         
         {/* Drawing status indicator */}
         {isDrawing && drawingMode && (
-          <HighlightBox variant={drawingMode === 'tarla' ? 'warning' : 'success'}>
+          <HighlightBox $variant={drawingMode === 'tarla' ? 'warning' : 'success'}>
             🎨 {drawingMode === 'tarla' ? 'Tarla Alanı' : 'Dikili Alan'} çiziliyor...
             <span style={{ marginLeft: '8px', fontSize: '12px' }}>
               (Haritaya tıklayarak çizin, çift tıklayarak bitirin)
@@ -265,7 +265,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
           </div>
           
           {tarlaPolygon && dikiliPolygon && (
-            <HighlightBox variant="success" style={{ marginTop: '8px' }}>
+            <HighlightBox $variant="success" style={{ marginTop: '8px' }}>
               🎯 Her iki alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.
             </HighlightBox>
           )}
@@ -274,7 +274,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       
       {/* Manuel kontrole geçiş ve direkt hesaplama butonları */}
       {tarlaPolygon && dikiliPolygon && (
-        <FlexContainer direction="column" style={{ width: '100%' }}>
+        <FlexContainer $direction="column" style={{ width: '100%' }}>
           <Button 
             onClick={() => handleTabChange('manuel')} 
             $variant="primary"

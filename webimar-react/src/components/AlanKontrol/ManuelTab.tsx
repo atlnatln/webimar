@@ -33,7 +33,7 @@ interface ManuelTabProps {
   dikiliPolygon: any;
   
   // Edit state
-  editingIndex: number;
+  editingIndex: number | null;
   editingAgacSayisi: number;
   
   // Results
@@ -86,7 +86,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
         
         {/* Haritadan gelen alan bilgisi uyarısı */}
         {(tarlaPolygon || dikiliPolygon) && (
-          <HighlightBox variant="success">
+          <HighlightBox $variant="success">
             <div style={{ fontWeight: '600', marginBottom: '8px' }}>
               🗺️ Haritadan Alınan Veriler
             </div>
@@ -126,16 +126,11 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             type="number"
             value={tarlaAlani}
             onChange={(e) => updateField('tarlaAlani', Number(e.target.value))}
-            placeholder={dikiliAlan > 0 ? `En az ${dikiliAlan}` : "Örn: 15000"}
-            min={dikiliAlan > 0 ? dikiliAlan : 1}
+            placeholder="Örn: 15000"
+            min="1"
           />
           <InfoText>
-            Toplam parsel alanı (dikili alan + diğer alanlar)
-            {dikiliAlan > 0 && (
-              <div style={{ color: '#e67e22', marginTop: '2px' }}>
-                💡 Minimum: {dikiliAlan.toLocaleString()} m² (dikili alan kadar)
-              </div>
-            )}
+            Toplam parsel alanı (dikili alan + tarla alanı)
             {dikiliAlan > 0 && tarlaAlani > 0 && (
               <div style={{ color: '#2563eb', marginTop: '2px', fontWeight: '600' }}>
                 📊 Toplam: {(dikiliAlan + tarlaAlani).toLocaleString()} m² ({((dikiliAlan + tarlaAlani) / 1000).toFixed(1)} dönüm)
@@ -225,7 +220,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                       />
                       adet
                     </span>
-                    <FlexContainer gap="4px">
+                    <FlexContainer $gap="4px">
                       <Button onClick={() => agacEditSave(index)} $variant="success" style={{ fontSize: '12px', padding: '4px 8px' }}>
                         ✓
                       </Button>
@@ -239,7 +234,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                     <span>
                       <strong>{agac.turAdi}</strong> ({agac.tipi}) - {agac.sayi} adet
                     </span>
-                    <FlexContainer gap="4px">
+                    <FlexContainer $gap="4px">
                       <Button onClick={() => agacEdit(index)} $variant="primary" style={{ fontSize: '12px', padding: '4px 8px' }}>
                         ✏️
                       </Button>
@@ -270,7 +265,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
           
           {/* Yeterlilik durumu gösterimi */}
           {hesaplamaSonucu.yeterlilik && (
-            <HighlightBox variant={hesaplamaSonucu.yeterlilik.yeterli ? 'success' : 'warning'}>
+            <HighlightBox $variant={hesaplamaSonucu.yeterlilik.yeterli ? 'success' : 'warning'}>
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
                 {hesaplamaSonucu.yeterlilik.yeterli ? '✅ Bağ Evi Kontrolü Başarılı' : '❌ Bağ Evi Kontrolü Başarısız'}
               </div>
@@ -278,7 +273,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
               {/* Kriter durumları */}
               <div style={{ fontSize: '13px', marginBottom: '8px' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong>Kriter 1:</strong> Dikili alan ≥ 5000 m² + %100 ağaç yoğunluğu: {' '}
+                  <strong>Kriter 1:</strong> Dikili alan ≥ 5000 m²: {' '}
                   <span style={{ color: hesaplamaSonucu.yeterlilik.kriter1 ? '#155724' : '#721c24' }}>
                     {hesaplamaSonucu.yeterlilik.kriter1 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
                   </span>
@@ -291,23 +286,18 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                 </div>
               </div>
               
-              <InfoText>
-                Mevcut ağaç yoğunluğu: <strong>%{hesaplamaSonucu.yeterlilik.oran.toFixed(1)}</strong>
-              </InfoText>
+              {hesaplamaSonucu.alanBilgisi && !hesaplamaSonucu.yeterlilik.kriter1 && (
+                <InfoText>
+                  Mevcut ağaç yoğunluğu: <strong>%{hesaplamaSonucu.alanBilgisi.oran}</strong>
+                  {hesaplamaSonucu.yeterlilik.kriter2 && ' (bilgi amaçlı)'}
+                </InfoText>
+              )}
               <InfoText>
                 Dikili alan: <strong>{dikiliAlan.toLocaleString()} m²</strong>
               </InfoText>
               <InfoText>
                 Tarla alanı: <strong>{tarlaAlani.toLocaleString()} m²</strong>
               </InfoText>
-              <InfoText color="#2563eb" weight="600">
-                Toplam parsel: <strong>{(dikiliAlan + tarlaAlani).toLocaleString()} m²</strong>
-              </InfoText>
-              {!hesaplamaSonucu.yeterlilik.yeterli && hesaplamaSonucu.yeterlilik.eksikOran && (
-                <InfoText>
-                  Eksik ağaç yoğunluğu: <strong>%{hesaplamaSonucu.yeterlilik.eksikOran.toFixed(1)}</strong>
-                </InfoText>
-              )}
             </HighlightBox>
           )}
 
@@ -324,7 +314,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             </>
           )}
 
-          {hesaplamaSonucu.alanBilgisi && hesaplamaSonucu.type === 'error' && (
+          {hesaplamaSonucu.alanBilgisi && hesaplamaSonucu.yeterlilik.kriter2 && !hesaplamaSonucu.yeterlilik.kriter1 && (
             <>
               <p>
                 <strong>Ağaçların kapladığı toplam alan:</strong> {hesaplamaSonucu.alanBilgisi.kaplanAlan.toLocaleString()} m² 
@@ -333,7 +323,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
 
               {hesaplamaSonucu.alanBilgisi.agacDetaylari && (
                 <div style={{ marginTop: '12px' }}>
-                  <strong>Ağaç türü detayları:</strong>
+                  <strong>Ağaç türü detayları (bilgi amaçlı):</strong>
                   <ul style={{ marginTop: '8px' }}>
                     {hesaplamaSonucu.alanBilgisi.agacDetaylari.map((detay: any, index: number) => (
                       <li key={index} style={{ marginBottom: '4px' }}>
@@ -354,7 +344,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             {(hesaplamaSonucu.type === 'success' && hesaplamaSonucu.yeterlilik?.yeterli === true) || 
              (hesaplamaSonucu.type === 'error' && hesaplamaSonucu.yeterlilik?.kriter2 === true) ? (
               <div>
-                <HighlightBox variant="success">
+                <HighlightBox $variant="success">
                   ✅ Bağ evi kontrolü başarılı. Arazide bağ evi yapılabilir.
                 </HighlightBox>
                 <Button onClick={devamEt} $variant={
@@ -367,7 +357,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             
             {hesaplamaSonucu.type === 'error' && !hesaplamaSonucu.yeterlilik?.kriter2 && (
               <div>
-                <HighlightBox variant="warning">
+                <HighlightBox $variant="warning">
                   ❌ Arazide bağ evi yapılamaz. Hiçbir kriter sağlanmıyor.
                 </HighlightBox>
                 <InfoText size="13px">

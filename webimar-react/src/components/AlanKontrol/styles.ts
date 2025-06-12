@@ -310,10 +310,10 @@ export const AreaSubtext = styled.div`
 `;
 
 // Common inline styles as styled components
-export const FlexContainer = styled.div<{ gap?: string; direction?: 'row' | 'column' }>`
+export const FlexContainer = styled.div<{ $gap?: string; $direction?: 'row' | 'column' }>`
   display: flex;
-  gap: ${props => props.gap || '8px'};
-  flex-direction: ${props => props.direction || 'row'};
+  gap: ${props => props.$gap || '8px'};
+  flex-direction: ${props => props.$direction || 'row'};
 `;
 
 export const InfoText = styled.div<{ size?: string; color?: string; weight?: string }>`
@@ -323,14 +323,14 @@ export const InfoText = styled.div<{ size?: string; color?: string; weight?: str
   margin-top: 4px;
 `;
 
-export const HighlightBox = styled.div<{ variant?: 'success' | 'warning' | 'info' }>`
+export const HighlightBox = styled.div<{ $variant?: 'success' | 'warning' | 'info' }>`
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 16px;
   font-size: 14px;
   
   ${props => {
-    switch (props.variant) {
+    switch (props.$variant) {
       case 'success':
         return `
           background: #e8f5e8;

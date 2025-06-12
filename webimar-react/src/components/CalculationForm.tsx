@@ -463,10 +463,6 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       if (!formData.dikili_alani || formData.dikili_alani <= 0) {
         errors.dikili_alani = 'Dikili alan (bağ alanı) pozitif bir sayı olmalıdır';
       }
-      // Dikili alan, tarla alanından büyük olamaz
-      if (formData.tarla_alani && formData.dikili_alani && formData.dikili_alani > formData.tarla_alani) {
-        errors.dikili_alani = 'Dikili alan, tarla alanından büyük olamaz';
-      }
     }
 
     setValidationErrors(errors);
@@ -505,6 +501,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
         finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
         console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
+        
+        // Manuel kontrol sonucunu ekle (eğer varsa)
+        if (dikiliKontrolSonucu) {
+          finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
+          console.log('🌳 Manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
+        }
       }
 
       // Seçilen koordinat bilgisini form dataya ekle
@@ -576,16 +578,16 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           ...(apiResult as any),
           // Detaylar varsa onları da üst seviyeye taşı
           ...((apiResult as any).detaylar || {}),
-          // İzin durumunu doğru şekilde map et - hububat silo, tarımsal depo, lisanslı depo, yıkama tesisi, kurutma tesisi, meyve-sebze-kurutma, zeytinyagi-fabrikasi, su-depolama, su-kuyulari, zeytinyagi-uretim-tesisi, soguk-hava-deposu, sut-sigirciligi, besi-sigirciligi, agil-kucukbas, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan ve sera için özel handling
-          izin_durumu: (calculationType === 'hububat-silo' || calculationType === 'tarimsal-depo' || calculationType === 'lisansli-depo' || calculationType === 'yikama-tesisi' || calculationType === 'kurutma-tesisi' || calculationType === 'meyve-sebze-kurutma' || calculationType === 'zeytinyagi-fabrikasi' || calculationType === 'su-depolama' || calculationType === 'su-kuyulari' || calculationType === 'zeytinyagi-uretim-tesisi' || calculationType === 'soguk-hava-deposu' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sera')
+          // İzin durumunu doğru şekilde map et - hububat silo, tarımsal depo, lisanslı depo, yıkama tesisi, kurutma tesisi, meyve-sebze-kurutma, zeytinyagi-fabrikasi, su-depolama, su-kuyulari, zeytinyagi-uretim-tesisi, soguk-hava-deposu, sut-sigirciligi, besi-sigirciligi, agil-kucukbas, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, sera ve bağ evi için özel handling
+          izin_durumu: (calculationType === 'hububat-silo' || calculationType === 'tarimsal-depo' || calculationType === 'lisansli-depo' || calculationType === 'yikama-tesisi' || calculationType === 'kurutma-tesisi' || calculationType === 'meyve-sebze-kurutma' || calculationType === 'zeytinyagi-fabrikasi' || calculationType === 'su-depolama' || calculationType === 'su-kuyulari' || calculationType === 'zeytinyagi-uretim-tesisi' || calculationType === 'soguk-hava-deposu' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sera' || calculationType === 'bag-evi')
             ? (apiResult as any).data?.izin_durumu || (apiResult as any).results?.izin_durumu || (apiResult as any).izin_durumu || (apiResult as any).detaylar?.izin_durumu || 'izin_verilemez'
             : (apiResult as any).detaylar?.izin_durumu || 
               ((apiResult as any).sonuc?.includes('YAPILABİLİR') ? 'izin_verilebilir' : 'izin_verilemez'),
           // Ana mesajı ayarla
           ana_mesaj: (apiResult as any).sonuc || (apiResult as any).message,
-          // HTML mesajını ayarla - ağıl, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, süt sığırcılığı, besi sığırcılığı, sera ve kurutma tesisi için results.html_mesaj öncelikli
-          mesaj: (calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'sera' || calculationType === 'kurutma-tesisi')
-            ? (apiResult as any).results?.html_mesaj || (apiResult as any).results?.mesaj || (apiResult as any).html_mesaj || (apiResult as any).mesaj || (apiResult as any).data?.html_mesaj
+          // HTML mesajını ayarla - ağıl, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, süt sığırcılığı, besi sığırcılığı, sera, kurutma tesisi ve bağ evi için results.html_mesaj öncelikli
+          mesaj: (calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'sera' || calculationType === 'kurutma-tesisi' || calculationType === 'bag-evi')
+            ? (apiResult as any).results?.html_mesaj || (apiResult as any).results?.mesaj || (apiResult as any).html_mesaj || (apiResult as any).mesaj || (apiResult as any).data?.html_mesaj || (apiResult as any).data?.mesaj
             : (apiResult as any).mesaj || (apiResult as any).html_mesaj || (apiResult as any).data?.html_mesaj || (apiResult as any).results?.html_mesaj,
           // Diğer önemli alanları map et
           alan_m2: (apiResult as any).detaylar?.arazi_alani || (apiResult as any).data?.arazi_alani || formData.alan_m2,
@@ -747,15 +749,14 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                       ) : dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? (
                         <>
                           ✅ Dikili alan kontrolü başarılı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Yoğunluk: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu.yeterlilik.oran?.toFixed(1)} ≥ %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu.yeterlilik.minimumOran}
-                          </div>
                         </>
                       ) : (
                         <>
                           ❌ Dikili alan kontrolü başarısız
                           <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Yoğunluk yetersiz: %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} &lt; %{dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}
+                            {dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter1 === false && dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter2 === false ?
+                              `Dikili alan: ${dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² < 5000 m² ve Tarla alanı: ${dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m² < 20000 m²` :
+                              `Yoğunluk yetersiz: %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} < %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}`}
                           </div>
                         </>
                       )}
@@ -842,7 +843,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
 
                     <FormGroup>
                       <Label>
-                        Dikili Alanı (Bağ Alanı) (m²) <RequiredIndicator>*</RequiredIndicator>
+                        Dikili Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
                       </Label>
                       <Input
                         type="number"
@@ -873,7 +874,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                       </div>
                       <ul style={{ margin: 0, paddingLeft: '20px', color: '#075985', fontSize: '14px' }}>
                         <li>Tarla alanı: Parselin toplam alanıdır</li>
-                        <li>Dikili alan: Parsel içerisindeki asma dikili alanın miktarıdır</li>
+                        <li>Dikili alan: Parsel içerisindeki dikili (asma, meyve ağacı vb.) alanın miktarıdır</li>
                         <li>Bağ evi hesabında bu iki alanın ayrı ayrı belirtilmesi gereklidir</li>
                       </ul>
                     </div>
@@ -912,6 +913,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         onClose={handleDikiliKontrolClose}
         onSuccess={handleDikiliKontrolSuccess}
         alanTipi="dikiliAlan"
+        initialDikiliAlan={formData.dikili_alani || 0}
+        initialTarlaAlani={formData.tarla_alani || 0}
       />
     </FormContainer>
   );

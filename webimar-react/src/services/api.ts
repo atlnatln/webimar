@@ -1,8 +1,8 @@
-// Aconst API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';I Service for Webimar Calculation Endpoints
+// API Service for Webimar Calculation Endpoints
 import axios from 'axios';
 import { CalculationResult, StructureType, STRUCTURE_TYPE_TO_ID } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8001/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
 
 // Axios instance with base configuration
 const apiClient = axios.create({

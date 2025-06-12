@@ -35,15 +35,24 @@ interface AlanKontrolProps {
   onClose: () => void;
   onSuccess: (result: any) => void;
   alanTipi?: 'dikiliAlan' | 'tarlaAlani' | 'zeytinlikAlani'; // Gelecekte farklı alan türleri için
+  initialDikiliAlan?: number;
+  initialTarlaAlani?: number;
 }
 
-const AlanKontrol: React.FC<AlanKontrolProps> = ({ isOpen, onClose, onSuccess, alanTipi = 'dikiliAlan' }) => {
+const AlanKontrol: React.FC<AlanKontrolProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess, 
+  alanTipi = 'dikiliAlan',
+  initialDikiliAlan = 0,
+  initialTarlaAlani = 0 
+}) => {
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
   const [isDrawing, setIsDrawing] = useState(false); // Çizim durumu için state
   
   // Custom hooks for state management
   const treeData = useTreeData();
-  const formHook = useVineyardForm();
+  const formHook = useVineyardForm(initialDikiliAlan, initialTarlaAlani); // Initial değerleri geçirelim
   const editHook = useTreeEditing();
   const mapHook = useMapState();
   const calculationHook = useVineyardCalculation();
@@ -329,7 +338,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({ isOpen, onClose, onSuccess, a
             dikiliPolygon={dikiliPolygon}
             
             // Edit state
-            editingIndex={editingIndex || -1}
+            editingIndex={editingIndex}
             editingAgacSayisi={editingAgacSayisi}
             
             // Results

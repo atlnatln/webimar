@@ -413,15 +413,42 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
         {renderFieldCards(data)}
       </ResultGrid>
 
-      {/* İzin Durumu */}
+      {/* İzin Durumu - Özel varsayımsal görünüm */}
       {data.izin_durumu && (
-        <ResultCard style={{ marginTop: '20px', borderColor: data.izin_durumu.includes('YAPILABİLİR') ? '#10b981' : '#ef4444' }}>
-          <ResultLabel>İzin Durumu</ResultLabel>
-          <ResultValue style={{ color: data.izin_durumu.includes('YAPILABİLİR') ? '#10b981' : '#ef4444' }}>
-            {data.izin_durumu}
+        <ResultCard style={{ 
+          marginTop: '20px', 
+          borderColor: data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+            ? '#f59e0b' 
+            : data.izin_durumu.includes('YAPILABİLİR') || data.izin_durumu.includes('izin_verilebilir') 
+            ? '#10b981' 
+            : '#ef4444',
+          ...(data.izin_durumu === 'izin_verilebilir_varsayimsal' && {
+            background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+            border: '2px solid #f59e0b'
+          })
+        }}>
+          <ResultLabel>
+            {data.izin_durumu === 'izin_verilebilir_varsayimsal' ? 'Varsayımsal Değerlendirme' : 'İzin Durumu'}
+          </ResultLabel>
+          <ResultValue style={{ 
+            color: data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+              ? '#d97706' 
+              : data.izin_durumu.includes('YAPILABİLİR') || data.izin_durumu.includes('izin_verilebilir') 
+              ? '#10b981' 
+              : '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            {data.izin_durumu === 'izin_verilebilir_varsayimsal' && <span>⚠️</span>}
+            {data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+              ? 'Girilen Bilgilere Göre İzin Verilebilir' 
+              : data.izin_durumu}
           </ResultValue>
           <ResultDescription>
-            Mevcut mevzuat kapsamında tespit edilen izin durumu
+            {data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+              ? 'Bu sonuç girdiğiniz veriler doğru olduğu varsayımıyla hesaplanmıştır. Kesin sonuç için manuel kontrol gereklidir.'
+              : 'Mevcut mevzuat kapsamında tespit edilen izin durumu'}
           </ResultDescription>
         </ResultCard>
       )}
@@ -439,27 +466,31 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
       {/* Bağ evi varsayımsal sonuç için manuel kontrol butonu */}
       {calculationType === 'bag-evi' && data.izin_durumu === 'izin_verilebilir_varsayimsal' && (
         <ResultCard style={{ 
-          marginTop: '20px', 
-          background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
-          border: '2px solid #0284c7',
+          marginTop: '16px', 
+          background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+          border: '2px solid #3b82f6',
           textAlign: 'center'
         }}>
           <div style={{ marginBottom: '16px' }}>
             <div style={{ 
-              fontSize: '18px', 
+              fontSize: '16px', 
               fontWeight: '600', 
-              color: '#075985',
-              marginBottom: '8px'
+              color: '#1d4ed8',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}>
-              🎯 Kesin Sonuç İçin
+              <span>🎯</span>
+              <span>Kesin Sonuç İçin Manuel Kontrol</span>
             </div>
             <div style={{ 
               fontSize: '14px', 
-              color: '#0369a1',
+              color: '#1e40af',
               lineHeight: '1.5'
             }}>
-              Bu hesaplama girdiğiniz bilgilerin doğru olduğu varsayımıyla yapılmıştır.<br/>
-              Kesin ve resmi sonuç için manuel ağaç kontrolü yapmanız önerilir.
+              Kesin sonuç için <strong>manuel ağaç kontrolü</strong> yapmanız önerilir.
             </div>
           </div>
           
@@ -471,7 +502,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
             }}
           >
             <span>🌳</span>
-            <span>Manuel Ağaç Kontrolü Yap</span>
+            <span>Manuel Ağaç Kontrolü Başlat</span>
             <span>→</span>
           </ManuelKontrolButton>
           
