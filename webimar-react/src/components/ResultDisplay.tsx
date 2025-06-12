@@ -142,6 +142,32 @@ const ErrorMessage = styled.p`
   margin: 0;
 `;
 
+const ManuelKontrolButton = styled.button`
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  
+  &:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 // Backend constants.py ile senkronize yapı türü display isimleri - artık context'ten geliyor
 const getCalculationTypeDisplayName = (type: StructureType, structureTypeLabels: Record<StructureType, string>): string => {
   return structureTypeLabels[type] || type;
@@ -181,12 +207,6 @@ const fieldConfigs: FieldConfig[] = [
     label: 'İnşaat Alanı',
     unit: 'm²',
     description: 'Toplam inşaat alanı'
-  },
-  {
-    key: 'taban_alani',
-    label: 'Taban Alanı',
-    unit: 'm²',
-    description: 'Yapının taban alanı'
   },
   {
     key: 'sera_alani',
@@ -245,6 +265,12 @@ const fieldConfigs: FieldConfig[] = [
     label: 'Maksimum İnşaat Alanı',
     unit: 'm²',
     description: 'Bağ evi için maksimum inşaat alanı'
+  },
+  {
+    key: 'taban_alani',
+    label: 'Maksimum Taban Alanı',
+    unit: 'm²',
+    description: 'Bağ evi için maksimum taban alanı'
   },
   {
     key: 'uretim_alani',
@@ -407,6 +433,56 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
             style={{ padding: '20px' }}
             dangerouslySetInnerHTML={{ __html: data.mesaj || data.html_mesaj }}
           />
+        </ResultCard>
+      )}
+
+      {/* Bağ evi varsayımsal sonuç için manuel kontrol butonu */}
+      {calculationType === 'bag-evi' && data.izin_durumu === 'izin_verilebilir_varsayimsal' && (
+        <ResultCard style={{ 
+          marginTop: '20px', 
+          background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+          border: '2px solid #0284c7',
+          textAlign: 'center'
+        }}>
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ 
+              fontSize: '18px', 
+              fontWeight: '600', 
+              color: '#075985',
+              marginBottom: '8px'
+            }}>
+              🎯 Kesin Sonuç İçin
+            </div>
+            <div style={{ 
+              fontSize: '14px', 
+              color: '#0369a1',
+              lineHeight: '1.5'
+            }}>
+              Bu hesaplama girdiğiniz bilgilerin doğru olduğu varsayımıyla yapılmıştır.<br/>
+              Kesin ve resmi sonuç için manuel ağaç kontrolü yapmanız önerilir.
+            </div>
+          </div>
+          
+          <ManuelKontrolButton
+            onClick={() => {
+              // Dikili alan kontrolü modalını aç
+              const event = new CustomEvent('openDikiliKontrol');
+              window.dispatchEvent(event);
+            }}
+          >
+            <span>🌳</span>
+            <span>Manuel Ağaç Kontrolü Yap</span>
+            <span>→</span>
+          </ManuelKontrolButton>
+          
+          <div style={{ 
+            fontSize: '12px', 
+            color: '#64748b', 
+            marginTop: '12px',
+            fontStyle: 'italic'
+          }}>
+            Manuel kontrol sonucuna göre hesaplama otomatik olarak güncellenecektir
+          </div>
         </ResultCard>
       )}
 

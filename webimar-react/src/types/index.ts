@@ -38,7 +38,7 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
 export interface CalculationData {
   kapasite?: number;
   hayvan_sayisi?: number;
-  izin_durumu: 'izin_verilir' | 'izin_verilemez';
+  izin_durumu: 'izin_verilir' | 'izin_verilemez' | 'izin_verilebilir' | 'izin_verilebilir_varsayimsal';
   ana_mesaj: string;
   detaylar?: Record<string, any>;
   hesaplama_detaylari?: {

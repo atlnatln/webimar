@@ -339,6 +339,19 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     fetchAraziTipleri();
   }, []);
 
+  // Custom event listener for opening dikili kontrol modal
+  useEffect(() => {
+    const handleOpenDikiliKontrol = () => {
+      setDikiliKontrolOpen(true);
+    };
+
+    window.addEventListener('openDikiliKontrol', handleOpenDikiliKontrol);
+    
+    return () => {
+      window.removeEventListener('openDikiliKontrol', handleOpenDikiliKontrol);
+    };
+  }, []);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
