@@ -24,6 +24,9 @@ interface ManuelTabProps {
   secilenAgacTipi: string;
   agacSayisi: number;
   
+  // Arazi bilgileri
+  araziVasfi?: string;
+  
   // Tree data
   agacVerileri: any[];
   eklenenAgaclar: any[];
@@ -59,6 +62,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
   secilenAgacTuru,
   secilenAgacTipi,
   agacSayisi,
+  araziVasfi,
   agacVerileri,
   eklenenAgaclar,
   tarlaPolygon,
@@ -119,25 +123,28 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
           />
         </FormGroup>
         
-        <FormGroup>
-          <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
-          <Input
-            id="tarla-alani-input"
-            type="number"
-            value={tarlaAlani}
-            onChange={(e) => updateField('tarlaAlani', Number(e.target.value))}
-            placeholder="Örn: 15000"
-            min="1"
-          />
-          <InfoText>
-            Toplam parsel alanı (dikili alan + tarla alanı)
-            {dikiliAlan > 0 && tarlaAlani > 0 && (
-              <div style={{ color: '#2563eb', marginTop: '2px', fontWeight: '600' }}>
-                📊 Toplam: {(dikiliAlan + tarlaAlani).toLocaleString()} m² ({((dikiliAlan + tarlaAlani) / 1000).toFixed(1)} dönüm)
-              </div>
-            )}
-          </InfoText>
-        </FormGroup>
+        {/* Tarla alanı girişini sadece "Dikili vasıflı" olmayan arazi tipleri için göster */}
+        {araziVasfi !== 'Dikili vasıflı' && (
+          <FormGroup>
+            <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
+            <Input
+              id="tarla-alani-input"
+              type="number"
+              value={tarlaAlani}
+              onChange={(e) => updateField('tarlaAlani', Number(e.target.value))}
+              placeholder="Örn: 15000"
+              min="1"
+            />
+            <InfoText>
+              Toplam parsel alanı (dikili alan + tarla alanı)
+              {dikiliAlan > 0 && tarlaAlani > 0 && (
+                <div style={{ color: '#2563eb', marginTop: '2px', fontWeight: '600' }}>
+                  📊 Toplam: {(dikiliAlan + tarlaAlani).toLocaleString()} m² ({((dikiliAlan + tarlaAlani) / 1000).toFixed(1)} dönüm)
+                </div>
+              )}
+            </InfoText>
+          </FormGroup>
+        )}
       </FormSection>
 
       <FormSection>
@@ -278,12 +285,15 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                     {hesaplamaSonucu.yeterlilik.kriter1 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
                   </span>
                 </div>
-                <div style={{ marginBottom: '4px' }}>
-                  <strong>Kriter 2:</strong> Tarla alanı ≥ 20000 m²: {' '}
-                  <span style={{ color: hesaplamaSonucu.yeterlilik.kriter2 ? '#155724' : '#721c24' }}>
-                    {hesaplamaSonucu.yeterlilik.kriter2 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
-                  </span>
-                </div>
+                {/* Kriter 2'yi sadece "Dikili vasıflı" arazi türü değilse göster */}
+                {araziVasfi !== 'Dikili vasıflı' && (
+                  <div style={{ marginBottom: '4px' }}>
+                    <strong>Kriter 2:</strong> Tarla alanı ≥ 20000 m²: {' '}
+                    <span style={{ color: hesaplamaSonucu.yeterlilik.kriter2 ? '#155724' : '#721c24' }}>
+                      {hesaplamaSonucu.yeterlilik.kriter2 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
+                    </span>
+                  </div>
+                )}
               </div>
               
               {hesaplamaSonucu.alanBilgisi && !hesaplamaSonucu.yeterlilik.kriter1 && (
@@ -295,9 +305,11 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
               <InfoText>
                 Dikili alan: <strong>{dikiliAlan.toLocaleString()} m²</strong>
               </InfoText>
-              <InfoText>
-                Tarla alanı: <strong>{tarlaAlani.toLocaleString()} m²</strong>
-              </InfoText>
+              {araziVasfi !== 'Dikili vasıflı' && (
+                <InfoText>
+                  Tarla alanı: <strong>{tarlaAlani.toLocaleString()} m²</strong>
+                </InfoText>
+              )}
             </HighlightBox>
           )}
 

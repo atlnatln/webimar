@@ -305,6 +305,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [araziTipleri, setAraziTipleri] = useState<AraziTipi[]>([]);
   const [araziTipleriLoading, setAraziTipleriLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectFocused, setSelectFocused] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
   
@@ -395,24 +396,54 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                                result?.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true;
     
     // Değer aktarım koşulları: Doğrudan aktarım VEYA başarılı kontrol
-    if ((isDirectTransfer || isSuccessfulControl) && result?.dikiliAlan && result?.tarlaAlani) {
+    // "Dikili vasıflı" için sadece dikiliAlan kontrolü, diğerleri için hem dikiliAlan hem tarlaAlani kontrolü
+    const hasRequiredAreas = formData.arazi_vasfi === 'Dikili vasıflı' 
+      ? result?.dikiliAlan 
+      : (result?.dikiliAlan && result?.tarlaAlani);
+    
+    if ((isDirectTransfer || isSuccessfulControl) && hasRequiredAreas) {
       
       const dikiliAlan = result.dikiliAlan; // Dikili alan değeri
       const tarlaAlani = result.tarlaAlani; // Tarla alanı
       
-      setFormData(prev => ({
-        ...prev,
-        dikili_alani: dikiliAlan,
-        tarla_alani: tarlaAlani
-      }));
-      
-      // Validation hatalarını temizle
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.dikili_alani;
-        delete newErrors.tarla_alani;
-        return newErrors;
-      });
+      // "Dikili vasıflı" arazi tipi için özel alan_m2 güncellemesi
+      if (formData.arazi_vasfi === 'Dikili vasıflı') {
+        setFormData(prev => ({
+          ...prev,
+          alan_m2: dikiliAlan, // Dikili vasıflı için alan_m2 = dikili alan
+          dikili_alani: dikiliAlan,
+          tarla_alani: tarlaAlani
+        }));
+        
+        // Validation hatalarını temizle (alan_m2 dahil)
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.alan_m2;
+          delete newErrors.dikili_alani;
+          delete newErrors.tarla_alani;
+          return newErrors;
+        });
+        
+        console.log(`🚀 Dikili vasıflı için özel aktarım:`);
+        console.log(`  - alan_m2: ${dikiliAlan} m² (dikili alan)`);
+        console.log(`  - dikili_alani: ${dikiliAlan} m²`);
+        console.log(`  - tarla_alani: ${tarlaAlani} m²`);
+      } else {
+        // Diğer arazi tipleri için normal aktarım
+        setFormData(prev => ({
+          ...prev,
+          dikili_alani: dikiliAlan,
+          tarla_alani: tarlaAlani
+        }));
+        
+        // Validation hatalarını temizle
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.dikili_alani;
+          delete newErrors.tarla_alani;
+          return newErrors;
+        });
+      }
       
       // Konsol mesajları
       if (isDirectTransfer) {
@@ -496,16 +527,31 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         console.log('🌳 İpek böcekçiliği için dut_bahcesi_var_mi default true olarak ayarlandı');
       }
 
-      // Bağ evi için özel alan hesaplaması - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde
-      if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
-        // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
-        finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
-        console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
-        
-        // Manuel kontrol sonucunu ekle (eğer varsa)
-        if (dikiliKontrolSonucu) {
-          finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-          console.log('🌳 Manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
+      // Bağ evi için özel alan hesaplaması
+      if (calculationType === 'bag-evi') {
+        if (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
+          // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
+          finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
+          console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
+          
+          // Manuel kontrol sonucunu ekle (eğer varsa)
+          if (dikiliKontrolSonucu) {
+            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
+            console.log('🌳 Manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
+          }
+        } else if (formData.arazi_vasfi === 'Dikili vasıflı') {
+          // Dikili vasıflı arazi için alan_m2 doğrudan dikili_alani ile kullanılır
+          // Tarla alanı 0 olarak ayarlanır çünkü sadece dikili alan vardır
+          finalFormData.dikili_alani = finalFormData.alan_m2 || 0;
+          finalFormData.tarla_alani = 0; // Dikili vasıflı arazide tarla alanı yoktur
+          console.log('🍇 Dikili vasıflı bağ evi için dikili_alani ayarlandı:', finalFormData.dikili_alani);
+          console.log('🍇 Dikili vasıflı bağ evi için tarla_alani 0 olarak ayarlandı');
+          
+          // Dikili vasıflı için de manuel kontrol sonucunu ekle (eğer varsa)
+          if (dikiliKontrolSonucu) {
+            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
+            console.log('🌳 Dikili vasıflı için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
+          }
         }
       }
 
@@ -715,7 +761,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
               </FormGroup>
 
               {/* Bağ evi için Dikili Alan Kontrolü butonu - 3. sütun */}
-              {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+              {calculationType === 'bag-evi' && (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' || formData.arazi_vasfi === 'Dikili vasıflı') && (
                 <FormGroup>
                   <Label>
                     Dikili Alan Kontrolü
@@ -819,65 +865,95 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                   </FormGroup>
                 )}
 
-                {/* Bağ evi için özel alanlar - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde */}
-                {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+                {/* Bağ evi için özel alanlar */}
+                {calculationType === 'bag-evi' && (
                   <>
-                    <FormGroup>
-                      <Label>
-                        Tarla Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
-                      </Label>
-                      <Input
-                        type="number"
-                        name="tarla_alani"
-                        value={formData.tarla_alani || ''}
-                        onChange={handleInputChange}
-                        placeholder="Örn: 15000"
-                        min="1"
-                        step="1"
-                        required
-                      />
-                      {validationErrors.tarla_alani && (
-                        <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
-                      )}
-                    </FormGroup>
+                    {/* Dikili vasıflı için sadece alan girişi */}
+                    {formData.arazi_vasfi === 'Dikili vasıflı' && (
+                      <FormGroup>
+                        <Label>
+                          Dikili Alan (m²) <RequiredIndicator>*</RequiredIndicator>
+                        </Label>
+                        <Input
+                          type="number"
+                          name="alan_m2"
+                          value={formData.alan_m2 || ''}
+                          onChange={handleInputChange}
+                          placeholder="Örn: 5000"
+                          min="1"
+                          step="1"
+                          required
+                        />
+                        {validationErrors.alan_m2 && (
+                          <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
+                        )}
+                        <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
+                          Bağ evi için dikili alanınızın en az 5000 m² olması gerekmektedir.
+                        </div>
+                      </FormGroup>
+                    )}
+                    
+                    {/* Tarla + herhangi bir dikili vasıflı için alan girişleri */}
+                    {formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+                      <>
+                        <FormGroup>
+                          <Label>
+                            Tarla Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
+                          </Label>
+                          <Input
+                            type="number"
+                            name="tarla_alani"
+                            value={formData.tarla_alani || ''}
+                            onChange={handleInputChange}
+                            placeholder="Örn: 15000"
+                            min="1"
+                            step="1"
+                            required
+                          />
+                          {validationErrors.tarla_alani && (
+                            <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
+                          )}
+                        </FormGroup>
 
-                    <FormGroup>
-                      <Label>
-                        Dikili Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
-                      </Label>
-                      <Input
-                        type="number"
-                        name="dikili_alani"
-                        value={formData.dikili_alani || ''}
-                        onChange={handleInputChange}
-                        placeholder="Örn: 12000"
-                        min="1"
-                        step="1"
-                        required
-                      />
-                      {validationErrors.dikili_alani && (
-                        <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
-                      )}
-                    </FormGroup>
+                        <FormGroup>
+                          <Label>
+                            Dikili Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
+                          </Label>
+                          <Input
+                            type="number"
+                            name="dikili_alani"
+                            value={formData.dikili_alani || ''}
+                            onChange={handleInputChange}
+                            placeholder="Örn: 12000"
+                            min="1"
+                            step="1"
+                            required
+                          />
+                          {validationErrors.dikili_alani && (
+                            <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
+                          )}
+                        </FormGroup>
 
-                    <div style={{ 
-                      gridColumn: '1 / -1', 
-                      background: '#f0f9ff', 
-                      border: '1px solid #0ea5e9', 
-                      borderRadius: '8px', 
-                      padding: '12px',
-                      marginTop: '8px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '18px' }}>ℹ️</span>
-                        <strong style={{ color: '#0369a1' }}>Bağ Evi Hesaplama Bilgileri</strong>
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#075985', fontSize: '14px' }}>
-                        <li>Tarla alanı: Parselin toplam alanıdır</li>
-                        <li>Dikili alan: Parsel içerisindeki dikili (asma, meyve ağacı vb.) alanın miktarıdır</li>
-                        <li>Bağ evi hesabında bu iki alanın ayrı ayrı belirtilmesi gereklidir</li>
-                      </ul>
-                    </div>
+                        <div style={{ 
+                          gridColumn: '1 / -1', 
+                          background: '#f0f9ff', 
+                          border: '1px solid #0ea5e9', 
+                          borderRadius: '8px', 
+                          padding: '12px',
+                          marginTop: '8px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '18px' }}>ℹ️</span>
+                            <strong style={{ color: '#0369a1' }}>Bağ Evi Hesaplama Bilgileri</strong>
+                          </div>
+                          <ul style={{ margin: 0, paddingLeft: '20px', color: '#075985', fontSize: '14px' }}>
+                            <li>Tarla alanı: Parselin toplam alanıdır</li>
+                            <li>Dikili alan: Parsel içerisindeki dikili (asma, meyve ağacı vb.) alanın miktarıdır</li>
+                            <li>Bağ evi hesabında bu iki alanın ayrı ayrı belirtilmesi gereklidir</li>
+                          </ul>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </FormGrid>
@@ -913,7 +989,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         onClose={handleDikiliKontrolClose}
         onSuccess={handleDikiliKontrolSuccess}
         alanTipi="dikiliAlan"
-        initialDikiliAlan={formData.dikili_alani || 0}
+        araziVasfi={formData.arazi_vasfi || ''}
+        initialDikiliAlan={
+          formData.arazi_vasfi === 'Dikili vasıflı' 
+            ? (formData.alan_m2 || 0) 
+            : (formData.dikili_alani || 0)
+        }
         initialTarlaAlani={formData.tarla_alani || 0}
       />
     </FormContainer>

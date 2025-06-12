@@ -267,9 +267,10 @@ export const useVineyardCalculation = () => {
   const calculate = useCallback((
     dikiliAlan: number,
     tarlaAlani: number,
-    eklenenAgaclar: EklenenAgac[]
+    eklenenAgaclar: EklenenAgac[],
+    araziVasfi?: string
   ) => {
-    const result = calculateVineyardResult(dikiliAlan, tarlaAlani, eklenenAgaclar);
+    const result = calculateVineyardResult(dikiliAlan, tarlaAlani, eklenenAgaclar, araziVasfi);
     setHesaplamaSonucu(result);
     return result;
   }, []);

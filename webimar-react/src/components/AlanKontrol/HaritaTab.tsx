@@ -30,6 +30,9 @@ interface HaritaTabProps {
   dikiliAlan: number;
   tarlaAlani: number;
   
+  // Arazi bilgileri
+  araziVasfi?: string;
+  
   // Callbacks
   enhancedCallbacks: any;
   setIsDrawing: (drawing: boolean) => void;
@@ -46,6 +49,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
   existingPolygons,
   dikiliAlan,
   tarlaAlani,
+  araziVasfi,
   enhancedCallbacks,
   setIsDrawing,
   handleTabChange,
@@ -134,8 +138,10 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
     <FormSection>
       <SectionTitle>🗺️ Harita Üzerinden Alan Belirleme</SectionTitle>
       <InfoBox>
-        Harita üzerinde poligon çizerek tarla alanı ve dikili alanı belirleyebilirsiniz. 
-        Önce tarla alanını, sonra dikili alanı çizin.
+        {araziVasfi === 'Dikili vasıflı' 
+          ? 'Harita üzerinde poligon çizerek dikili alanı belirleyebilirsiniz.'
+          : 'Harita üzerinde poligon çizerek tarla alanı ve dikili alanı belirleyebilirsiniz. Önce tarla alanını, sonra dikili alanı çizin.'
+        }
       </InfoBox>
       
       {/* Drawing mode controls */}
@@ -155,17 +161,19 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         )}
         
         <FlexContainer style={{ flexWrap: 'wrap', alignItems: 'center' }}>
-          <Button
-            $variant={drawingMode === 'tarla' ? 'primary' : 'secondary'}
-            onClick={(e) => handleDrawingButtonClick('tarla', e)}
-            style={{ 
-              backgroundColor: drawingMode === 'tarla' ? '#8B4513' : '#ecf0f1',
-              color: drawingMode === 'tarla' ? 'white' : '#8B4513',
-              border: `2px solid #8B4513`
-            }}
-          >
-            🟤 Tarla Alanı Çiz
-          </Button>
+          {araziVasfi !== 'Dikili vasıflı' && (
+            <Button
+              $variant={drawingMode === 'tarla' ? 'primary' : 'secondary'}
+              onClick={(e) => handleDrawingButtonClick('tarla', e)}
+              style={{ 
+                backgroundColor: drawingMode === 'tarla' ? '#8B4513' : '#ecf0f1',
+                color: drawingMode === 'tarla' ? 'white' : '#8B4513',
+                border: `2px solid #8B4513`
+              }}
+            >
+              🟤 Tarla Alanı Çiz
+            </Button>
+          )}
           
           <Button
             $variant={drawingMode === 'dikili' ? 'success' : 'secondary'}
@@ -223,20 +231,22 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       
       {/* Alan gösterimi */}
       <AreaDisplayContainer>
-        <AreaDisplayBox $color="#8B4513">
-          <FlexContainer style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <AreaLabel>🟤 Tarla Alanı</AreaLabel>
-              <AreaValue>
-                {tarlaAlani > 0 ? formatArea(tarlaAlani).m2 : '0'} m²
-              </AreaValue>
-              <AreaSubtext>
-                {tarlaAlani > 0 ? `${formatArea(tarlaAlani).donum} dönüm` : 'Çizilmedi'}
-              </AreaSubtext>
-            </div>
-            {renderAreaEditButton('tarla', tarlaPolygon)}
-          </FlexContainer>
-        </AreaDisplayBox>
+        {araziVasfi !== 'Dikili vasıflı' && (
+          <AreaDisplayBox $color="#8B4513">
+            <FlexContainer style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <AreaLabel>🟤 Tarla Alanı</AreaLabel>
+                <AreaValue>
+                  {tarlaAlani > 0 ? formatArea(tarlaAlani).m2 : '0'} m²
+                </AreaValue>
+                <AreaSubtext>
+                  {tarlaAlani > 0 ? `${formatArea(tarlaAlani).donum} dönüm` : 'Çizilmedi'}
+                </AreaSubtext>
+              </div>
+              {renderAreaEditButton('tarla', tarlaPolygon)}
+            </FlexContainer>
+          </AreaDisplayBox>
+        )}
         
         <AreaDisplayBox $color="#27ae60">
           <FlexContainer style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -259,21 +269,28 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         <HighlightBox>
           <div style={{ fontWeight: '600', marginBottom: '8px' }}>📊 Alan Belirleme Durumu:</div>
           <div style={{ fontSize: '14px' }}>
-            ✅ Tarla Alanı: {tarlaPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
-            <br/>
+            {araziVasfi !== 'Dikili vasıflı' && (
+              <>
+                ✅ Tarla Alanı: {tarlaPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
+                <br/>
+              </>
+            )}
             ✅ Dikili Alan: {dikiliPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
           </div>
           
-          {tarlaPolygon && dikiliPolygon && (
+          {(araziVasfi === 'Dikili vasıflı' ? dikiliPolygon : (tarlaPolygon && dikiliPolygon)) && (
             <HighlightBox $variant="success" style={{ marginTop: '8px' }}>
-              🎯 Her iki alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.
+              🎯 {araziVasfi === 'Dikili vasıflı' 
+                ? 'Dikili alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.'
+                : 'Her iki alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.'
+              }
             </HighlightBox>
           )}
         </HighlightBox>
       )}
       
       {/* Manuel kontrole geçiş ve direkt hesaplama butonları */}
-      {tarlaPolygon && dikiliPolygon && (
+      {(araziVasfi === 'Dikili vasıflı' ? dikiliPolygon : (tarlaPolygon && dikiliPolygon)) && (
         <FlexContainer $direction="column" style={{ width: '100%' }}>
           <Button 
             onClick={() => handleTabChange('manuel')} 

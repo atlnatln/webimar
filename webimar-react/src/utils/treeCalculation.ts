@@ -31,6 +31,8 @@ export interface YeterlilikSonucu {
   kriter1?: boolean;
   kriter2?: boolean;
   eksikOran?: number;
+  dikiliAlanYeterli?: boolean;
+  agacYogTlugu?: number;
 }
 
 export interface HesaplamaSonucu {
@@ -155,7 +157,8 @@ export const calculateTreeCoverage = (eklenenAgaclar: EklenenAgac[], dikiliAlan:
 export const validateVineyardEligibility = (
   dikiliAlan: number,
   tarlaAlani: number,
-  eklenenAgaclar: EklenenAgac[]
+  eklenenAgaclar: EklenenAgac[],
+  araziVasfi?: string
 ): YeterlilikSonucu => {
   const MINIMUM_YETERLILIK_ORANI = 100; // %100 minimum ağaç yoğunluğu kriteri
   
@@ -169,6 +172,28 @@ export const validateVineyardEligibility = (
   const dikiliAlanYeterli = dikiliAlan >= 5000;
   const buyukTarlaAlani = tarlaAlani >= 20000;
   
+  // "Dikili vasıflı" arazi tipi için özel kontrol
+  if (araziVasfi === 'Dikili vasıflı') {
+    // Dikili vasıflı arazide: 
+    // - Sadece dikili alan >= 5000 m² şartı yeterli
+    // - Ağaç yoğunluğu şartı ARANIYOR DEĞİL (backend kuralları ile uyumlu)
+    
+    const kriter1SaglandiMi = dikiliAlanYeterli; // Sadece dikili alan şartı
+    const yeterli = kriter1SaglandiMi;
+    
+    return {
+      yeterli,
+      oran: yogunlukOrani,
+      minimumOran: 0, // "Dikili vasıflı" için ağaç yoğunluğu şartı yok
+      kriter1: kriter1SaglandiMi,
+      kriter2: false, // Dikili vasıflı arazide kriter2 geçerli değil
+      eksikOran: undefined, // Ağaç yoğunluğu şartı olmadığı için eksik oran yok
+      dikiliAlanYeterli,
+      agacYogTlugu: eklenenAgaclar.length > 0 ? yogunlukOrani : undefined
+    };
+  }
+  
+  // "Tarla + herhangi bir dikili vasıflı" için normal kontrol
   // Kriter 1: Dikili alan yeterli (ağaç yoğunluğu şartı olmadan)
   const kriter1SaglandiMi = dikiliAlanYeterli;
   
@@ -193,7 +218,8 @@ export const validateVineyardEligibility = (
 export const calculateVineyardResult = (
   dikiliAlan: number,
   tarlaAlani: number,
-  eklenenAgaclar: EklenenAgac[]
+  eklenenAgaclar: EklenenAgac[],
+  araziVasfi?: string
 ): HesaplamaSonucu => {
   // Input validation
   if (dikiliAlan <= 0) {
@@ -208,7 +234,8 @@ export const calculateVineyardResult = (
     };
   }
 
-  if (tarlaAlani <= 0) {
+  // "Dikili vasıflı" arazi tipi için tarla alanı kontrolü yapma
+  if (araziVasfi !== 'Dikili vasıflı' && tarlaAlani <= 0) {
     return {
       type: 'error',
       message: 'Lütfen geçerli bir tarla alanı girin. Tarla alanı, dikili alan dahil toplam parsel büyüklüğüdür.',
@@ -252,14 +279,18 @@ export const calculateVineyardResult = (
 
   // Calculate tree coverage and eligibility
   const coverage = calculateTreeCoverage(eklenenAgaclar, dikiliAlan);
-  const yeterlilik = validateVineyardEligibility(dikiliAlan, tarlaAlani, eklenenAgaclar);
+  const yeterlilik = validateVineyardEligibility(dikiliAlan, tarlaAlani, eklenenAgaclar, araziVasfi);
 
   let message = '';
   let type: 'success' | 'error' = 'error';
 
   if (yeterlilik.yeterli) {
-    if (yeterlilik.kriter1) {
-      // Dikili alan kriteri sağlanıyor
+    if (araziVasfi === 'Dikili vasıflı' && yeterlilik.kriter1) {
+      // Dikili vasıflı arazi için özel mesaj
+      message = 'Bağ Evi Kontrolü Başarılı (Dikili Vasıflı Arazi - Dikili Alan ≥ 5000 m²)';
+      type = 'success';
+    } else if (yeterlilik.kriter1) {
+      // Normal dikili alan kriteri sağlanıyor
       message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan ≥ 5000 m²)';
       type = 'success';
     } else if (yeterlilik.kriter2) {
@@ -274,7 +305,15 @@ export const calculateVineyardResult = (
     const dikiliAlanYeterli = dikiliAlan >= 5000;
     const buyukTarlaAlani = tarlaAlani >= 20000;
 
-    if (!dikiliAlanYeterli && !buyukTarlaAlani) {
+    if (araziVasfi === 'Dikili vasıflı') {
+      // Dikili vasıflı arazi için sadece dikili alan kontrolü
+      if (!dikiliAlanYeterli) {
+        message = 'Bağ Evi Kontrolü Başarısız (Dikili Vasıflı Arazi - Dikili Alan < 5000 m²)';
+      } else {
+        // Bu durum teorik olarak olmamalı çünkü dikili alan yeterli ise başarılı olmalı
+        message = 'Bağ Evi Kontrolü Başarısız (Dikili Vasıflı Arazi)';
+      }
+    } else if (!dikiliAlanYeterli && !buyukTarlaAlani) {
       message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Tarla Alanı < 20000 m²)';
     } else {
       message = 'Bağ Evi Kontrolü Başarısız';

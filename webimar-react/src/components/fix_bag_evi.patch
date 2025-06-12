@@ -1,0 +1,29 @@
+diff --git a/src/components/CalculationForm.tsx b/src/components/CalculationForm.tsx
+index 0000000..1111111 100644
+--- a/src/components/CalculationForm.tsx
++++ b/src/components/CalculationForm.tsx
+@@ -499,12 +499,18 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
+       }
+ 
+       // Bağ evi için özel alan hesaplaması - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde
+-      if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
+-        // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
+-        finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
+-        console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
+-        
+-        // Manuel kontrol sonucunu ekle (eğer varsa)
++      if (calculationType === 'bag-evi') {
++        if (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
++          // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
++          finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
++          console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
++          
++          // Manuel kontrol sonucunu ekle (eğer varsa)
++        } else if (formData.arazi_vasfi === 'Dikili vasıflı') {
++          // Dikili vasıflı arazi için alan_m2 doğrudan alan_m2 ile kullanılır
++          finalFormData.dikili_alani = finalFormData.alan_m2 || 0;
++          console.log('🍇 Dikili vasıflı bağ evi için dikili_alani ayarlandı:', finalFormData.dikili_alani);
++        }
+         if (dikiliKontrolSonucu) {
+           finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
+           console.log('🌳 Manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);

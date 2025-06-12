@@ -35,6 +35,7 @@ interface AlanKontrolProps {
   onClose: () => void;
   onSuccess: (result: any) => void;
   alanTipi?: 'dikiliAlan' | 'tarlaAlani' | 'zeytinlikAlani'; // Gelecekte farklı alan türleri için
+  araziVasfi?: string; // Arazi vasfı bilgisi
   initialDikiliAlan?: number;
   initialTarlaAlani?: number;
 }
@@ -44,6 +45,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   onClose, 
   onSuccess, 
   alanTipi = 'dikiliAlan',
+  araziVasfi = '',
   initialDikiliAlan = 0,
   initialTarlaAlani = 0 
 }) => {
@@ -191,7 +193,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   const hesaplamaYap = () => {
     try {
       eventLogger.logEvent('hesaplamaYap', { dikiliAlan, tarlaAlani, agacSayisi: eklenenAgaclar.length });
-      calculate(dikiliAlan, tarlaAlani, eklenenAgaclar);
+      calculate(dikiliAlan, tarlaAlani, eklenenAgaclar, araziVasfi);
       eventLogger.logEvent('hesaplamaYap_success');
     } catch (error) {
       eventLogger.logError('hesaplamaYap', error);
@@ -329,6 +331,9 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             secilenAgacTipi={secilenAgacTipi}
             agacSayisi={agacSayisi}
             
+            // Arazi bilgileri
+            araziVasfi={araziVasfi}
+            
             // Tree data
             agacVerileri={agacVerileri}
             eklenenAgaclar={eklenenAgaclar}
@@ -370,6 +375,9 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             // Area values
             dikiliAlan={dikiliAlan}
             tarlaAlani={tarlaAlani}
+            
+            // Arazi bilgileri
+            araziVasfi={araziVasfi}
             
             // Callbacks
             enhancedCallbacks={enhancedCallbacks}
