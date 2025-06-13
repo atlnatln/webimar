@@ -165,16 +165,25 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
   const [selectedCoordinate, setSelectedCoordinate] = useState<{lat: number, lng: number} | null>(null);
   const [isManualSelection, setIsManualSelection] = useState(false); // Manuel harita tıklaması mı?
   const [isMapVisible, setIsMapVisible] = useState(true);
+  const [araziVasfi, setAraziVasfi] = useState<string>(''); // Arazi vasfı bilgisi
   const mapRef = useRef<MapRef>(null);
 
   const handleCalculationResult = (newResult: CalculationResult) => {
+    console.log('🎯 CalculationPage - handleCalculationResult called with:', newResult);
     setResult(newResult);
     setIsLoading(false);
+    console.log('📊 CalculationPage - State updated: result set, isLoading set to false');
   };
 
   const handleCalculationStart = () => {
+    console.log('🚀 CalculationPage - handleCalculationStart called, setting isLoading to true');
     setIsLoading(true);
     setResult(null);
+    console.log('📊 CalculationPage - State updated: isLoading set to true, result cleared');
+  };
+
+  const handleAraziVasfiChange = (newAraziVasfi: string) => {
+    setAraziVasfi(newAraziVasfi);
   };
 
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
@@ -311,6 +320,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
             onResult={handleCalculationResult}
             onCalculationStart={handleCalculationStart}
             selectedCoordinate={isManualSelection ? selectedCoordinate : null}
+            onAraziVasfiChange={handleAraziVasfiChange}
           />
         </FormSection>
         
@@ -320,6 +330,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
               result={result}
               isLoading={isLoading}
               calculationType={calculationType}
+              araziVasfi={araziVasfi}
             />
           </ResultSection>
         )}

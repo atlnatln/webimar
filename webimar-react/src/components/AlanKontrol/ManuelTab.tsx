@@ -20,6 +20,7 @@ interface ManuelTabProps {
   // Form state
   dikiliAlan: number;
   tarlaAlani: number;
+  zeytinlikAlani: number;
   secilenAgacTuru: string;
   secilenAgacTipi: string;
   agacSayisi: number;
@@ -34,6 +35,7 @@ interface ManuelTabProps {
   // Polygon data
   tarlaPolygon: any;
   dikiliPolygon: any;
+  zeytinlikPolygon: any;
   
   // Edit state
   editingIndex: number | null;
@@ -59,6 +61,7 @@ interface ManuelTabProps {
 const ManuelTab: React.FC<ManuelTabProps> = ({
   dikiliAlan,
   tarlaAlani,
+  zeytinlikAlani,
   secilenAgacTuru,
   secilenAgacTipi,
   agacSayisi,
@@ -67,6 +70,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
   eklenenAgaclar,
   tarlaPolygon,
   dikiliPolygon,
+  zeytinlikPolygon,
   editingIndex,
   editingAgacSayisi,
   hesaplamaSonucu,
@@ -89,7 +93,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
         <SectionTitle>📏 Alan Bilgisi</SectionTitle>
         
         {/* Haritadan gelen alan bilgisi uyarısı */}
-        {(tarlaPolygon || dikiliPolygon) && (
+        {(tarlaPolygon || dikiliPolygon || zeytinlikPolygon) && (
           <HighlightBox $variant="success">
             <div style={{ fontWeight: '600', marginBottom: '8px' }}>
               🗺️ Haritadan Alınan Veriler
@@ -100,9 +104,12 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             {dikiliPolygon && (
               <div>✅ Dikili Alan: {formatArea(dikiliAlan).m2} m² ({formatArea(dikiliAlan).donum} dönüm)</div>
             )}
-            {(tarlaPolygon || dikiliPolygon) && (
+            {zeytinlikPolygon && (
+              <div>✅ Zeytinlik Alanı: {formatArea(zeytinlikAlani).m2} m² ({formatArea(zeytinlikAlani).donum} dönüm)</div>
+            )}
+            {(tarlaPolygon || dikiliPolygon || zeytinlikPolygon) && (
               <div style={{ fontWeight: '600', color: '#2563eb' }}>
-                📊 Toplam Parsel: {formatArea(dikiliAlan + tarlaAlani).m2} m² ({formatArea(dikiliAlan + tarlaAlani).donum} dönüm)
+                📊 Toplam Parsel: {formatArea((dikiliAlan || 0) + (tarlaAlani || 0) + (zeytinlikAlani || 0)).m2} m² ({formatArea((dikiliAlan || 0) + (tarlaAlani || 0) + (zeytinlikAlani || 0)).donum} dönüm)
               </div>
             )}
             <InfoText size="12px">
@@ -124,7 +131,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
         </FormGroup>
         
         {/* Tarla alanı girişini sadece "Dikili vasıflı" olmayan arazi tipleri için göster */}
-        {araziVasfi !== 'Dikili vasıflı' && (
+        {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Tarla + Zeytinlik' && (
           <FormGroup>
             <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
             <Input
@@ -145,64 +152,107 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
             </InfoText>
           </FormGroup>
         )}
+
+        {/* "Tarla + Zeytinlik" arazi tipi için özel alan girişleri */}
+        {araziVasfi === 'Tarla + Zeytinlik' && (
+          <>
+            <FormGroup>
+              <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
+              <Input
+                id="tarla-alani-input"
+                type="number"
+                value={tarlaAlani}
+                onChange={(e) => updateField('tarlaAlani', Number(e.target.value))}
+                placeholder="Örn: 15000"
+                min="1"
+              />
+              <InfoText>
+                Tarla kullanımındaki alan büyüklüğü
+              </InfoText>
+            </FormGroup>
+
+            <FormGroup>
+              <Label htmlFor="zeytinlik-alani-input">Zeytinlik Alanı (m²)</Label>
+              <Input
+                id="zeytinlik-alani-input"
+                type="number"
+                value={zeytinlikAlani}
+                onChange={(e) => updateField('zeytinlikAlani', Number(e.target.value))}
+                placeholder="Örn: 6000"
+                min="1"
+              />
+              <InfoText>
+                Zeytinlik kullanımındaki alan büyüklüğü
+                {tarlaAlani > 0 && zeytinlikAlani > 0 && (
+                  <div style={{ color: '#2563eb', marginTop: '2px', fontWeight: '600' }}>
+                    📊 Toplam: {(tarlaAlani + zeytinlikAlani).toLocaleString()} m² ({((tarlaAlani + zeytinlikAlani) / 1000).toFixed(1)} dönüm)
+                  </div>
+                )}
+              </InfoText>
+            </FormGroup>
+          </>
+        )}
       </FormSection>
 
-      <FormSection>
-        <SectionTitle>🌱 Ağaç Bilgileri</SectionTitle>
-        <FormGroup>
-          <Label htmlFor="agac-turu-select">Ağaç Türü</Label>
-          <Select
-            id="agac-turu-select"
-            value={secilenAgacTuru}
-            onChange={(e) => {
-              updateField('secilenAgacTuru', e.target.value);
-              updateField('secilenAgacTipi', 'normal');
-            }}
-          >
-            <option value="">Ağaç türü seçin...</option>
-            {agacVerileri.map(agac => (
-              <option key={agac.sira} value={agac.sira.toString()}>
-                {agac.tur}
-              </option>
-            ))}
-          </Select>
-        </FormGroup>
-
-        {secilenAgacTuru && (
+      {/* Ağaç Bilgileri - "Tarla + Zeytinlik" için gizli */}
+      {araziVasfi !== 'Tarla + Zeytinlik' && (
+        <FormSection>
+          <SectionTitle>🌱 Ağaç Bilgileri</SectionTitle>
           <FormGroup>
-            <Label htmlFor="agac-tipi-select">Ağaç Tipi</Label>
+            <Label htmlFor="agac-turu-select">Ağaç Türü</Label>
             <Select
-              id="agac-tipi-select"
-              value={secilenAgacTipi}
-              onChange={(e) => updateField('secilenAgacTipi', e.target.value as any)}
+              id="agac-turu-select"
+              value={secilenAgacTuru}
+              onChange={(e) => {
+                updateField('secilenAgacTuru', e.target.value);
+                updateField('secilenAgacTipi', 'normal');
+              }}
             >
-              {getMevcutTipler(secilenAgacTuru).map(tip => (
-                <option key={tip.value} value={tip.value}>
-                  {tip.label}
+              <option value="">Ağaç türü seçin...</option>
+              {agacVerileri.map(agac => (
+                <option key={agac.sira} value={agac.sira.toString()}>
+                  {agac.tur}
                 </option>
               ))}
             </Select>
           </FormGroup>
-        )}
 
-        <FormGroup>
-          <Label htmlFor="agac-sayisi-input">Ağaç Sayısı</Label>
-          <Input
-            id="agac-sayisi-input"
-            type="number"
-            value={agacSayisi || ''}
-            onChange={(e) => updateField('agacSayisi', Number(e.target.value))}
-            placeholder="Ağaç sayısını girin"
-            min="1"
-          />
-        </FormGroup>
+          {secilenAgacTuru && (
+            <FormGroup>
+              <Label htmlFor="agac-tipi-select">Ağaç Tipi</Label>
+              <Select
+                id="agac-tipi-select"
+                value={secilenAgacTipi}
+                onChange={(e) => updateField('secilenAgacTipi', e.target.value as any)}
+              >
+                {getMevcutTipler(secilenAgacTuru).map(tip => (
+                  <option key={tip.value} value={tip.value}>
+                    {tip.label}
+                  </option>
+                ))}
+              </Select>
+            </FormGroup>
+          )}
 
-        <Button onClick={agacEkle} $variant="success">
-          ➕ Ağaç Ekle
-        </Button>
-      </FormSection>
+          <FormGroup>
+            <Label htmlFor="agac-sayisi-input">Ağaç Sayısı</Label>
+            <Input
+              id="agac-sayisi-input"
+              type="number"
+              value={agacSayisi || ''}
+              onChange={(e) => updateField('agacSayisi', Number(e.target.value))}
+              placeholder="Ağaç sayısını girin"
+              min="1"
+            />
+          </FormGroup>
 
-      {eklenenAgaclar.length > 0 && (
+          <Button onClick={agacEkle} $variant="success">
+            ➕ Ağaç Ekle
+          </Button>
+        </FormSection>
+      )}
+
+      {eklenenAgaclar.length > 0 && araziVasfi !== 'Tarla + Zeytinlik' && (
         <FormSection>
           <SectionTitle>📋 Eklenen Ağaçlar</SectionTitle>
           <AgacListesi>

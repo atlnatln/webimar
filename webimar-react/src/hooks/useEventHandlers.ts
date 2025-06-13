@@ -9,22 +9,24 @@ export interface EventHandlerContext {
   // State update functions
   setTarlaPolygon: (polygon: DrawnPolygon | null) => void;
   setDikiliPolygon: (polygon: DrawnPolygon | null) => void;
-  setDrawingMode: (mode: 'tarla' | 'dikili' | null) => void;
+  setZeytinlikPolygon: (polygon: DrawnPolygon | null) => void;
+  setDrawingMode: (mode: 'tarla' | 'dikili' | 'zeytinlik' | null) => void;
   triggerEdit: (polygonIndex: number) => void;
   updateField: (field: string, value: any) => void;
   
   // Current state values
   tarlaPolygon: DrawnPolygon | null;
   dikiliPolygon: DrawnPolygon | null;
-  drawingMode: 'tarla' | 'dikili' | null;
+  zeytinlikPolygon: DrawnPolygon | null;
+  drawingMode: 'tarla' | 'dikili' | 'zeytinlik' | null;
 }
 
 export interface StandardizedCallbacks {
   onPolygonComplete: (polygon: DrawnPolygon) => void;
   onPolygonClear: () => void;
   onPolygonEdit: (polygon: DrawnPolygon, index: number) => void;
-  onDrawingModeChange: (mode: 'tarla' | 'dikili' | null) => void;
-  onAreaDisplayEdit: (type: 'tarla' | 'dikili') => void;
+  onDrawingModeChange: (mode: 'tarla' | 'dikili' | 'zeytinlik' | null) => void;
+  onAreaDisplayEdit: (type: 'tarla' | 'dikili' | 'zeytinlik') => void;
   onTabChange: (tab: 'manuel' | 'harita') => void;
 }
 
@@ -76,6 +78,10 @@ export const useEventHandlers = (context: EventHandlerContext): {
         console.log('🟢 Dikili polygon set ediliyor:', polygon);
         context.setDikiliPolygon(polygon);
         context.updateField('dikiliAlan', Math.round(polygon.area));
+      } else if (context.drawingMode === 'zeytinlik') {
+        console.log('🫒 Zeytinlik polygon set ediliyor:', polygon);
+        context.setZeytinlikPolygon(polygon);
+        context.updateField('zeytinlikAlani', Math.round(polygon.area));
       } else {
         logError('Invalid drawing mode', 'onPolygonComplete');
       }
@@ -91,7 +97,8 @@ export const useEventHandlers = (context: EventHandlerContext): {
       console.log('🧹 onPolygonClear çağrıldı, mevcut state:', {
         drawingMode: context.drawingMode,
         tarlaPolygon: !!context.tarlaPolygon,
-        dikiliPolygon: !!context.dikiliPolygon
+        dikiliPolygon: !!context.dikiliPolygon,
+        zeytinlikPolygon: !!context.zeytinlikPolygon
       });
       
       // Eğer aktif çizim modu varsa, sadece o mode'un önceki polygon'unu temizle
@@ -106,12 +113,19 @@ export const useEventHandlers = (context: EventHandlerContext): {
         context.updateField('dikiliAlan', 0);
         console.log('🧹 Dikili polygon state\'i temizlendi (mode korundu)');
         // Drawing mode'u koruyoruz - setDrawingMode çağrılmıyor
+      } else if (context.drawingMode === 'zeytinlik') {
+        context.setZeytinlikPolygon(null);
+        context.updateField('zeytinlikAlani', 0);
+        console.log('🧹 Zeytinlik polygon state\'i temizlendi (mode korundu)');
+        // Drawing mode'u koruyoruz - setDrawingMode çağrılmıyor
       } else {
         // Drawing mode null ise (tamamen temizle komutu), hepsini temizle
         context.setTarlaPolygon(null);
         context.setDikiliPolygon(null);
+        context.setZeytinlikPolygon(null);
         context.updateField('tarlaAlani', 0);
         context.updateField('dikiliAlan', 0);
+        context.updateField('zeytinlikAlani', 0);
         context.setDrawingMode(null);
         console.log('🧹 Tüm polygon state\'leri tamamen temizlendi');
       }
@@ -153,7 +167,7 @@ export const useEventHandlers = (context: EventHandlerContext): {
   }, [context, handleError, showUserError, logError]);
 
   // Drawing mode change handler
-  const onDrawingModeChange = useCallback((mode: 'tarla' | 'dikili' | null) => {
+  const onDrawingModeChange = useCallback((mode: 'tarla' | 'dikili' | 'zeytinlik' | null) => {
     try {
       console.log('🎯 DikiliAlanKontrol handleDrawingModeChange çağrıldı:', mode);
       context.setDrawingMode(mode);
@@ -164,7 +178,7 @@ export const useEventHandlers = (context: EventHandlerContext): {
   }, [context, handleError, showUserError]);
 
   // Area display edit handler (for edit buttons on area display)
-  const onAreaDisplayEdit = useCallback((type: 'tarla' | 'dikili') => {
+  const onAreaDisplayEdit = useCallback((type: 'tarla' | 'dikili' | 'zeytinlik') => {
     try {
       if (type === 'tarla') {
         console.log('🎯 Tarla edit butonu tıklandı!');
@@ -175,6 +189,13 @@ export const useEventHandlers = (context: EventHandlerContext): {
         // Dikili edit modu - index 1 (dikili ikinci sırada) veya 0 (eğer tarla yoksa)
         const dikiliIndex = context.tarlaPolygon ? 1 : 0;
         context.triggerEdit(dikiliIndex);
+      } else if (type === 'zeytinlik') {
+        console.log('🎯 Zeytinlik edit butonu tıklandı!');
+        // Zeytinlik edit modu - index calculation based on existing polygons
+        let zeytinlikIndex = 0;
+        if (context.tarlaPolygon) zeytinlikIndex++;
+        if (context.dikiliPolygon) zeytinlikIndex++;
+        context.triggerEdit(zeytinlikIndex);
       }
     } catch (error) {
       handleError(error as Error, 'onAreaDisplayEdit');

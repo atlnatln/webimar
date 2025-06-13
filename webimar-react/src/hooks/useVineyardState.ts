@@ -16,6 +16,7 @@ import { validateTreeInput } from '../utils/vineyardValidation';
 export interface VineyardFormState {
   dikiliAlan: number;
   tarlaAlani: number;
+  zeytinlikAlani: number;
   secilenAgacTuru: string;
   secilenAgacTipi: 'normal' | 'bodur' | 'yaribodur';
   agacSayisi: number;
@@ -27,9 +28,10 @@ export interface TreeEditState {
 }
 
 export interface MapState {
-  drawingMode: 'tarla' | 'dikili' | null;
+  drawingMode: 'tarla' | 'dikili' | 'zeytinlik' | null;
   tarlaPolygon: DrawnPolygon | null;
   dikiliPolygon: DrawnPolygon | null;
+  zeytinlikPolygon: DrawnPolygon | null;
   editTrigger: { timestamp: number; polygonIndex: number };
 }
 
@@ -120,10 +122,11 @@ export const useTreeData = () => {
 };
 
 // Custom hook for form state management
-export const useVineyardForm = (initialDikiliAlan: number = 0, initialTarlaAlani: number = 0) => {
+export const useVineyardForm = (initialDikiliAlan: number = 0, initialTarlaAlani: number = 0, initialZeytinlikAlani: number = 0) => {
   const [formState, setFormState] = useState<VineyardFormState>({
     dikiliAlan: initialDikiliAlan,
     tarlaAlani: initialTarlaAlani,
+    zeytinlikAlani: initialZeytinlikAlani,
     secilenAgacTuru: '',
     secilenAgacTipi: 'normal',
     agacSayisi: 0
@@ -134,9 +137,10 @@ export const useVineyardForm = (initialDikiliAlan: number = 0, initialTarlaAlani
     setFormState(prev => ({
       ...prev,
       dikiliAlan: initialDikiliAlan,
-      tarlaAlani: initialTarlaAlani
+      tarlaAlani: initialTarlaAlani,
+      zeytinlikAlani: initialZeytinlikAlani
     }));
-  }, [initialDikiliAlan, initialTarlaAlani]);
+  }, [initialDikiliAlan, initialTarlaAlani, initialZeytinlikAlani]);
 
   // Update individual form fields
   const updateField = useCallback(<K extends keyof VineyardFormState>(
@@ -156,6 +160,7 @@ export const useVineyardForm = (initialDikiliAlan: number = 0, initialTarlaAlani
     setFormState({
       dikiliAlan: 0,
       tarlaAlani: 0,
+      zeytinlikAlani: 0,
       secilenAgacTuru: '',
       secilenAgacTipi: 'normal',
       agacSayisi: 0
@@ -220,10 +225,11 @@ export const useMapState = () => {
     drawingMode: null,
     tarlaPolygon: null,
     dikiliPolygon: null,
+    zeytinlikPolygon: null,
     editTrigger: { timestamp: 0, polygonIndex: -1 }
   });
 
-  const setDrawingMode = useCallback((mode: 'tarla' | 'dikili' | null) => {
+  const setDrawingMode = useCallback((mode: 'tarla' | 'dikili' | 'zeytinlik' | null) => {
     setMapState(prev => ({ ...prev, drawingMode: mode }));
   }, []);
 
@@ -233,6 +239,10 @@ export const useMapState = () => {
 
   const setDikiliPolygon = useCallback((polygon: DrawnPolygon | null) => {
     setMapState(prev => ({ ...prev, dikiliPolygon: polygon }));
+  }, []);
+
+  const setZeytinlikPolygon = useCallback((polygon: DrawnPolygon | null) => {
+    setMapState(prev => ({ ...prev, zeytinlikPolygon: polygon }));
   }, []);
 
   const triggerEdit = useCallback((polygonIndex: number) => {
@@ -246,7 +256,8 @@ export const useMapState = () => {
     setMapState(prev => ({
       ...prev,
       tarlaPolygon: null,
-      dikiliPolygon: null
+      dikiliPolygon: null,
+      zeytinlikPolygon: null
     }));
   }, []);
 
@@ -255,6 +266,7 @@ export const useMapState = () => {
     setDrawingMode,
     setTarlaPolygon,
     setDikiliPolygon,
+    setZeytinlikPolygon,
     triggerEdit,
     clearPolygons
   };

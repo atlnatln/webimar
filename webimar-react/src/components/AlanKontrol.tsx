@@ -38,6 +38,7 @@ interface AlanKontrolProps {
   araziVasfi?: string; // Arazi vasfı bilgisi
   initialDikiliAlan?: number;
   initialTarlaAlani?: number;
+  initialZeytinlikAlani?: number; // Zeytinlik alanı desteği
 }
 
 const AlanKontrol: React.FC<AlanKontrolProps> = ({ 
@@ -47,14 +48,18 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   alanTipi = 'dikiliAlan',
   araziVasfi = '',
   initialDikiliAlan = 0,
-  initialTarlaAlani = 0 
+  initialTarlaAlani = 0,
+  initialZeytinlikAlani = 0 
 }) => {
-  const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>('manuel');
+  // "Tarla + Zeytinlik" için varsayılan tab harita olsun
+  const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>(
+    araziVasfi === 'Tarla + Zeytinlik' ? 'harita' : 'manuel'
+  );
   const [isDrawing, setIsDrawing] = useState(false); // Çizim durumu için state
   
   // Custom hooks for state management
   const treeData = useTreeData();
-  const formHook = useVineyardForm(initialDikiliAlan, initialTarlaAlani); // Initial değerleri geçirelim
+  const formHook = useVineyardForm(initialDikiliAlan, initialTarlaAlani, initialZeytinlikAlani); // Initial değerleri geçirelim
   const editHook = useTreeEditing();
   const mapHook = useMapState();
   const calculationHook = useVineyardCalculation();
@@ -63,24 +68,26 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   const { agacVerileri, eklenenAgaclar, addTree, removeTree, updateTreeCount, clearAllTrees } = treeData;
   const { formState, updateField, resetTreeSelection } = formHook;
   const { editState, startEdit, updateEditCount, cancelEdit } = editHook;
-  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, triggerEdit } = mapHook;
+  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, setZeytinlikPolygon, triggerEdit } = mapHook;
   const { hesaplamaSonucu, calculate, clearResult } = calculationHook;
 
   // Computed values for easier access
-  const { dikiliAlan, tarlaAlani, secilenAgacTuru, secilenAgacTipi, agacSayisi } = formState;
+  const { dikiliAlan, tarlaAlani, zeytinlikAlani, secilenAgacTuru, secilenAgacTipi, agacSayisi } = formState;
   const { editingIndex, editingAgacSayisi } = editState;
-  const { drawingMode, tarlaPolygon, dikiliPolygon, editTrigger } = mapState;
+  const { drawingMode, tarlaPolygon, dikiliPolygon, zeytinlikPolygon, editTrigger } = mapState;
 
   // Event handling system
   const eventLogger = createEventLogger('AlanKontrol');
   const { callbacks, errorHandler } = useEventHandlers({
     setTarlaPolygon,
     setDikiliPolygon,
+    setZeytinlikPolygon,
     setDrawingMode,
     triggerEdit,
     updateField: (field: string, value: any) => updateField(field as any, value),
     tarlaPolygon,
     dikiliPolygon,
+    zeytinlikPolygon,
     drawingMode
   });
 
@@ -95,12 +102,14 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
       console.log('🧹 Tümünü temizle butonu tıklandı');
       // Önce drawing mode'u null yap
       setDrawingMode(null);
-      // Sonra hem tarla hem dikili state'lerini temizle (drawingMode'dan bağımsız)
+      // Sonra hem tarla hem dikili hem zeytinlik state'lerini temizle (drawingMode'dan bağımsız)
       setTarlaPolygon(null);
       setDikiliPolygon(null);
+      setZeytinlikPolygon(null);
       // Form field'larını da temizle
       formHook.updateField('tarlaAlani', 0);
       formHook.updateField('dikiliAlan', 0);
+      formHook.updateField('zeytinlikAlani', 0);
       // PolygonDrawer'daki katmanları da temizle
       callbacks.onPolygonClear?.();
       // Global temizleme fonksiyonunu da çağır
@@ -229,8 +238,14 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
       color: '#27ae60',
       name: 'Dikili Alan',
       id: 'dikili'
+    }] : []),
+    ...(zeytinlikPolygon ? [{
+      polygon: zeytinlikPolygon,
+      color: '#9c8836',
+      name: 'Zeytinlik Alanı',
+      id: 'zeytinlik'
     }] : [])
-  ], [tarlaPolygon, dikiliPolygon]);
+  ], [tarlaPolygon, dikiliPolygon, zeytinlikPolygon]);
 
   // Business logic functions with error handling
   const devamEt = () => {
@@ -247,6 +262,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
           eklenenAgaclar: eklenenAgaclar,
           dikiliAlan: dikiliAlan,
           tarlaAlani: tarlaAlani,
+          zeytinlikAlani: zeytinlikAlani,
           alanTipi: alanTipi // Alan tipini de gönder
         });
         onClose();
@@ -265,7 +281,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
 
   const handleDirectCalculation = () => {
     try {
-      eventLogger.logEvent('directCalculation', { dikiliAlan, tarlaAlani });
+      eventLogger.logEvent('directCalculation', { dikiliAlan, tarlaAlani, zeytinlikAlani });
       
       // Poligon verilerini doğrudan aktarım yaparak ana forma gönder
       onSuccess({
@@ -273,6 +289,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
         eklenenAgaclar: [], // Boş ağaç listesi
         dikiliAlan: dikiliAlan,
         tarlaAlani: tarlaAlani,
+        zeytinlikAlani: zeytinlikAlani,
         directTransfer: true, // Bu bir doğrudan aktarım olduğunu belirt
         alanTipi: alanTipi // Alan tipini de gönder
       });
@@ -307,26 +324,56 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
       </KontrolHeader>
 
       <KontrolContent>
-        <TabContainer>
-          <TabButton 
-            $active={activeTab === 'manuel'} 
-            onClick={() => handleTabChange('manuel')}
-          >
-            📝 Manuel Kontrol
-          </TabButton>
-          <TabButton 
-            $active={activeTab === 'harita'} 
-            onClick={() => handleTabChange('harita')}
-          >
-            🗺️ Haritadan Kontrol
-          </TabButton>
-        </TabContainer>
+        {/* "Tarla + Zeytinlik" için sadece harita kontrolü göster */}
+        {araziVasfi !== 'Tarla + Zeytinlik' && (
+          <TabContainer>
+            <TabButton 
+              $active={activeTab === 'manuel'} 
+              onClick={() => handleTabChange('manuel')}
+            >
+              📝 Manuel Kontrol
+            </TabButton>
+            <TabButton 
+              $active={activeTab === 'harita'} 
+              onClick={() => handleTabChange('harita')}
+            >
+              🗺️ Haritadan Kontrol
+            </TabButton>
+          </TabContainer>
+        )}
 
-        {activeTab === 'manuel' ? (
+        {/* "Tarla + Zeytinlik" için sadece harita kontrolü */}
+        {araziVasfi === 'Tarla + Zeytinlik' ? (
+          <HaritaTab
+            // Map state
+            drawingMode={drawingMode}
+            isDrawing={isDrawing}
+            tarlaPolygon={tarlaPolygon}
+            dikiliPolygon={dikiliPolygon}
+            zeytinlikPolygon={zeytinlikPolygon}
+            editTrigger={editTrigger}
+            existingPolygons={existingPolygons}
+            
+            // Area values
+            dikiliAlan={dikiliAlan}
+            tarlaAlani={tarlaAlani}
+            zeytinlikAlani={zeytinlikAlani}
+            
+            // Arazi bilgileri
+            araziVasfi={araziVasfi}
+            
+            // Callbacks
+            enhancedCallbacks={enhancedCallbacks}
+            setIsDrawing={setIsDrawing}
+            handleTabChange={handleTabChange}
+            handleDirectCalculation={handleDirectCalculation}
+          />
+        ) : activeTab === 'manuel' ? (
           <ManuelTab
             // Form state
             dikiliAlan={dikiliAlan}
             tarlaAlani={tarlaAlani}
+            zeytinlikAlani={zeytinlikAlani}
             secilenAgacTuru={secilenAgacTuru}
             secilenAgacTipi={secilenAgacTipi}
             agacSayisi={agacSayisi}
@@ -341,6 +388,7 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             // Polygon data
             tarlaPolygon={tarlaPolygon}
             dikiliPolygon={dikiliPolygon}
+            zeytinlikPolygon={zeytinlikPolygon}
             
             // Edit state
             editingIndex={editingIndex}
@@ -369,12 +417,14 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             isDrawing={isDrawing}
             tarlaPolygon={tarlaPolygon}
             dikiliPolygon={dikiliPolygon}
+            zeytinlikPolygon={zeytinlikPolygon}
             editTrigger={editTrigger}
             existingPolygons={existingPolygons}
             
             // Area values
             dikiliAlan={dikiliAlan}
             tarlaAlani={tarlaAlani}
+            zeytinlikAlani={zeytinlikAlani}
             
             // Arazi bilgileri
             araziVasfi={araziVasfi}

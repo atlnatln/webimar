@@ -28,6 +28,8 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // Bağ evi için özel alanlar
   tarla_alani?: number;
   dikili_alani?: number;
+  zeytinlik_alani?: number; // Tarla + Zeytinlik arazi tipi için
+  zeytin_alani?: number; // Zeytin ağaçlı + tarla arazi tipi için (zeytin ağacı sayısı)
   
   // Manuel ağaç kontrolü sonucu
   manuel_kontrol_sonucu?: any;
@@ -166,6 +168,7 @@ export interface ResultDisplayProps {
   result: CalculationResult | null;
   isLoading: boolean;
   error: string | null;
+  araziVasfi?: string; // Arazi vasfı bilgisi manuel kontrol butonu için
 }
 
 // Arazi Vasıf Types

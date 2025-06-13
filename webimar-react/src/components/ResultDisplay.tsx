@@ -7,6 +7,7 @@ interface ResultDisplayProps {
   result: CalculationResult | null;
   isLoading: boolean;
   calculationType: StructureType;
+  araziVasfi?: string; // Arazi vasfı bilgisi manuel kontrol butonu için
 }
 
 const ResultContainer = styled.div`
@@ -352,7 +353,7 @@ const formatNumber = (value: number | string): string => {
   }).format(num);
 };
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calculationType }) => {
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calculationType, araziVasfi }) => {
   const { structureTypeLabels } = useStructureTypes();
 
   console.log('🖼️ ResultDisplay props:', { result, isLoading, calculationType });
@@ -463,8 +464,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
         </ResultCard>
       )}
 
-      {/* Bağ evi varsayımsal sonuç için manuel kontrol butonu */}
-      {calculationType === 'bag-evi' && data.izin_durumu === 'izin_verilebilir_varsayimsal' && (
+      {/* Bağ evi varsayımsal sonuç için manuel kontrol butonu - "Zeytin ağaçlı + tarla" için gizle */}
+      {calculationType === 'bag-evi' && 
+       data.izin_durumu === 'izin_verilebilir_varsayimsal' && 
+       araziVasfi !== 'Zeytin ağaçlı + tarla' && (
         <ResultCard style={{ 
           marginTop: '16px', 
           background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',

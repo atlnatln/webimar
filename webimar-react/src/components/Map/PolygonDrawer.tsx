@@ -148,8 +148,8 @@ interface PolygonDrawerProps {
     name: string;
     id?: string;
   }>;
-  drawingMode?: 'tarla' | 'dikili' | null;
-  onDrawingModeChange?: (mode: 'tarla' | 'dikili' | null) => void;
+  drawingMode?: 'tarla' | 'dikili' | 'zeytinlik' | null;
+  onDrawingModeChange?: (mode: 'tarla' | 'dikili' | 'zeytinlik' | null) => void;
   showDrawingModeControls?: boolean;
   externalEditTrigger?: { timestamp: number; polygonIndex: number };
 }
@@ -609,7 +609,7 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
   }, []);
 
   // Drawing mode change handler
-  const handleModeChange = useCallback((mode: 'tarla' | 'dikili') => {
+  const handleModeChange = useCallback((mode: 'tarla' | 'dikili' | 'zeytinlik') => {
     if (drawingMode === mode && isDrawing) return;
     
     onDrawingModeChange?.(mode);
@@ -715,6 +715,14 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
             onClick={() => handleModeChange('dikili')}
           >
             🟢 Dikili Alan Çiz
+          </DrawingModeButton>
+          
+          <DrawingModeButton
+            $active={drawingMode === 'zeytinlik'}
+            $color="#9c8836"
+            onClick={() => handleModeChange('zeytinlik')}
+          >
+            🫒 Zeytinlik Alanı Çiz
           </DrawingModeButton>
           
           {isDrawing && (
