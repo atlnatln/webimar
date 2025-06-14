@@ -493,7 +493,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
               color: '#1e40af',
               lineHeight: '1.5'
             }}>
-              Kesin sonuç için <strong>manuel ağaç kontrolü</strong> yapmanız önerilir.
+              Kesin sonuç için <strong>manuel alan kontrolü</strong> yapmanız önerilir.
             </div>
           </div>
           
@@ -505,7 +505,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
             }}
           >
             <span>🌳</span>
-            <span>Manuel Ağaç Kontrolü Başlat</span>
+            <span>Manuel Alan Kontrolü Başlat</span>
             <span>→</span>
           </ManuelKontrolButton>
           

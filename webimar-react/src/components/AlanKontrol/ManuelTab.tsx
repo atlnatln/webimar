@@ -130,8 +130,11 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
           />
         </FormGroup>
         
-        {/* Tarla alanı girişini sadece "Dikili vasıflı" olmayan arazi tipleri için göster */}
-        {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Tarla + Zeytinlik' && (
+        {/* Tarla alanı girişini sadece "Dikili vasıflı", "Zeytin ağaçlı + herhangi bir dikili vasıf", "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" olmayan arazi tipleri için göster */}
+        {araziVasfi !== 'Dikili vasıflı' && 
+         araziVasfi !== 'Tarla + Zeytinlik' && 
+         araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && 
+         araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
           <FormGroup>
             <Label htmlFor="tarla-alani-input">Tarla Alanı (m²)</Label>
             <Input
@@ -194,10 +197,37 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
         )}
       </FormSection>
 
-      {/* Ağaç Bilgileri - "Tarla + Zeytinlik" için gizli */}
-      {araziVasfi !== 'Tarla + Zeytinlik' && (
+      {/* Ağaç Bilgileri - "Tarla + Zeytinlik" ve "… Adetli Zeytin Ağacı bulunan tarla" için gizli */}
+      {araziVasfi !== 'Tarla + Zeytinlik' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
         <FormSection>
           <SectionTitle>🌱 Ağaç Bilgileri</SectionTitle>
+          
+          {/* "Zeytin ağaçlı + herhangi bir dikili vasıf" için özel açıklama */}
+          {araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' && (
+            <HighlightBox $variant="info">
+              <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+                🫒 Zeytin Ağaçlı + Dikili Vasıf Kontrolü
+              </div>
+              <InfoText>
+                Bu arazi tipinde hem zeytin ağacı hem de diğer dikili ürünler bulunabilir. 
+                Arazideki tüm ağaç türlerini ve sayılarını belirtiniz. Sistem fiili dikili durumu bu bilgilerden tespit edecektir.
+              </InfoText>
+            </HighlightBox>
+          )}
+          
+          {/* "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" için özel açıklama */}
+          {araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
+            <HighlightBox $variant="info">
+              <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+                🫒 Adetli Zeytin Ağacı + Dikili Vasıf Kontrolü
+              </div>
+              <InfoText>
+                Zeytin ağacı bilgileri form üzerinden alınmıştır. Bu alanda zeytin dışında başka dikili vasıf ağaçları da bulunuyorsa 
+                (meyve ağaçları, asma vs.) onları da ekleyiniz. Sistem toplam dikili vasıf yoğunluğunu hesaplayacaktır.
+              </InfoText>
+            </HighlightBox>
+          )}
+          
           <FormGroup>
             <Label htmlFor="agac-turu-select">Ağaç Türü</Label>
             <Select
@@ -335,8 +365,8 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                     {hesaplamaSonucu.yeterlilik.kriter1 ? '✅ Sağlanıyor' : '❌ Sağlanmıyor'}
                   </span>
                 </div>
-                {/* Kriter 2'yi sadece "Dikili vasıflı" arazi türü değilse göster */}
-                {araziVasfi !== 'Dikili vasıflı' && (
+                {/* Kriter 2'yi sadece "Dikili vasıflı", "Zeytin ağaçlı + herhangi bir dikili vasıf" ve "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" arazi türleri değilse göster */}
+                {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
                   <div style={{ marginBottom: '4px' }}>
                     <strong>Kriter 2:</strong> Tarla alanı ≥ 20000 m²: {' '}
                     <span style={{ color: hesaplamaSonucu.yeterlilik.kriter2 ? '#155724' : '#721c24' }}>
@@ -355,7 +385,7 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
               <InfoText>
                 Dikili alan: <strong>{dikiliAlan.toLocaleString()} m²</strong>
               </InfoText>
-              {araziVasfi !== 'Dikili vasıflı' && (
+              {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
                 <InfoText>
                   Tarla alanı: <strong>{tarlaAlani.toLocaleString()} m²</strong>
                 </InfoText>
@@ -425,7 +455,11 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                 <InfoText size="13px">
                   💡 Çözüm önerileri:
                   <br/>• Dikili alanı 5000 m²'ye çıkarın ve %100 ağaç yoğunluğu sağlayın
-                  <br/>• Veya tarla alanını 20000 m²'ye çıkarın
+                  {araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
+                    <>
+                      <br/>• Veya tarla alanını 20000 m²'ye çıkarın
+                    </>
+                  )}
                 </InfoText>
               </div>
             )}

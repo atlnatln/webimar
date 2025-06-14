@@ -51,9 +51,9 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   initialTarlaAlani = 0,
   initialZeytinlikAlani = 0 
 }) => {
-  // "Tarla + Zeytinlik" için varsayılan tab harita olsun
+  // "Tarla + Zeytinlik" ve "… Adetli Zeytin Ağacı bulunan tarla" için varsayılan tab harita olsun
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>(
-    araziVasfi === 'Tarla + Zeytinlik' ? 'harita' : 'manuel'
+    (araziVasfi === 'Tarla + Zeytinlik' || araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla') ? 'harita' : 'manuel'
   );
   const [isDrawing, setIsDrawing] = useState(false); // Çizim durumu için state
   
@@ -68,13 +68,28 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   const { agacVerileri, eklenenAgaclar, addTree, removeTree, updateTreeCount, clearAllTrees } = treeData;
   const { formState, updateField, resetTreeSelection } = formHook;
   const { editState, startEdit, updateEditCount, cancelEdit } = editHook;
-  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, setZeytinlikPolygon, triggerEdit } = mapHook;
+  const { mapState, setDrawingMode, setTarlaPolygon, setDikiliPolygon, setZeytinlikPolygon, triggerEdit, clearPolygons } = mapHook;
   const { hesaplamaSonucu, calculate, clearResult } = calculationHook;
 
   // Computed values for easier access
   const { dikiliAlan, tarlaAlani, zeytinlikAlani, secilenAgacTuru, secilenAgacTipi, agacSayisi } = formState;
   const { editingIndex, editingAgacSayisi } = editState;
   const { drawingMode, tarlaPolygon, dikiliPolygon, zeytinlikPolygon, editTrigger } = mapState;
+
+  // Create setter functions for form fields
+  const setSecilenAgacTuru = (value: string) => updateField('secilenAgacTuru', value);
+  const setSecilenAgacTipi = (value: 'normal' | 'bodur' | 'yaribodur') => updateField('secilenAgacTipi', value);
+  const setAgacSayisi = (value: number) => updateField('agacSayisi', value);
+  const setDikiliAlan = (value: number) => updateField('dikiliAlan', value);
+  const setTarlaAlani = (value: number) => updateField('tarlaAlani', value);
+  const setZeytinlikAlani = (value: number) => updateField('zeytinlikAlani', value);
+
+  // Clear all polygons function
+  const clearAllPolygons = () => {
+    clearPolygons();
+    clearAllTrees();
+    clearResult();
+  };
 
   // Event handling system
   const eventLogger = createEventLogger('AlanKontrol');
@@ -324,14 +339,14 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
       </KontrolHeader>
 
       <KontrolContent>
-        {/* "Tarla + Zeytinlik" için sadece harita kontrolü göster */}
-        {araziVasfi !== 'Tarla + Zeytinlik' && (
+        {/* "Tarla + Zeytinlik" ve "… Adetli Zeytin Ağacı bulunan tarla" için sadece harita kontrolü göster */}
+        {araziVasfi !== 'Tarla + Zeytinlik' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
           <TabContainer>
             <TabButton 
               $active={activeTab === 'manuel'} 
               onClick={() => handleTabChange('manuel')}
             >
-              📝 Manuel Kontrol
+              📝 Manuel Alan Kontrolü
             </TabButton>
             <TabButton 
               $active={activeTab === 'harita'} 
@@ -368,6 +383,100 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             handleTabChange={handleTabChange}
             handleDirectCalculation={handleDirectCalculation}
           />
+        ) : araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla' ? (
+          <HaritaTab
+            // Map state
+            drawingMode={drawingMode}
+            isDrawing={isDrawing}
+            tarlaPolygon={tarlaPolygon}
+            dikiliPolygon={dikiliPolygon}
+            zeytinlikPolygon={zeytinlikPolygon}
+            editTrigger={editTrigger}
+            existingPolygons={existingPolygons}
+            
+            // Form state
+            dikiliAlan={dikiliAlan}
+            tarlaAlani={tarlaAlani}
+            zeytinlikAlani={zeytinlikAlani}
+            
+            // Arazi bilgileri
+            araziVasfi={araziVasfi}
+            
+            // Callbacks
+            enhancedCallbacks={enhancedCallbacks}
+            setIsDrawing={setIsDrawing}
+            handleTabChange={handleTabChange}
+            handleDirectCalculation={handleDirectCalculation}
+          />
+        ) : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' ? (
+          activeTab === 'manuel' ? (
+            <ManuelTab
+              // Form state
+              dikiliAlan={dikiliAlan}
+              tarlaAlani={tarlaAlani}
+              zeytinlikAlani={zeytinlikAlani}
+              secilenAgacTuru={secilenAgacTuru}
+              secilenAgacTipi={secilenAgacTipi}
+              agacSayisi={agacSayisi}
+              
+              // Arazi bilgileri
+              araziVasfi={araziVasfi}
+              
+              // Tree data
+              agacVerileri={agacVerileri}
+              eklenenAgaclar={eklenenAgaclar}
+              
+              // Polygon data
+              tarlaPolygon={tarlaPolygon}
+              dikiliPolygon={dikiliPolygon}
+              zeytinlikPolygon={zeytinlikPolygon}
+              
+              // Edit state
+              editingIndex={editingIndex}
+              editingAgacSayisi={editingAgacSayisi}
+              
+              // Results
+              hesaplamaSonucu={hesaplamaSonucu}
+              
+              // Actions
+              updateField={(field: string, value: any) => updateField(field as any, value)}
+              agacEkle={agacEkle}
+              agacEdit={agacEdit}
+              agacEditSave={agacEditSave}
+              agacEditCancel={agacEditCancel}
+              agacSil={agacSil}
+              updateEditCount={updateEditCount}
+              hesaplamaYap={hesaplamaYap}
+              temizleVeriler={temizleVeriler}
+              devamEt={devamEt}
+              getMevcutTipler={getMevcutTipler}
+            />
+          ) : (
+            <HaritaTab
+              // Map state
+              drawingMode={drawingMode}
+              isDrawing={isDrawing}
+              tarlaPolygon={tarlaPolygon}
+              dikiliPolygon={dikiliPolygon}
+              zeytinlikPolygon={zeytinlikPolygon}
+              editTrigger={editTrigger}
+              existingPolygons={existingPolygons}
+              
+              // Form state
+              dikiliAlan={dikiliAlan}
+              tarlaAlani={tarlaAlani}
+              zeytinlikAlani={zeytinlikAlani}
+              
+              // Arazi bilgileri
+              araziVasfi={araziVasfi}
+              
+              // Callbacks
+              enhancedCallbacks={enhancedCallbacks}
+              setIsDrawing={setIsDrawing}
+              handleTabChange={handleTabChange}
+              handleDirectCalculation={handleDirectCalculation}
+            />
+          )
         ) : activeTab === 'manuel' ? (
           <ManuelTab
             // Form state

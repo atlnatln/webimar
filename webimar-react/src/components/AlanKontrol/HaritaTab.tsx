@@ -145,8 +145,14 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       <InfoBox>
         {araziVasfi === 'Dikili vasıflı' 
           ? 'Harita üzerinde poligon çizerek dikili alanı belirleyebilirsiniz.'
+          : araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf'
+          ? 'Harita üzerinde poligon çizerek zeytin ağaçlarının bulunduğu dikili alanı belirleyebilirsiniz.'
           : araziVasfi === 'Tarla + Zeytinlik'
           ? 'Harita üzerinde poligon çizerek tarla alanı ve zeytinlik alanı belirleyebilirsiniz. Önce tarla alanını, sonra zeytinlik alanı çizin.'
+          : araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla'
+          ? 'Bu arazi tipi için sadece tarla alanını çizmeniz yeterlidir. Zeytin ağacı bilgileri formdan alınmıştır.'
+          : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+          ? 'Dikili alanı çizin. Zeytin ağacı bilgileri formdan alınmış, diğer dikili vasıf ağaçları için manuel kontrol sekmesini kullanın.'
           : 'Harita üzerinde poligon çizerek tarla alanı ve dikili alanı belirleyebilirsiniz. Önce tarla alanını, sonra dikili alanı çizin.'
         }
       </InfoBox>
@@ -168,7 +174,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         )}
         
         <FlexContainer style={{ flexWrap: 'wrap', alignItems: 'center' }}>
-          {araziVasfi !== 'Dikili vasıflı' && (
+          {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
             <Button
               $variant={drawingMode === 'tarla' ? 'primary' : 'secondary'}
               onClick={(e) => handleDrawingButtonClick('tarla', e)}
@@ -194,7 +200,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
             >
               🫒 Zeytinlik Alanı Çiz
             </Button>
-          ) : (
+          ) : araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
             <Button
               $variant={drawingMode === 'dikili' ? 'success' : 'secondary'}
               onClick={(e) => handleDrawingButtonClick('dikili', e)}
@@ -204,7 +210,10 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
                 border: `2px solid #27ae60`
               }}
             >
-              🟢 Dikili Alan Çiz
+              {araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' 
+                ? '🫒 Zeytin Ağaçlı Dikili Alan Çiz' 
+                : '🟢 Dikili Alan Çiz'
+              }
             </Button>
           )}
           
@@ -252,7 +261,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       
       {/* Alan gösterimi */}
       <AreaDisplayContainer>
-        {araziVasfi !== 'Dikili vasıflı' && (
+        {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
           <AreaDisplayBox $color="#8B4513">
             <FlexContainer style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
@@ -284,11 +293,18 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
               {renderAreaEditButton('zeytinlik', zeytinlikPolygon)}
             </FlexContainer>
           </AreaDisplayBox>
-        ) : (
+        ) : araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
           <AreaDisplayBox $color="#27ae60">
             <FlexContainer style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <AreaLabel>🟢 Dikili Alan</AreaLabel>
+                <AreaLabel>
+                  {araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' 
+                    ? '🫒 Zeytin Ağaçlı Dikili Alan'
+                    : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                    ? '🫒 Zeytin Ağaçlı Dikili Alan'
+                    : '🟢 Dikili Alan'
+                  }
+                </AreaLabel>
                 <AreaValue>
                   {dikiliAlan > 0 ? formatArea(dikiliAlan).m2 : '0'} m²
                 </AreaValue>
@@ -307,7 +323,7 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         <HighlightBox>
           <div style={{ fontWeight: '600', marginBottom: '8px' }}>📊 Alan Belirleme Durumu:</div>
           <div style={{ fontSize: '14px' }}>
-            {araziVasfi !== 'Dikili vasıflı' && (
+            {araziVasfi !== 'Dikili vasıflı' && araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
               <>
                 ✅ Tarla Alanı: {tarlaPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
                 <br/>
@@ -317,21 +333,33 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
               <>
                 ✅ Zeytinlik Alanı: {zeytinlikPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
               </>
-            ) : (
+            ) : araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
               <>
-                ✅ Dikili Alan: {dikiliPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
+                ✅ {araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' 
+                  ? 'Zeytin Ağaçlı Dikili Alan'
+                  : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                  ? 'Zeytin Ağaçlı Dikili Alan'
+                  : 'Dikili Alan'
+                }: {dikiliPolygon ? '✅ Çizildi' : '❌ Çizilmedi'}
               </>
             )}
           </div>
           
-          {(araziVasfi === 'Dikili vasıflı' ? dikiliPolygon : 
+          {(araziVasfi === 'Dikili vasıflı' || araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' || araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' ? dikiliPolygon : 
             araziVasfi === 'Tarla + Zeytinlik' ? (tarlaPolygon && zeytinlikPolygon) :
+            araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla' ? tarlaPolygon :
             (tarlaPolygon && dikiliPolygon)) && (
             <HighlightBox $variant="success" style={{ marginTop: '8px' }}>
               🎯 {araziVasfi === 'Dikili vasıflı' 
-                ? 'Dikili alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.'
+                ? 'Dikili alan çizildi! Ağaç bilgilerini manuel alan kontrolü sekmesinden ekleyebilirsiniz.'
+                : araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf'
+                ? 'Zeytin ağaçlı dikili alan çizildi! Ağaç türlerini ve sayılarını manuel kontrol sekmesinden ekleyebilirsiniz.'
                 : araziVasfi === 'Tarla + Zeytinlik'
                 ? 'Her iki alan çizildi!'
+                : araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla'
+                ? 'Tarla alanı çizildi! Zeytin ağacı bilgileri form üzerinden alınmıştır.'
+                : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                ? 'Dikili alan çizildi! Zeytin ağacı bilgileri formdan alınmış, diğer dikili vasıf ağaçları için manuel kontrole geçin.'
                 : 'Her iki alan çizildi! Ağaç bilgilerini manuel kontrol sekmesinden ekleyebilirsiniz.'
               }
             </HighlightBox>
@@ -340,17 +368,23 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       )}
       
       {/* Manuel kontrole geçiş ve direkt hesaplama butonları */}
-      {(araziVasfi === 'Dikili vasıflı' ? dikiliPolygon : 
+      {(araziVasfi === 'Dikili vasıflı' || araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' || araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' ? dikiliPolygon : 
         araziVasfi === 'Tarla + Zeytinlik' ? (tarlaPolygon && zeytinlikPolygon) :
+        araziVasfi === '… Adetli Zeytin Ağacı bulunan tarla' ? tarlaPolygon :
         (tarlaPolygon && dikiliPolygon)) && (
         <FlexContainer $direction="column" style={{ width: '100%' }}>
-          {araziVasfi !== 'Tarla + Zeytinlik' && (
+          {araziVasfi !== 'Tarla + Zeytinlik' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan tarla' && (
             <Button 
               onClick={() => handleTabChange('manuel')} 
               $variant="primary"
               style={{ width: '100%' }}
             >
-              📝 Ağaç Bilgilerini Eklemek İçin Manuel Kontrole Geç
+              {araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' 
+                ? '🌱 Ağaç Bilgilerini Eklemek İçin Manuel Alan Kontrolüne Geç'
+                : araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                ? '🌱 Dikili Vasıf için Ağaç Bilgilerini Eklemek İçin Manuel Kontrole Geç'
+                : '📝 Ağaç Bilgilerini Eklemek İçin Manuel Alan Kontrolüne Geç'
+              }
             </Button>
           )}
           

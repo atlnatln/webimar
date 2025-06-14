@@ -31,6 +31,11 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   zeytinlik_alani?: number; // Tarla + Zeytinlik arazi tipi için
   zeytin_alani?: number; // Zeytin ağaçlı + tarla arazi tipi için (zeytin ağacı sayısı)
   
+  // "… Adetli Zeytin Ağacı bulunan tarla" arazi tipi için özel alanlar
+  tapu_zeytin_agac_adedi?: number; // Tapu senesinde yazılan zeytin ağacı sayısı
+  mevcut_zeytin_agac_adedi?: number; // Mevcut zeytin ağacı sayısı
+  zeytin_agac_adedi?: number; // Backend için (mevcut_zeytin_agac_adedi'den kopyalanır)
+  
   // Manuel ağaç kontrolü sonucu
   manuel_kontrol_sonucu?: any;
 

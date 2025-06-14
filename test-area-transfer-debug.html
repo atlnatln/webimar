@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Area Transfer Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .code { background-color: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; margin: 10px 0; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background-color: #0056b3; }
+        .log { font-size: 12px; font-family: monospace; max-height: 300px; overflow-y: auto; background: #2d3748; color: #68d391; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Area Transfer Debug Test</h1>
+        <p>Bu test, "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" arazi tipi için alan aktarım sorununu debug eder.</p>
+        
+        <div class="test-section info">
+            <h3>📋 Test Senaryosu</h3>
+            <p><strong>Problem:</strong> Form dikili_alani: 500 m² gösteriyor, harita 99.537 m² gönderiyor olmalı</p>
+            <p><strong>Beklenen:</strong> Harita verisi form alanına aktarılmalı</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test Modülleri</h3>
+            <button onclick="testHasRequiredAreasLogic()">1. hasRequiredAreas Logic Test</button>
+            <button onclick="testAreaTransferConditions()">2. Area Transfer Conditions Test</button>
+            <button onclick="testFormDataUpdate()">3. Form Data Update Test</button>
+            <button onclick="simulateMapTransfer()">4. Simulate Map Transfer</button>
+            <button onclick="clearLogs()">🧹 Clear Logs</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="testResults" class="log">Test sonuçları burada görünecek...</div>
+        </div>
+
+        <div class="test-section warning">
+            <h3>⚠️ Kullanım Talimatları</h3>
+            <ol>
+                <li>Bu dosyayı React app içinde açın: <code>http://localhost:3000</code> sayfasında console'da test edin</li>
+                <li>Veya bu HTML'i static olarak açıp mock test yapın</li>
+                <li>Test sonuçlarını inceleyin ve sorunun hangi aşamada olduğunu belirleyin</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let logDiv = document.getElementById('testResults');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#68d391',
+                success: '#4fd1c7', 
+                error: '#fc8181',
+                warning: '#f6e05e'
+            };
+            logDiv.innerHTML += `<div style="color: ${colors[type]}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            logDiv.innerHTML = '';
+        }
+
+        function testHasRequiredAreasLogic() {
+            log('🔍 Testing hasRequiredAreas Logic...', 'info');
+            
+            // Mock form data ve result scenarios
+            const scenarios = [
+                {
+                    name: 'Scenario 1: dikiliAlan var',
+                    formData: { arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' },
+                    result: { dikiliAlan: 99537, tarlaAlani: 0 },
+                    expected: true
+                },
+                {
+                    name: 'Scenario 2: dikiliAlan yok',
+                    formData: { arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' },
+                    result: { dikiliAlan: null, tarlaAlani: 0 },
+                    expected: false
+                },
+                {
+                    name: 'Scenario 3: dikiliAlan undefined',
+                    formData: { arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' },
+                    result: { tarlaAlani: 0 },
+                    expected: false
+                },
+                {
+                    name: 'Scenario 4: dikiliAlan 0',
+                    formData: { arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' },
+                    result: { dikiliAlan: 0, tarlaAlani: 0 },
+                    expected: false
+                }
+            ];
+            
+            scenarios.forEach(scenario => {
+                // hasRequiredAreas logic simulation
+                const hasRequiredAreas = scenario.formData.arazi_vasfi === 'Dikili vasıflı' 
+                    ? scenario.result?.dikiliAlan 
+                    : scenario.formData.arazi_vasfi === 'Tarla + Zeytinlik'
+                    ? (scenario.result?.tarlaAlani && scenario.result?.zeytinlikAlani)
+                    : scenario.formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                    ? scenario.result?.dikiliAlan
+                    : scenario.formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla'
+                    ? scenario.result?.tarlaAlani
+                    : (scenario.result?.dikiliAlan && scenario.result?.tarlaAlani);
+                
+                const passed = Boolean(hasRequiredAreas) === scenario.expected;
+                log(`  ${scenario.name}: ${passed ? '✅ PASS' : '❌ FAIL'}`, passed ? 'success' : 'error');
+                log(`    Expected: ${scenario.expected}, Got: ${Boolean(hasRequiredAreas)}`, 'info');
+                log(`    dikiliAlan: ${scenario.result?.dikiliAlan}`, 'info');
+            });
+        }
+        
+        function testAreaTransferConditions() {
+            log('🔍 Testing Area Transfer Conditions...', 'info');
+            
+            const testCases = [
+                {
+                    name: 'Case 1: Direct Transfer + hasRequiredAreas',
+                    isDirectTransfer: true,
+                    isSuccessfulControl: false,
+                    hasRequiredAreas: true,
+                    expected: true
+                },
+                {
+                    name: 'Case 2: Successful Control + hasRequiredAreas', 
+                    isDirectTransfer: false,
+                    isSuccessfulControl: true,
+                    hasRequiredAreas: true,
+                    expected: true
+                },
+                {
+                    name: 'Case 3: Direct Transfer but no required areas',
+                    isDirectTransfer: true,
+                    isSuccessfulControl: false,
+                    hasRequiredAreas: false,
+                    expected: false
+                },
+                {
+                    name: 'Case 4: No transfer conditions met',
+                    isDirectTransfer: false,
+                    isSuccessfulControl: false,
+                    hasRequiredAreas: true,
+                    expected: false
+                }
+            ];
+            
+            testCases.forEach(testCase => {
+                const condition = (testCase.isDirectTransfer || testCase.isSuccessfulControl) && testCase.hasRequiredAreas;
+                const passed = condition === testCase.expected;
+                
+                log(`  ${testCase.name}: ${passed ? '✅ PASS' : '❌ FAIL'}`, passed ? 'success' : 'error');
+                log(`    Condition: (${testCase.isDirectTransfer} || ${testCase.isSuccessfulControl}) && ${testCase.hasRequiredAreas} = ${condition}`, 'info');
+            });
+        }
+        
+        function testFormDataUpdate() {
+            log('🔍 Testing Form Data Update Simulation...', 'info');
+            
+            // Simulate the exact form update for our land type
+            const mockResult = {
+                dikiliAlan: 99537,
+                tarlaAlani: 0,
+                zeytinlikAlani: 0,
+                directTransfer: true
+            };
+            
+            const mockFormData = {
+                arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf',
+                dikili_alani: 500, // Current incorrect value
+                tapu_zeytin_agac_adedi: 5,
+                mevcut_zeytin_agac_adedi: 5
+            };
+            
+            log('📥 Before Update:', 'info');
+            log(`  dikili_alani: ${mockFormData.dikili_alani} m²`, 'info');
+            
+            // Simulate the update logic
+            if (mockFormData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf') {
+                const updatedFormData = {
+                    ...mockFormData,
+                    dikili_alani: mockResult.dikiliAlan
+                };
+                
+                log('📤 After Update:', 'success');
+                log(`  dikili_alani: ${updatedFormData.dikili_alani} m²`, 'success');
+                log(`  ✅ Update logic working correctly`, 'success');
+            } else {
+                log('❌ Update condition not met', 'error');
+            }
+        }
+        
+        function simulateMapTransfer() {
+            log('🗺️ Simulating Complete Map Transfer Flow...', 'info');
+            
+            // Step 1: Mock map data
+            const mapResult = {
+                dikiliAlan: 99537,
+                tarlaAlani: 0,
+                zeytinlikAlani: 0,
+                directTransfer: true,
+                eklenenAgaclar: [],
+                dikiliAlanKontrolSonucu: null
+            };
+            
+            const formData = {
+                arazi_vasfi: '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+            };
+            
+            // Step 2: Check hasRequiredAreas
+            const hasRequiredAreas = formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+                ? mapResult?.dikiliAlan
+                : false;
+            
+            log(`Step 1: Map result dikiliAlan = ${mapResult.dikiliAlan} m²`, 'info');
+            log(`Step 2: hasRequiredAreas = ${Boolean(hasRequiredAreas)}`, 'info');
+            
+            // Step 3: Check transfer conditions  
+            const isDirectTransfer = mapResult.directTransfer;
+            const isSuccessfulControl = false; // This would be true for successful manual control
+            const shouldTransfer = (isDirectTransfer || isSuccessfulControl) && hasRequiredAreas;
+            
+            log(`Step 3: Transfer conditions:`, 'info');
+            log(`  - isDirectTransfer: ${isDirectTransfer}`, 'info');
+            log(`  - isSuccessfulControl: ${isSuccessfulControl}`, 'info');
+            log(`  - shouldTransfer: ${shouldTransfer}`, 'info');
+            
+            // Step 4: Simulate transfer
+            if (shouldTransfer) {
+                log('✅ Transfer conditions met - updating form data...', 'success');
+                log(`📝 Setting dikili_alani to ${mapResult.dikiliAlan} m²`, 'success');
+                
+                // This is where the form would actually be updated
+                log('🎯 DIAGNOSIS: Transfer logic is correct!', 'success');
+                log('💡 If form still shows 500 m², the issue is:', 'warning');
+                log('   1. Map data not being received correctly', 'warning');
+                log('   2. React state update not triggering', 'warning');
+                log('   3. Form input not reflecting state changes', 'warning');
+            } else {
+                log('❌ Transfer conditions not met', 'error');
+                log('🎯 DIAGNOSIS: Issue in transfer condition logic', 'error');
+            }
+        }
+        
+        // Initial message
+        log('🚀 Area Transfer Debug Test Ready', 'success');
+        log('👆 Click test buttons above to diagnose the issue', 'info');
+    </script>
+</body>
+</html>
