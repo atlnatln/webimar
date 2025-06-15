@@ -70,6 +70,42 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
         </>
       )}
 
+      {/* Tarla + herhangi bir dikili vasıflı için alan girişleri */}
+      {formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+        <>
+          <FormField
+            label="Tarla Alanı (m²)"
+            name="tarla_alani"
+            type="number"
+            value={formData.tarla_alani || ''}
+            onChange={onInputChange}
+            placeholder="Örn: 15000"
+            min="1"
+            step="1"
+            required
+            error={validationErrors.tarla_alani}
+            helpText="Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+          >
+            {renderSmartDetectionFeedback('tarla_alani')}
+          </FormField>
+
+          <FormField
+            label="Dikili Alanı (m²)"
+            name="dikili_alani"
+            type="number"
+            value={formData.dikili_alani || ''}
+            onChange={onInputChange}
+            placeholder="Örn: 12000"
+            min="1"
+            step="1"
+            required
+            error={validationErrors.dikili_alani}
+          >
+            {renderSmartDetectionFeedback('dikili_alani')}
+          </FormField>
+        </>
+      )}
+
       {/* Dikili alan için */}
       {(formData.arazi_vasfi === 'Dikili vasıflı' || 
         formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' ||
@@ -90,6 +126,23 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
         </FormField>
       )}
 
+      {/* Zeytin ağaçlı + herhangi bir dikili vasıf için özel alanlar - Dikili alan ve zeytin ağacı sayısı */}
+      {formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' && (
+        <FormField
+          label="Zeytin Ağacı Sayısı (adet)"
+          name="zeytin_agac_sayisi"
+          type="number"
+          value={formData.zeytin_agac_sayisi || ''}
+          onChange={onInputChange}
+          placeholder="Örn: 50"
+          min="0"
+          step="1"
+          required
+          error={validationErrors.zeytin_agac_sayisi}
+          helpText="Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+        />
+      )}
+
       {/* Zeytin ağacı sayısı alanları */}
       {(formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla' ||
         formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf') && (
@@ -105,6 +158,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             step="1"
             required
             error={validationErrors.tapu_zeytin_agac_adedi}
+            helpText="Tapu senesinde kayıtlı zeytin ağacı sayısı"
           />
 
           <FormField
@@ -118,6 +172,40 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             step="1"
             required
             error={validationErrors.mevcut_zeytin_agac_adedi}
+            helpText="Arazide mevcut bulunan zeytin ağacı sayısı. Dekara 10+ ağaç varsa izin verilmez."
+          />
+        </>
+      )}
+
+      {/* Zeytin ağaçlı + tarla için özel alanlar - Sadece tarla alanı ve zeytin ağacı sayısı */}
+      {formData.arazi_vasfi === 'Zeytin ağaçlı + tarla' && (
+        <>
+          <FormField
+            label="Tarla Alanı (m²)"
+            name="tarla_alani"
+            type="number"
+            value={formData.tarla_alani || ''}
+            onChange={onInputChange}
+            placeholder="Örn: 25000"
+            min="1"
+            step="1"
+            required
+            error={validationErrors.tarla_alani}
+            helpText="Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+          />
+
+          <FormField
+            label="Zeytin Ağacı Sayısı (adet)"
+            name="zeytin_agac_sayisi"
+            type="number"
+            value={formData.zeytin_agac_sayisi || ''}
+            onChange={onInputChange}
+            placeholder="Örn: 150"
+            min="0"
+            step="1"
+            required
+            error={validationErrors.zeytin_agac_sayisi}
+            helpText="Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
           />
         </>
       )}
