@@ -10,6 +10,7 @@ import SmartDetectionFeedback from './CalculationForm/SmartDetectionFeedback';
 import FormField from './CalculationForm/FormField';
 import DikiliKontrolButtonComponent from './CalculationForm/DikiliKontrolButtonComponent';
 import FormSectionComponent from './CalculationForm/FormSectionComponent';
+import BagEviFormFields from './CalculationForm/BagEviFormFields';
 import { FormValidator } from './CalculationForm/FormValidator';
 import { useTypewriter } from './CalculationForm/useTypewriter';
 import {
