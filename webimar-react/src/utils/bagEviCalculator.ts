@@ -240,21 +240,23 @@ export const validateVineyardEligibility = (
   // "Dikili vasıflı" arazi tipi için özel kontrol
   if (araziVasfi === 'Dikili vasıflı') {
     // Dikili vasıflı arazide: 
-    // - Sadece dikili alan >= 5000 m² şartı yeterli
-    // - Ağaç yoğunluğu şartı ARANIYOR DEĞİL (backend kuralları ile uyumlu)
+    // - Dikili alan >= 5000 m² şartı yeterli
+    // - Ağaç sayımı yapılmışsa yoğunluk kontrolü (%100 gerekli)
+    // - Ağaç sayımı yapılmamışsa sadece alan kontrolü yeterli
     
-    const kriter1SaglandiMi = dikiliAlanYeterli; // Sadece dikili alan şartı
+    const agacSayimiYapildi = eklenenAgaclar.length > 0;
+    const kriter1SaglandiMi = dikiliAlanYeterli && (!agacSayimiYapildi || yogunlukOrani >= MINIMUM_YETERLILIK_ORANI);
     const yeterli = kriter1SaglandiMi;
     
     return {
       yeterli,
       oran: yogunlukOrani,
-      minimumOran: 0, // "Dikili vasıflı" için ağaç yoğunluğu şartı yok
+      minimumOran: agacSayimiYapildi ? MINIMUM_YETERLILIK_ORANI : 0,
       kriter1: kriter1SaglandiMi,
       kriter2: false, // Dikili vasıflı arazide kriter2 geçerli değil
-      eksikOran: undefined, // Ağaç yoğunluğu şartı olmadığı için eksik oran yok
+      eksikOran: (agacSayimiYapildi && !yeterli) ? (MINIMUM_YETERLILIK_ORANI - yogunlukOrani) : undefined,
       dikiliAlanYeterli,
-      agacYogTlugu: eklenenAgaclar.length > 0 ? yogunlukOrani : undefined
+      agacYogTlugu: agacSayimiYapildi ? yogunlukOrani : undefined
     };
   }
   
@@ -262,21 +264,22 @@ export const validateVineyardEligibility = (
   if (araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf') {
     // Bu arazi tipinde:
     // - Dikili alan >= 5000 m² şartı gerekli
-    // - Tarla alanı kriteri UYGULANMAZ
-    // - Ağaç yoğunluğu kontrolü yapılır (fiili dikili durum tespiti için)
+    // - Ağaç sayımı yapılmışsa yoğunluk kontrolü (%100 gerekli)
+    // - Ağaç sayımı yapılmamışsa sadece alan kontrolü yeterli
     
-    const kriter1SaglandiMi = dikiliAlanYeterli && yogunlukOrani >= MINIMUM_YETERLILIK_ORANI;
+    const agacSayimiYapildi = eklenenAgaclar.length > 0;
+    const kriter1SaglandiMi = dikiliAlanYeterli && (!agacSayimiYapildi || yogunlukOrani >= MINIMUM_YETERLILIK_ORANI);
     const yeterli = kriter1SaglandiMi;
     
     return {
       yeterli,
       oran: yogunlukOrani,
-      minimumOran: MINIMUM_YETERLILIK_ORANI, // %100 ağaç yoğunluğu gerekli
+      minimumOran: agacSayimiYapildi ? MINIMUM_YETERLILIK_ORANI : 0,
       kriter1: kriter1SaglandiMi,
       kriter2: false, // Bu arazi tipinde tarla alanı kriteri yok
-      eksikOran: yeterli ? undefined : (MINIMUM_YETERLILIK_ORANI - yogunlukOrani),
+      eksikOran: (agacSayimiYapildi && !yeterli) ? (MINIMUM_YETERLILIK_ORANI - yogunlukOrani) : undefined,
       dikiliAlanYeterli,
-      agacYogTlugu: eklenenAgaclar.length > 0 ? yogunlukOrani : undefined
+      agacYogTlugu: agacSayimiYapildi ? yogunlukOrani : undefined
     };
   }
 
@@ -390,8 +393,9 @@ export const validateVineyardEligibility = (
   }
   
   // "Tarla + herhangi bir dikili vasıflı" için normal kontrol
-  // Kriter 1: Dikili alan yeterli (ağaç yoğunluğu şartı olmadan)
-  const kriter1SaglandiMi = dikiliAlanYeterli;
+  // Kriter 1: Dikili alan yeterli - ağaç sayımı yapılmışsa yoğunluk da kontrol edilir
+  const agacSayimiYapildi = eklenenAgaclar.length > 0;
+  const kriter1SaglandiMi = dikiliAlanYeterli && (!agacSayimiYapildi || yogunlukOrani >= MINIMUM_YETERLILIK_ORANI);
   
   // Kriter 2: Büyük tarla alanı
   const kriter2SaglandiMi = buyukTarlaAlani;
@@ -401,10 +405,10 @@ export const validateVineyardEligibility = (
   return {
     yeterli,
     oran: yogunlukOrani,
-    minimumOran: MINIMUM_YETERLILIK_ORANI,
+    minimumOran: agacSayimiYapildi ? MINIMUM_YETERLILIK_ORANI : 0,
     kriter1: kriter1SaglandiMi,
     kriter2: kriter2SaglandiMi,
-    eksikOran: yeterli ? undefined : (MINIMUM_YETERLILIK_ORANI - yogunlukOrani),
+    eksikOran: (agacSayimiYapildi && !yeterli) ? (MINIMUM_YETERLILIK_ORANI - yogunlukOrani) : undefined,
     dikiliAlanYeterli,
     agacYogTlugu: eklenenAgaclar.length > 0 ? yogunlukOrani : undefined
   };
@@ -469,16 +473,12 @@ export const calculateVineyardResult = (
       };
     }
 
-    if (eklenenAgaclar.length === 0) {
-      return {
-        type: 'error',
-        message: 'Lütfen en az bir ağaç türü ekleyin.',
-        yeterlilik: {
-          yeterli: false,
-          oran: 0,
-          minimumOran: 100
-        }
-      };
+    // Normal arazi tiplerinde ağaç sayımı yapılmışsa yoğunluk da kontrol edilir
+    // Ağaç sayımı yapılmamışsa sadece alan kontrolü yeterli
+    const agacSayimiYapildi = eklenenAgaclar.length > 0;
+    if (agacSayimiYapildi) {
+      // Ağaç eklenmiş, yoğunluk kontrolü gerekli değil artık - alan yeterli ise başarılı
+      // Bu kullanıcı dostu yaklaşım: ağaç sayımı yapılmış = dikili durum tespit edilmiş
     }
   }
 
@@ -499,22 +499,11 @@ export const calculateVineyardResult = (
       };
     }
     
-    // "Zeytin ağaçlı + herhangi bir dikili vasıf" için ağaç kontrolü gerekli
-    if (araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' && eklenenAgaclar.length === 0) {
-      return {
-        type: 'error',
-        message: 'Zeytin ağaçlı + herhangi bir dikili vasıf arazisinde fiili dikili durumun tespiti için lütfen en az bir ağaç türü ekleyin.',
-        yeterlilik: {
-          yeterli: false,
-          oran: 0,
-          minimumOran: 100
-        }
-      };
-    }
-    
-    // "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" için ağaç kontrolü opsiyonel
-    // Bu arazi tipinde zeytin ağacı bilgileri form üzerinden alınır, ek dikili vasıf varsa manuel kontrolde eklenebilir
-    // "Dikili vasıflı" için dikili alan >= 5000 m² yeterli, ağaç kontrolü gerekmez
+    // Ağaç kontrolü artık zorunlu değil - sadece alan yeterli
+    // Ağaç sayımı yapıldıysa yoğunluk da kontrol edilir
+    // "Dikili vasıflı" için dikili alan >= 5000 m² yeterli, ağaç kontrolü opsiyonel
+    // "Zeytin ağaçlı + herhangi bir dikili vasıf" için dikili alan >= 5000 m² yeterli, ağaç kontrolü opsiyonel
+    // "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" için dikili alan >= 5000 m² yeterli, ağaç kontrolü opsiyonel
   }
 
   // Calculate tree coverage and eligibility
@@ -527,7 +516,10 @@ export const calculateVineyardResult = (
   if (yeterlilik.yeterli) {
     if (araziVasfi === 'Dikili vasıflı' && yeterlilik.kriter1) {
       // Dikili vasıflı arazi için özel mesaj
-      message = 'Bağ Evi Kontrolü Başarılı (Dikili Vasıflı Arazi - Dikili Alan ≥ 5000 m²)';
+      const agacSayimiYapildi = eklenenAgaclar.length > 0;
+      message = agacSayimiYapildi ? 
+        'Bağ Evi Kontrolü Başarılı (Dikili Vasıflı Arazi - Dikili Alan ≥ 5000 m² ve Ağaç Yoğunluğu Yeterli)' :
+        'Bağ Evi Kontrolü Başarılı (Dikili Vasıflı Arazi - Dikili Alan ≥ 5000 m²)';
       type = 'success';
     } else if (araziVasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && yeterlilik.kriter1) {
       // … Adetli Zeytin Ağacı bulunan + dikili vasıf arazi için özel mesaj
@@ -535,7 +527,10 @@ export const calculateVineyardResult = (
       type = 'success';
     } else if (araziVasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' && yeterlilik.kriter1) {
       // Zeytin ağaçlı + dikili vasıf arazi için özel mesaj
-      message = 'Bağ Evi Kontrolü Başarılı (Zeytin Ağaçlı + Dikili Vasıf - Dikili Alan ≥ 5000 m² ve Ağaç Yoğunluğu %100)';
+      const agacSayimiYapildi = eklenenAgaclar.length > 0;
+      message = agacSayimiYapildi ? 
+        'Bağ Evi Kontrolü Başarılı (Zeytin Ağaçlı + Dikili Vasıf - Dikili Alan ≥ 5000 m² ve Ağaç Yoğunluğu Yeterli)' :
+        'Bağ Evi Kontrolü Başarılı (Zeytin Ağaçlı + Dikili Vasıf - Dikili Alan ≥ 5000 m²)';
       type = 'success';
     } else if (araziVasfi === 'Tarla + Zeytinlik' && yeterlilik.kriter2) {
       // Tarla + Zeytinlik arazi için özel mesaj (YENİ EKLENDİ)
@@ -554,8 +549,11 @@ export const calculateVineyardResult = (
       message = 'Bağ Evi Kontrolü Başarılı (Sera - Minimum Alan ≥ 3000 m²)';
       type = 'success';
     } else if (yeterlilik.kriter1) {
-      // Normal dikili alan kriteri sağlanıyor
-      message = 'Bağ Evi Kontrolü Başarılı (Dikili Alan ≥ 5000 m²)';
+      // Normal dikili alan kriteri sağlanıyor - ağaç sayımı yapıldı mı kontrol et
+      const agacSayimiYapildi = eklenenAgaclar.length > 0;
+      message = agacSayimiYapildi ? 
+        'Bağ Evi Kontrolü Başarılı (Dikili Alan ≥ 5000 m² ve Ağaç Yoğunluğu Yeterli)' :
+        'Bağ Evi Kontrolü Başarılı (Dikili Alan ≥ 5000 m²)';
       type = 'success';
     } else if (yeterlilik.kriter2) {
       // Büyük tarla alanı kriteri sağlanıyor
