@@ -1152,7 +1152,9 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           <div style={{ fontSize: '11px', marginTop: '2px' }}>
                             {dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter1 === false && dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter2 === false ?
                               `Dikili alan: ${dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² < 5000 m² ve Tarla alanı: ${dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m² < 20000 m²` :
-                              `Yoğunluk yetersiz: %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} < %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}`}
+                              (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran !== undefined && dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran !== undefined) ?
+                              `Yoğunluk yetersiz: %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} < %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}` :
+                              'Ağaç yoğunluğu hesaplaması yapılmamıştır'}
                           </div>
                         </>
                       )}
