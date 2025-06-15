@@ -7,7 +7,7 @@ import BagEviCalculator from '../utils/bagEviCalculator';
 
 // Ayrılmış bileşen ve stil import'ları
 import SmartDetectionFeedback from './CalculationForm/SmartDetectionFeedback';
-import { useTypewriter } from './CalculationForm/useTypewriter';
+import AraziVasfiSelect from './CalculationForm/AraziVasfiSelect';
 import {
   FormContainer,
   FormTitle,
@@ -21,11 +21,9 @@ import {
   SubmitButton,
   ErrorMessage,
   RequiredIndicator,
-  DikiliKontrolButton,
-  AnimatedSelectContainer,
-  AnimatedSelect,
-  TypewriterPlaceholder
+  DikiliKontrolButton
 } from './CalculationForm/styles';
+`;
 
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
 
@@ -159,22 +157,30 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       const originalValue = dikiliKontrolSonucu.originalMapValues[fieldName];
       
       return (
-        <SmartDetectionFeedback 
-          variant="manual"
-          icon="✏️"
-          text={`Manuel değer kullanılıyor (Harita: ${originalValue?.toLocaleString()} m²)`}
-          onResetToMap={() => handleResetToMapValue(fieldName)}
-        />
+        <SmartDetectionFeedback $variant="manual">
+          <span>✏️</span>
+          <span>Manuel değer kullanılıyor (Harita: {originalValue?.toLocaleString()} m²)</span>
+          <ResetToMapButton 
+            type="button"
+            onClick={() => handleResetToMapValue(fieldName)}
+            title="Harita değerine geri dön"
+          >
+            🔄 Harita değerine dön
+          </ResetToMapButton>
+        </SmartDetectionFeedback>
       );
     }
 
     if (status === 'map') {
+      const fieldLabel = fieldName === 'alan_m2' ? 'Alan' :
+                        fieldName === 'dikili_alani' ? 'Dikili Alan' :
+                        fieldName === 'tarla_alani' ? 'Tarla Alanı' : 'Zeytinlik Alanı';
+      
       return (
-        <SmartDetectionFeedback 
-          variant="map"
-          icon="🗺️"
-          text="Harita verisi kullanılıyor - Manuel değişiklik akıllı algılanacak"
-        />
+        <SmartDetectionFeedback $variant="map">
+          <span>🗺️</span>
+          <span>Harita verisi kullanılıyor - Manuel değişiklik akıllı algılanacak</span>
+        </SmartDetectionFeedback>
       );
     }
 

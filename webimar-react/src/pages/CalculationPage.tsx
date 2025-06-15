@@ -183,7 +183,17 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
   };
 
   const handleAraziVasfiChange = (newAraziVasfi: string) => {
+    console.log(`🧹 CalculationPage - Arazi vasfı değişti: "${araziVasfi}" → "${newAraziVasfi}"`);
+    
+    // Arazi vasfı değiştiğinde önceki hesaplama sonuçlarını temizle
+    if (araziVasfi && newAraziVasfi !== araziVasfi) {
+      console.log('🧹 CalculationPage - Önceki hesaplama sonuçları temizleniyor');
+      setResult(null);
+      setIsLoading(false);
+    }
+    
     setAraziVasfi(newAraziVasfi);
+    console.log('✅ CalculationPage - Arazi vasfı güncellendi');
   };
 
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
