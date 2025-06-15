@@ -454,10 +454,10 @@ const ManuelTab: React.FC<ManuelTabProps> = ({
                 </HighlightBox>
                 <InfoText size="13px">
                   💡 Çözüm önerileri:
-                  <br/>• Dikili alanı 5000 m²'ye çıkarın ve %100 ağaç yoğunluğu sağlayın
+                  <br/>• Dikili alan değerini artırarak %100 ağaç yoğunluğu sağlayın
                   {araziVasfi !== 'Zeytin ağaçlı + herhangi bir dikili vasıf' && araziVasfi !== '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
                     <>
-                      <br/>• Veya tarla alanını 20000 m²'ye çıkarın
+                      <br/>• Veya tarla alan değerini artırın
                     </>
                   )}
                 </InfoText>

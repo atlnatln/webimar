@@ -28,22 +28,30 @@ const GlobalStyle = `
   }
   
   .draggable-marker .marker-handle {
-    width: 16px !important;
-    height: 16px !important;
-    background: #f39c12 !important;
-    border: 3px solid white !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: #e67e22 !important;
+    border: 4px solid white !important;
     border-radius: 50% !important;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
     cursor: move !important;
     pointer-events: auto !important;
     position: absolute !important;
-    top: 3px !important;
-    left: 3px !important;
+    top: 1px !important;
+    left: 1px !important;
     z-index: 1001 !important;
+    animation: pulse 2s infinite !important;
+  }
+  
+  @keyframes pulse {
+    0% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 0 0 rgba(230, 126, 34, 0.7); }
+    70% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 0 10px rgba(230, 126, 34, 0); }
+    100% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 0 0 rgba(230, 126, 34, 0); }
   }
   
   .draggable-marker:hover .marker-handle {
-    transform: scale(1.1) !important;
+    transform: scale(1.2) !important;
+    background: #d35400 !important;
   }
 `;
 
@@ -332,11 +340,17 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
 
       console.log('✅ Polygon tamamlandı:', completedPolygon);
       onPolygonComplete?.(completedPolygon);
+      
+      // Polygon tamamlandıktan sonra çizim modunu tamamen durdur
       stopDrawing();
+      
+      // Drawing mode'u da null yap ki çizim tamamen dursun
+      onDrawingModeChange?.(null);
+      console.log('🛑 Çift tıklama ile polygon tamamlandı ve çizim modu durduruldu');
     } catch (error) {
       console.error('Polygon tamamlama hatası:', error);
     }
-  }, [currentPoints, onPolygonComplete, stopDrawing]);
+  }, [currentPoints, onPolygonComplete, stopDrawing, onDrawingModeChange]);
 
   // Add permanent polygon to map
   const addPermanentPolygon = useCallback((
@@ -693,6 +707,26 @@ const PolygonDrawer: React.FC<PolygonDrawerProps> = ({
       }
     }
   });
+
+  // ESC key handler to stop drawing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isDrawing) {
+          console.log('⌨️ ESC tuşu ile çizim durduruluyor');
+          stopDrawing();
+        } else if (editingIndex >= 0) {
+          console.log('⌨️ ESC tuşu ile edit modu durduruluyor');
+          stopEditMode();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDrawing, editingIndex, stopDrawing, stopEditMode]);
 
   return (
     <>

@@ -64,9 +64,12 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    // Aynı mod zaten aktifse hiçbir şey yapma
+    // Aynı mod zaten aktifse ve çizim yapılıyorsa, çizimi durdur
     if (drawingMode === mode && isDrawing) {
-      console.log('⚠️ Aynı mod zaten aktif');
+      console.log('⏹️ Aynı butona tıklandı - çizim durduruluyor');
+      setIsDrawing(false);
+      enhancedCallbacks.onDrawingStateChange?.(false);
+      enhancedCallbacks.onDrawingModeChange?.(null);
       return;
     }
     
@@ -85,15 +88,6 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       setIsDrawing(true);
       enhancedCallbacks.onDrawingStateChange?.(true);
     }, 50);
-  };
-
-  const handleStopDrawing = (e: React.MouseEvent) => {
-    console.log('🛑 Çizimi durdur butonuna tıklandı');
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDrawing(false);
-    enhancedCallbacks.onDrawingStateChange?.(false);
-    enhancedCallbacks.onDrawingModeChange?.(null);
   };
 
   const handleClearAll = (e: React.MouseEvent) => {
@@ -167,8 +161,8 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
         {isDrawing && drawingMode && (
           <HighlightBox $variant={drawingMode === 'tarla' ? 'warning' : drawingMode === 'zeytinlik' ? 'info' : 'success'}>
             🎨 {drawingMode === 'tarla' ? 'Tarla Alanı' : drawingMode === 'zeytinlik' ? 'Zeytinlik Alanı' : 'Dikili Alan'} çiziliyor...
-            <span style={{ marginLeft: '8px', fontSize: '12px' }}>
-              (Haritaya tıklayarak çizin, çift tıklayarak bitirin)
+            <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: '600' }}>
+              📍 Haritaya tıklayarak nokta ekleyin • 🖱️ Çift tıklayarak tamamlayın ve durdurun • 🔄 Butona tekrar tıklayın
             </span>
           </HighlightBox>
         )}
@@ -214,12 +208,6 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
                 ? '🫒 Zeytin Ağaçlı Dikili Alan Çiz' 
                 : '🟢 Dikili Alan Çiz'
               }
-            </Button>
-          )}
-          
-          {isDrawing && (
-            <Button $variant="warning" onClick={handleStopDrawing}>
-              ⏹️ Çizimi Durdur
             </Button>
           )}
           

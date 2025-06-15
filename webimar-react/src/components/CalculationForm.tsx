@@ -4,6 +4,7 @@ import { DetailedCalculationInput, CalculationResult, StructureType } from '../t
 import { apiService } from '../services/api';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
 import AlanKontrol from './AlanKontrol';
+import BagEviCalculator from '../utils/bagEviCalculator';
 
 // Cursor yanıp sönme animasyonu
 const blink = keyframes`
@@ -182,6 +183,63 @@ const ErrorMessage = styled.div`
   margin-bottom: 16px;
 `;
 
+// 🎯 Smart Auto-Detection UI Feedback Bileşenleri
+const SmartDetectionFeedback = styled.div<{ $variant: 'manual' | 'map' | 'reset' }>`
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.3s ease-out;
+  
+  ${props => props.$variant === 'manual' && `
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+  `}
+  
+  ${props => props.$variant === 'map' && `
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+  `}
+  
+  ${props => props.$variant === 'reset' && `
+    background: #cce7ff;
+    border: 1px solid #99d6ff;
+    color: #0056b3;
+  `}
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const ResetToMapButton = styled.button`
+  background: none;
+  border: none;
+  color: #0056b3;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  
+  &:hover {
+    color: #003d82;
+  }
+`;
+
 const RequiredIndicator = styled.span`
   color: #e74c3c;
   margin-left: 4px;
@@ -297,6 +355,10 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   onAraziVasfiChange
 }) => {
   const { structureTypeLabels } = useStructureTypes();
+  
+  // Create consolidated calculator instance for bağ evi calculations
+  const bagEviCalculator = new BagEviCalculator();
+  
   const [formData, setFormData] = useState<DetailedCalculationInput>({
     alan_m2: 0,
     arazi_vasfi: '' // Başlangıçta boş olacak ki placeholder görünsün
@@ -355,15 +417,124 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     };
   }, []);
 
+  // 🎯 Smart Auto-Detection Helper Fonksiyonları
+  const getSmartDetectionStatus = (fieldName: string) => {
+    if (!dikiliKontrolSonucu) return null;
+    
+    if (dikiliKontrolSonucu.manualOverride && dikiliKontrolSonucu.overrideField === fieldName) {
+      return 'manual';
+    }
+    
+    if (dikiliKontrolSonucu.directTransfer) {
+      return 'map';
+    }
+    
+    return null;
+  };
+
+  const handleResetToMapValue = (fieldName: string) => {
+    if (!dikiliKontrolSonucu?.originalMapValues) return;
+    
+    const originalValue = dikiliKontrolSonucu.originalMapValues[fieldName];
+    if (originalValue !== undefined) {
+      console.log(`🔄 ${fieldName} harita değerine geri döndürülüyor: ${originalValue}`);
+      
+      // Form değerini güncelle
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: originalValue
+      }));
+      
+      // Akıllı algılamayı sıfırla
+      setDikiliKontrolSonucu((prev: any) => ({
+        ...prev,
+        directTransfer: true,
+        manualOverride: false,
+        overrideField: undefined
+      }));
+    }
+  };
+
+  const renderSmartDetectionFeedback = (fieldName: string) => {
+    const status = getSmartDetectionStatus(fieldName);
+    if (!status) return null;
+
+    if (status === 'manual' && dikiliKontrolSonucu?.originalMapValues) {
+      const originalValue = dikiliKontrolSonucu.originalMapValues[fieldName];
+      const fieldLabel = fieldName === 'alan_m2' ? 'Alan' :
+                        fieldName === 'dikili_alani' ? 'Dikili Alan' :
+                        fieldName === 'tarla_alani' ? 'Tarla Alanı' : 'Zeytinlik Alanı';
+      
+      return (
+        <SmartDetectionFeedback $variant="manual">
+          <span>✏️</span>
+          <span>Manuel değer kullanılıyor (Harita: {originalValue?.toLocaleString()} m²)</span>
+          <ResetToMapButton 
+            type="button"
+            onClick={() => handleResetToMapValue(fieldName)}
+            title="Harita değerine geri dön"
+          >
+            🔄 Harita değerine dön
+          </ResetToMapButton>
+        </SmartDetectionFeedback>
+      );
+    }
+
+    if (status === 'map') {
+      const fieldLabel = fieldName === 'alan_m2' ? 'Alan' :
+                        fieldName === 'dikili_alani' ? 'Dikili Alan' :
+                        fieldName === 'tarla_alani' ? 'Tarla Alanı' : 'Zeytinlik Alanı';
+      
+      return (
+        <SmartDetectionFeedback $variant="map">
+          <span>🗺️</span>
+          <span>Harita verisi kullanılıyor - Manuel değişiklik akıllı algılanacak</span>
+        </SmartDetectionFeedback>
+      );
+    }
+
+    return null;
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     console.log(`🔄 CalculationForm - handleInputChange: ${name} = "${value}"`);
     
+    // 🎯 AKILLI ALGILA (Çözüm 3): Harita verisi varken manuel değer girilirse otomatik olarak manuel moda geç
+    const alanInputlari = ['alan_m2', 'dikili_alani', 'tarla_alani', 'zeytinlik_alani'];
+    if (alanInputlari.includes(name) && dikiliKontrolSonucu?.directTransfer && value !== '') {
+      const numericValue = Number(value);
+      const currentMapValue = name === 'alan_m2' ? dikiliKontrolSonucu.dikiliAlan :  // alan_m2 de dikili alan değerini kullanır
+                             name === 'dikili_alani' ? dikiliKontrolSonucu.dikiliAlan :
+                             name === 'tarla_alani' ? dikiliKontrolSonucu.tarlaAlani :
+                             name === 'zeytinlik_alani' ? dikiliKontrolSonucu.zeytinlikAlani : 0;
+      
+      // Sadece değer farklıysa akıllı algılamayı tetikle
+      if (numericValue !== currentMapValue) {
+        console.log(`📝 AKILLI ALGILA: ${name} manuel olarak değiştirildi (${currentMapValue} → ${numericValue})`);
+        console.log(`🔄 Harita verisi pasif ediliyor, manuel değer öncelikli hale getiriliyor`);
+        
+        setDikiliKontrolSonucu((prev: any) => ({
+          ...prev,
+          directTransfer: false, // Harita verisini pasif et
+          manualOverride: true,  // Manuel değer kullanıldığını işaretle
+          overrideField: name,   // Hangi alan override edildiğini sakla
+          originalMapValues: {   // Orijinal harita değerlerini sakla (geri dönüş için)
+            ...prev.originalMapValues,
+            alan_m2: prev.dikiliAlan || 0,      // alan_m2 için de dikili alan değerini sakla
+            dikili_alani: prev.dikiliAlan || 0,
+            tarla_alani: prev.tarlaAlani || 0,
+            zeytinlik_alani: prev.zeytinlikAlani || 0
+          }
+        }));
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: (name === 'alan_m2' || name === 'silo_taban_alani_m2' || name === 'tarla_alani' || name === 'dikili_alani' || name === 'zeytinlik_alani' || name === 'zeytin_alani' || name === 'tapu_zeytin_agac_adedi' || name === 'mevcut_zeytin_agac_adedi') ? Number(value) : value
+      [name]: (name === 'alan_m2' || name === 'silo_taban_alani_m2' || name === 'tarla_alani' || name === 'dikili_alani' || name === 'zeytinlik_alani' || name === 'zeytin_agac_sayisi' || name === 'tapu_zeytin_agac_adedi' || name === 'mevcut_zeytin_agac_adedi') ? Number(value) : value
     }));
 
     console.log(`✅ CalculationForm - State updated for ${name}`);
@@ -406,6 +577,34 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     console.log('🔍 DEBUG - handleDikiliKontrolSuccess çağrıldı');
     console.log('🔍 DEBUG - result:', result);
     console.log('🔍 DEBUG - mevcut formData.arazi_vasfi:', formData.arazi_vasfi);
+    
+    // 🔥 YENİ: Temizleme işlemi kontrolü
+    if (result?.clearAll === true) {
+      console.log('🧹 Temizleme işlemi algılandı - FormData sıfırlanıyor');
+      setFormData(prev => ({
+        ...prev,
+        dikili_alani: 0,
+        tarla_alani: 0,
+        zeytinlik_alani: 0,
+        alan_m2: formData.arazi_vasfi === 'Dikili vasıflı' ? 0 : prev.alan_m2
+      }));
+      
+      // Validation hatalarını da temizle
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.dikili_alani;
+        delete newErrors.tarla_alani;
+        delete newErrors.zeytinlik_alani;
+        if (formData.arazi_vasfi === 'Dikili vasıflı') {
+          delete newErrors.alan_m2;
+        }
+        return newErrors;
+      });
+      
+      console.log('✅ Form tamamen temizlendi - Harita verileri sıfırlandı');
+      setDikiliKontrolOpen(false);
+      return; // Temizleme işleminde sonraki kodları çalıştırma
+    }
     
     // Doğrudan aktarım (ağaç hesaplaması olmadan) veya başarılı kontrol sonucu
     const isDirectTransfer = result?.directTransfer === true;
@@ -583,97 +782,55 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    // Alan_m2 validation - Bağ evi için özel arazi tipleri seçildiğinde gerekli değil
-    const isBagEviWithSpecialVasif = calculationType === 'bag-evi' && 
-      (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' || 
-       formData.arazi_vasfi === 'Tarla + Zeytinlik' ||
-       formData.arazi_vasfi === 'Zeytin ağaçlı + tarla' ||
-       formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla' ||
-       formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf');
-    
-    if (!isBagEviWithSpecialVasif) {
+    // Bağ evi için konsolide hesaplama motoru kullan
+    if (calculationType === 'bag-evi') {
+      const bagEviFormData = {
+        calculationType,
+        arazi_vasfi: formData.arazi_vasfi,
+        alan_m2: formData.alan_m2,
+        tarla_alani: formData.tarla_alani,
+        dikili_alani: formData.dikili_alani,
+        zeytinlik_alani: formData.zeytinlik_alani,
+        zeytin_agac_sayisi: formData.zeytin_agac_sayisi,
+        zeytin_agac_adedi: formData.zeytin_agac_adedi,
+        tapu_zeytin_agac_adedi: formData.tapu_zeytin_agac_adedi,
+        mevcut_zeytin_agac_adedi: formData.mevcut_zeytin_agac_adedi,
+        manuel_kontrol_sonucu: formData.manuel_kontrol_sonucu,
+        latitude: formData.latitude,
+        longitude: formData.longitude
+      };
+
+      const validationResult = bagEviCalculator.validateForm(bagEviFormData);
+      
+      // Konsolide hesaplama motorundan gelen hataları mevcut format ile uyumlu hale getir
+      validationResult.errors.forEach(error => {
+        errors[error.field] = error.message;
+      });
+
+      // Uyarıları da errors nesnesine ekle (mevcut sistem sadece errors kullanıyor)
+      validationResult.warnings.forEach(warning => {
+        if (!errors[warning.field]) { // Sadece hata yoksa uyarı göster
+          errors[warning.field] = warning.message;
+        }
+      });
+    } else {
+      // Diğer hesaplama tipleri için geleneksel validation
+      
+      // Alan_m2 validation - Genel validation
       if (!formData.alan_m2 || formData.alan_m2 <= 0) {
         errors.alan_m2 = 'Alan (m²) pozitif bir sayı olmalıdır';
       }
-    }
 
-    if (!formData.arazi_vasfi) {
-      errors.arazi_vasfi = 'Arazi vasfı seçilmelidir';
-    }
+      if (!formData.arazi_vasfi) {
+        errors.arazi_vasfi = 'Arazi vasfı seçilmelidir';
+      }
 
-    // Hububat silo için özel validation
-    if (calculationType === 'hububat-silo') {
-      if (!formData.silo_taban_alani_m2 || formData.silo_taban_alani_m2 <= 0) {
-        errors.silo_taban_alani_m2 = 'Planlanan silo taban alanı pozitif bir sayı olmalıdır';
+      // Hububat silo için özel validation
+      if (calculationType === 'hububat-silo') {
+        if (!formData.silo_taban_alani_m2 || formData.silo_taban_alani_m2 <= 0) {
+          errors.silo_taban_alani_m2 = 'Planlanan silo taban alanı pozitif bir sayı olmalıdır';
+        }
       }
-    }
-
-    // Bağ evi için özel validation - Sadece "Tarla + herhangi bir dikili vasıflı" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
-      if (!formData.tarla_alani || formData.tarla_alani <= 0) {
-        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.dikili_alani || formData.dikili_alani <= 0) {
-        errors.dikili_alani = 'Dikili alan (bağ alanı) pozitif bir sayı olmalıdır';
-      }
-    }
-
-    // Bağ evi için özel validation - "Tarla + Zeytinlik" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + Zeytinlik') {
-      if (!formData.tarla_alani || formData.tarla_alani <= 0) {
-        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.zeytinlik_alani || formData.zeytinlik_alani <= 0) {
-        errors.zeytinlik_alani = 'Zeytinlik alanı pozitif bir sayı olmalıdır';
-      }
-      // Minimum alan kısıtlamaları kaldırıldı - sadece pozitif değer kontrolü
-    }
-
-    // Bağ evi için özel validation - "Zeytin ağaçlı + tarla" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Zeytin ağaçlı + tarla') {
-      if (!formData.tarla_alani || formData.tarla_alani <= 0) {
-        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.zeytin_alani || formData.zeytin_alani <= 0) {
-        errors.zeytin_alani = 'Zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-    }
-
-    // Bağ evi için özel validation - "Zeytin ağaçlı + herhangi bir dikili vasıf" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf') {
-      if (!formData.dikili_alani || formData.dikili_alani <= 0) {
-        errors.dikili_alani = 'Dikili alan pozitif bir sayı olmalıdır';
-      }
-      if (!formData.zeytin_alani || formData.zeytin_alani <= 0) {
-        errors.zeytin_alani = 'Zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-    }
-
-    // Bağ evi için özel validation - "… Adetli Zeytin Ağacı bulunan tarla" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla') {
-      if (!formData.tarla_alani || formData.tarla_alani <= 0) {
-        errors.tarla_alani = 'Tarla alanı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.tapu_zeytin_agac_adedi || formData.tapu_zeytin_agac_adedi <= 0) {
-        errors.tapu_zeytin_agac_adedi = 'Tapu senesindeki zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.mevcut_zeytin_agac_adedi || formData.mevcut_zeytin_agac_adedi <= 0) {
-        errors.mevcut_zeytin_agac_adedi = 'Mevcut zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-    }
-
-    // Bağ evi için özel validation - "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" seçildiğinde
-    if (calculationType === 'bag-evi' && formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf') {
-      if (!formData.dikili_alani || formData.dikili_alani <= 0) {
-        errors.dikili_alani = 'Dikili alan pozitif bir sayı olmalıdır';
-      }
-      if (!formData.tapu_zeytin_agac_adedi || formData.tapu_zeytin_agac_adedi <= 0) {
-        errors.tapu_zeytin_agac_adedi = 'Tapu senesindeki zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-      if (!formData.mevcut_zeytin_agac_adedi || formData.mevcut_zeytin_agac_adedi <= 0) {
-        errors.mevcut_zeytin_agac_adedi = 'Mevcut zeytin ağacı sayısı pozitif bir sayı olmalıdır';
-      }
-      // Bu arazi tipinde tarla alanı kontrolü YOK - sadece dikili alan var
     }
 
     setValidationErrors(errors);
@@ -712,102 +869,33 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         console.log('🌳 İpek böcekçiliği için dut_bahcesi_var_mi default true olarak ayarlandı');
       }
 
-      // Bağ evi için özel alan hesaplaması
+      // Bağ evi için konsolide hesaplama motoru ile form verisini hazırla
       if (calculationType === 'bag-evi') {
-        if (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı') {
-          // Bağ evi hesaplamalarında alan_m2 tarla_alani ile doldurulur
-          finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
-          console.log('🍇 Bağ evi için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
-          
-          // Manuel kontrol sonucunu ekle (eğer varsa)
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 Manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        } else if (formData.arazi_vasfi === 'Dikili vasıflı') {
-          // Dikili vasıflı arazi için alan_m2 doğrudan dikili_alani ile kullanılır
-          // Tarla alanı 0 olarak ayarlanır çünkü sadece dikili alan vardır
-          finalFormData.dikili_alani = finalFormData.alan_m2 || 0;
-          finalFormData.tarla_alani = 0; // Dikili vasıflı arazide tarla alanı yoktur
-          console.log('🍇 Dikili vasıflı bağ evi için dikili_alani ayarlandı:', finalFormData.dikili_alani);
-          console.log('🍇 Dikili vasıflı bağ evi için tarla_alani 0 olarak ayarlandı');
-          
-          // Dikili vasıflı için de manuel kontrol sonucunu ekle (eğer varsa)
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 Dikili vasıflı için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        } else if (formData.arazi_vasfi === 'Tarla + Zeytinlik') {
-          // Tarla + Zeytinlik arazi tipi için özel işleme
-          finalFormData.alan_m2 = (finalFormData.tarla_alani || 0) + (finalFormData.zeytinlik_alani || 0);
-          console.log('🫒 Tarla + Zeytinlik için alan_m2 (tarla + zeytinlik) ile ayarlandı:', finalFormData.alan_m2);
-          console.log(`🫒 Tarla alanı: ${finalFormData.tarla_alani} m², Zeytinlik alanı: ${finalFormData.zeytinlik_alani} m²`);
-          
-          // Manuel kontrol sonucunu ekle (eğer varsa) - zeytinlik için de manuel kontrol mümkün
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 Tarla + Zeytinlik için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        } else if (formData.arazi_vasfi === 'Zeytin ağaçlı + tarla') {
-          // Zeytin ağaçlı + tarla arazi tipi için özel işleme
-          finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
-          console.log('🫒 Zeytin ağaçlı + tarla için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
-          console.log(`🫒 Tarla alanı: ${finalFormData.tarla_alani} m², Zeytin ağacı sayısı: ${finalFormData.zeytin_alani} adet`);
-        } else if (formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf') {
-          // Zeytin ağaçlı + herhangi bir dikili vasıf arazi tipi için özel işleme
-          finalFormData.alan_m2 = finalFormData.dikili_alani || 0;
-          console.log('🫒 Zeytin ağaçlı + dikili vasıf için alan_m2 dikili_alani ile ayarlandı:', finalFormData.alan_m2);
-          console.log(`🫒 Dikili alanı: ${finalFormData.dikili_alani} m², Zeytin ağacı sayısı: ${finalFormData.zeytin_alani} adet`);
-          
-          // Manuel kontrol sonucunu ekle (eğer varsa) - dikili vasıf için manuel kontrol mümkün
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 Zeytin ağaçlı + dikili vasıf için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        } else if (formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla') {
-          // … Adetli Zeytin Ağacı bulunan tarla arazi tipi için özel işleme
-          finalFormData.alan_m2 = finalFormData.tarla_alani || 0;
-          
-          // Tapu ve mevcut ağaç sayısından hangisi büyükse onu kullan (güvenlik için)
-          const tapuAgacSayisi = finalFormData.tapu_zeytin_agac_adedi || 0;
-          const mevcutAgacSayisi = finalFormData.mevcut_zeytin_agac_adedi || 0;
-          const kullanilacakAgacSayisi = Math.max(tapuAgacSayisi, mevcutAgacSayisi);
-          
-          // Backend için ağaç sayısını zeytin_agac_adedi olarak gönder
-          finalFormData.zeytin_agac_adedi = kullanilacakAgacSayisi;
-          
-          console.log('🫒 … Adetli Zeytin Ağacı bulunan tarla için alan_m2 tarla_alani ile ayarlandı:', finalFormData.alan_m2);
-          console.log(`🫒 Tarla alanı: ${finalFormData.tarla_alani} m², Tapu zeytin ağacı: ${tapuAgacSayisi} adet, Mevcut zeytin ağacı: ${mevcutAgacSayisi} adet`);
-          console.log(`🫒 Backend için zeytin_agac_adedi: ${kullanilacakAgacSayisi} adet (${kullanilacakAgacSayisi === tapuAgacSayisi ? 'tapu' : 'mevcut'} sayısı kullanıldı)`);
-          
-          // Manuel kontrol sonucunu ekle (eğer varsa) - sadece harita modalı için
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 … Adetli Zeytin Ağacı bulunan tarla için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        } else if (formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf') {
-          // … Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf arazi tipi için özel işleme
-          finalFormData.alan_m2 = finalFormData.dikili_alani || 0;
-          
-          // Tapu ve mevcut ağaç sayısından hangisi büyükse onu kullan (güvenlik için)
-          const tapuAgacSayisi = finalFormData.tapu_zeytin_agac_adedi || 0;
-          const mevcutAgacSayisi = finalFormData.mevcut_zeytin_agac_adedi || 0;
-          const kullanilacakAgacSayisi = Math.max(tapuAgacSayisi, mevcutAgacSayisi);
-          
-          // Backend için ağaç sayısını zeytin_agac_adedi olarak gönder
-          finalFormData.zeytin_agac_adedi = kullanilacakAgacSayisi;
-          
-          console.log('🫒 … Adetli Zeytin Ağacı bulunan + dikili vasıf için alan_m2 dikili_alani ile ayarlandı:', finalFormData.alan_m2);
-          console.log(`🫒 Dikili alanı: ${finalFormData.dikili_alani} m², Tapu zeytin ağacı: ${tapuAgacSayisi} adet, Mevcut zeytin ağacı: ${mevcutAgacSayisi} adet`);
-          console.log(`🫒 Backend için zeytin_agac_adedi: ${kullanilacakAgacSayisi} adet (${kullanilacakAgacSayisi === tapuAgacSayisi ? 'tapu' : 'mevcut'} sayısı kullanıldı)`);
-          console.log(`🔍 DEBUG - Gönderilecek finalFormData:`, finalFormData);
-          
-          // Manuel kontrol sonucunu ekle (eğer varsa) - harita modalı için
-          if (dikiliKontrolSonucu) {
-            finalFormData.manuel_kontrol_sonucu = dikiliKontrolSonucu;
-            console.log('🌳 … Adetli Zeytin Ağacı bulunan + dikili vasıf için manuel kontrol sonucu forma eklendi:', dikiliKontrolSonucu);
-          }
-        }
+        const bagEviFormData = {
+          calculationType,
+          arazi_vasfi: formData.arazi_vasfi,
+          alan_m2: formData.alan_m2,
+          tarla_alani: formData.tarla_alani,
+          dikili_alani: formData.dikili_alani,
+          zeytinlik_alani: formData.zeytinlik_alani,
+          zeytin_agac_sayisi: formData.zeytin_agac_sayisi,
+          zeytin_agac_adedi: formData.zeytin_agac_adedi,
+          tapu_zeytin_agac_adedi: formData.tapu_zeytin_agac_adedi,
+          mevcut_zeytin_agac_adedi: formData.mevcut_zeytin_agac_adedi,
+          manuel_kontrol_sonucu: dikiliKontrolSonucu || formData.manuel_kontrol_sonucu,
+          latitude: formData.latitude,
+          longitude: formData.longitude
+        };
+
+        // Konsolide hesaplama motoru ile backend için hazırla
+        const preparedData = bagEviCalculator.prepareFormDataForBackend(bagEviFormData);
+        
+        // Hazırlanan verileri finalFormData'ya aktar
+        Object.assign(finalFormData, preparedData);
+        
+        console.log('🍇 Bağ evi için konsolide hesaplama motoru kullanıldı');
+        console.log('🔄 Arazi vasfı:', formData.arazi_vasfi);
+        console.log('📊 Hazırlanan veriler:', preparedData);
       }
 
       // Seçilen koordinat bilgisini form dataya ekle
@@ -1321,14 +1409,11 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                         {validationErrors.alan_m2 && (
                           <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
                         )}
-                        <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                          Bağ evi için dikili alanınızın en az 5000 m² olması gerekmektedir.
-                        </div>
+                        {renderSmartDetectionFeedback('alan_m2')}
                       </FormGroup>
                     )}
                     
-                    {/* Tarla + herhangi bir dikili vasıflı için alan girişleri */}
-                    {formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
+                    {/* Tarla + herhangi bir dikili vasıflı için alan girişleri */}                          {formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' && (
                       <>
                         <FormGroup>
                           <Label>
@@ -1347,6 +1432,11 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.tarla_alani && (
                             <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
                           )}
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('tarla_alani')}
+                          <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
+                            Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir.
+                          </div>
                         </FormGroup>
 
                         <FormGroup>
@@ -1366,6 +1456,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.dikili_alani && (
                             <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
                           )}
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('dikili_alani')}
                         </FormGroup>
                       </>
                     )}
@@ -1390,6 +1482,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.tarla_alani && (
                             <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
                           )}
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('tarla_alani')}
                         </FormGroup>
 
                         <FormGroup>
@@ -1409,6 +1503,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.zeytinlik_alani && (
                             <ErrorMessage>{validationErrors.zeytinlik_alani}</ErrorMessage>
                           )}
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('zeytinlik_alani')}
                         </FormGroup>
 
                       </>
@@ -1435,7 +1531,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
                           )}
                           <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Zeytin ağaçlı + tarla için minimum 20.000 m² tarla alanı önerilir.
+                            Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir.
                           </div>
                         </FormGroup>
 
@@ -1445,19 +1541,19 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           </Label>
                           <Input
                             type="number"
-                            name="zeytin_alani"
-                            value={formData.zeytin_alani || ''}
+                            name="zeytin_agac_sayisi"
+                            value={formData.zeytin_agac_sayisi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 150"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />
-                          {validationErrors.zeytin_alani && (
-                            <ErrorMessage>{validationErrors.zeytin_alani}</ErrorMessage>
+                          {validationErrors.zeytin_agac_sayisi && (
+                            <ErrorMessage>{validationErrors.zeytin_agac_sayisi}</ErrorMessage>
                           )}
                           <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Zeytin ağacı yoğunluğu 10 ağaç/dekar'dan az olmalıdır.
+                            Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir.
                           </div>
                         </FormGroup>
 
@@ -1484,9 +1580,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.dikili_alani && (
                             <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
                           )}
-                          <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Dikili alan minimum 5.000 m² olmalıdır.
-                          </div>
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('dikili_alani')}
                         </FormGroup>
 
                         <FormGroup>
@@ -1495,19 +1590,19 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           </Label>
                           <Input
                             type="number"
-                            name="zeytin_alani"
-                            value={formData.zeytin_alani || ''}
+                            name="zeytin_agac_sayisi"
+                            value={formData.zeytin_agac_sayisi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 50"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />
-                          {validationErrors.zeytin_alani && (
-                            <ErrorMessage>{validationErrors.zeytin_alani}</ErrorMessage>
+                          {validationErrors.zeytin_agac_sayisi && (
+                            <ErrorMessage>{validationErrors.zeytin_agac_sayisi}</ErrorMessage>
                           )}
                           <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Zeytin ağacı yoğunluğu 10 ağaç/dekar'dan az olmalıdır.
+                            Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir.
                           </div>
                         </FormGroup>
 
@@ -1535,7 +1630,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             <ErrorMessage>{validationErrors.tarla_alani}</ErrorMessage>
                           )}
                           <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Minimum 20.000 m² tarla alanı önerilir.
+                            Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir.
                           </div>
                         </FormGroup>
 
@@ -1549,7 +1644,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             value={formData.tapu_zeytin_agac_adedi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 150"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />
@@ -1571,7 +1666,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             value={formData.mevcut_zeytin_agac_adedi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 120"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />
@@ -1606,9 +1701,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                           {validationErrors.dikili_alani && (
                             <ErrorMessage>{validationErrors.dikili_alani}</ErrorMessage>
                           )}
-                          <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                            Minimum 5.000 m² dikili alan gereklidir.
-                          </div>
+                          {/* 🎯 Smart Detection Feedback */}
+                          {renderSmartDetectionFeedback('dikili_alani')}
                         </FormGroup>
 
                         <FormGroup>
@@ -1621,7 +1715,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             value={formData.tapu_zeytin_agac_adedi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 80"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />
@@ -1643,7 +1737,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             value={formData.mevcut_zeytin_agac_adedi || ''}
                             onChange={handleInputChange}
                             placeholder="Örn: 75"
-                            min="1"
+                            min="0"
                             step="1"
                             required
                           />

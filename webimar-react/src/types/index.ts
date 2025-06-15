@@ -29,7 +29,7 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   tarla_alani?: number;
   dikili_alani?: number;
   zeytinlik_alani?: number; // Tarla + Zeytinlik arazi tipi için
-  zeytin_alani?: number; // Zeytin ağaçlı + tarla arazi tipi için (zeytin ağacı sayısı)
+  zeytin_agac_sayisi?: number; // Zeytin ağaçlı + tarla arazi tipi için (zeytin ağacı sayısı)
   
   // "… Adetli Zeytin Ağacı bulunan tarla" arazi tipi için özel alanlar
   tapu_zeytin_agac_adedi?: number; // Tapu senesinde yazılan zeytin ağacı sayısı

@@ -1,5 +1,8 @@
 // Area conversion and validation utilities
 // Extracted from DikiliAlanKontrol.tsx for better separation of concerns
+//
+// NOT: Bağ evi spesifik hesaplamaları için bagEviCalculator.ts kullanın.
+// Bu dosya genel alan hesaplamaları içindir.
 
 export interface AreaValidationResult {
   isValid: boolean;
@@ -59,6 +62,8 @@ export const validateDikiliAlan = (dikiliAlan: number): AreaValidationResult => 
 
 /**
  * Validate tarla alan input
+ * NOT: Proje kuralına göre tarla alanı ve dikili alan birbirinden bağımsızdır,
+ * karşılaştırma kontrolü yapılmaz.
  */
 export const validateTarlaAlani = (tarlaAlani: number, dikiliAlan?: number): AreaValidationResult => {
   if (tarlaAlani <= 0) {
@@ -68,12 +73,14 @@ export const validateTarlaAlani = (tarlaAlani: number, dikiliAlan?: number): Are
     };
   }
 
-  if (dikiliAlan && tarlaAlani < dikiliAlan) {
-    return {
-      isValid: false,
-      error: 'Tarla alanı dikili alandan küçük olamaz. Tarla alanı toplam parsel büyüklüğüdür.'
-    };
-  }
+  // NOT: Tarla alanı ve dikili alan bağımsız alanlar olduğu için 
+  // karşılaştırma kontrolü kaldırıldı (proje kuralı)
+  // if (dikiliAlan && tarlaAlani < dikiliAlan) {
+  //   return {
+  //     isValid: false,
+  //     error: 'Tarla alanı dikili alandan küçük olamaz. Tarla alanı toplam parsel büyüklüğüdür.'
+  //   };
+  // }
 
   if (tarlaAlani < 2000) {
     return {

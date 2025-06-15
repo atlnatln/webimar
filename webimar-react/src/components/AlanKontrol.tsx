@@ -132,7 +132,21 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
         console.log('🎯 Global temizleme fonksiyonu çağrılıyor...');
         (window as any).__polygonDrawerClear();
       }
-      console.log('✅ Tüm polygon state\'leri ve harita katmanları temizlendi');
+      
+      // 🔥 YENİ: Ana forma da temizlenmiş veriyi gönder
+      console.log('🔄 Ana forma temizlenmiş veriler gönderiliyor...');
+      onSuccess({
+        dikiliAlanKontrolSonucu: null,
+        eklenenAgaclar: [],
+        dikiliAlan: 0,
+        tarlaAlani: 0,
+        zeytinlikAlani: 0,
+        directTransfer: true,
+        clearAll: true, // Temizleme işlemi olduğunu belirt
+        alanTipi: alanTipi
+      });
+      
+      console.log('✅ Tüm polygon state\'leri ve harita katmanları temizlendi + Ana form sıfırlandı');
     }
   };
 
