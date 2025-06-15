@@ -7,6 +7,9 @@ import BagEviCalculator from '../utils/bagEviCalculator';
 
 // Ayrılmış bileşen ve stil import'ları
 import SmartDetectionFeedback from './CalculationForm/SmartDetectionFeedback';
+import FormField from './CalculationForm/FormField';
+import DikiliKontrolButtonComponent from './CalculationForm/DikiliKontrolButtonComponent';
+import { FormValidator } from './CalculationForm/FormValidator';
 import { useTypewriter } from './CalculationForm/useTypewriter';
 import {
   FormContainer,
@@ -54,6 +57,9 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   
   // Create consolidated calculator instance for bağ evi calculations
   const bagEviCalculator = new BagEviCalculator();
+  
+  // Create form validator instance
+  const formValidator = new FormValidator();
   
   const [formData, setFormData] = useState<DetailedCalculationInput>({
     alan_m2: 0,
@@ -465,61 +471,10 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   };
 
   const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    // Bağ evi için konsolide hesaplama motoru kullan
-    if (calculationType === 'bag-evi') {
-      const bagEviFormData = {
-        calculationType,
-        arazi_vasfi: formData.arazi_vasfi,
-        alan_m2: formData.alan_m2,
-        tarla_alani: formData.tarla_alani,
-        dikili_alani: formData.dikili_alani,
-        zeytinlik_alani: formData.zeytinlik_alani,
-        zeytin_agac_sayisi: formData.zeytin_agac_sayisi,
-        zeytin_agac_adedi: formData.zeytin_agac_adedi,
-        tapu_zeytin_agac_adedi: formData.tapu_zeytin_agac_adedi,
-        mevcut_zeytin_agac_adedi: formData.mevcut_zeytin_agac_adedi,
-        manuel_kontrol_sonucu: formData.manuel_kontrol_sonucu,
-        latitude: formData.latitude,
-        longitude: formData.longitude
-      };
-
-      const validationResult = bagEviCalculator.validateForm(bagEviFormData);
-      
-      // Konsolide hesaplama motorundan gelen hataları mevcut format ile uyumlu hale getir
-      validationResult.errors.forEach(error => {
-        errors[error.field] = error.message;
-      });
-
-      // Uyarıları da errors nesnesine ekle (mevcut sistem sadece errors kullanıyor)
-      validationResult.warnings.forEach(warning => {
-        if (!errors[warning.field]) { // Sadece hata yoksa uyarı göster
-          errors[warning.field] = warning.message;
-        }
-      });
-    } else {
-      // Diğer hesaplama tipleri için geleneksel validation
-      
-      // Alan_m2 validation - Genel validation
-      if (!formData.alan_m2 || formData.alan_m2 <= 0) {
-        errors.alan_m2 = 'Alan (m²) pozitif bir sayı olmalıdır';
-      }
-
-      if (!formData.arazi_vasfi) {
-        errors.arazi_vasfi = 'Arazi vasfı seçilmelidir';
-      }
-
-      // Hububat silo için özel validation
-      if (calculationType === 'hububat-silo') {
-        if (!formData.silo_taban_alani_m2 || formData.silo_taban_alani_m2 <= 0) {
-          errors.silo_taban_alani_m2 = 'Planlanan silo taban alanı pozitif bir sayı olmalıdır';
-        }
-      }
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    // Use the separated FormValidator
+    const validationResult = formValidator.validateForm(formData, calculationType);
+    setValidationErrors(validationResult.errors);
+    return validationResult.isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -724,24 +679,18 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
             <FormGrid>
               {/* Bağ evi dışındaki hesaplamalar için genel alan inputu */}
               {calculationType !== 'bag-evi' && (
-                <FormGroup>
-                  <Label>
-                    Alan (m²) <RequiredIndicator>*</RequiredIndicator>
-                  </Label>
-                  <Input
-                    type="number"
-                    name="alan_m2"
-                    value={formData.alan_m2 || ''}
-                    onChange={handleInputChange}
-                    placeholder="Örn: 5000"
-                    min="1"
-                    step="1"
-                    required
-                  />
-                  {validationErrors.alan_m2 && (
-                    <ErrorMessage>{validationErrors.alan_m2}</ErrorMessage>
-                  )}
-                </FormGroup>
+                <FormField
+                  label="Alan (m²)"
+                  name="alan_m2"
+                  type="number"
+                  value={formData.alan_m2 || ''}
+                  onChange={handleInputChange}
+                  placeholder="Örn: 5000"
+                  min="1"
+                  step="1"
+                  required
+                  error={validationErrors.alan_m2}
+                />
               )}
 
               <FormGroup>
@@ -797,55 +746,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
 
               {/* Bağ evi için Dikili Alan Kontrolü butonu - 3. sütun */}
               {calculationType === 'bag-evi' && (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' || formData.arazi_vasfi === 'Dikili vasıflı') && (
-                <FormGroup>
-                  <Label>
-                    Dikili Alan Kontrolü
-                  </Label>
-                  <DikiliKontrolButton
-                    type="button"
-                    onClick={handleDikiliKontrolOpen}
-                  >
-                    🌳 Dikili Alan Kontrolü
-                  </DikiliKontrolButton>
-                  {dikiliKontrolSonucu && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : 
-                                 (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#d4edda' : '#f8d7da'),
-                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : 
-                                             (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#c3e6cb' : '#f5c6cb')),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : 
-                            (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? '#155724' : '#721c24')
-                    }}>
-                      {dikiliKontrolSonucu.directTransfer ? (
-                        <>
-                          🚀 Doğrudan aktarım yapıldı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Dikili alan: {dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² | Tarla alanı: {dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m²
-                          </div>
-                        </>
-                      ) : dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.yeterli === true ? (
-                        <>
-                          ✅ Dikili alan kontrolü başarılı
-                        </>
-                      ) : (
-                        <>
-                          ❌ Dikili alan kontrolü başarısız
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            {dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter1 === false && dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.kriter2 === false ?
-                              `Dikili alan: ${dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² < 5000 m² ve Tarla alanı: ${dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m² < 20000 m²` :
-                              (dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran !== undefined && dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran !== undefined) ?
-                              `Yoğunluk yetersiz: %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.oran?.toFixed(1)} < %${dikiliKontrolSonucu.dikiliAlanKontrolSonucu?.yeterlilik?.minimumOran}` :
-                              'Ağaç yoğunluğu hesaplaması yapılmamıştır'}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </FormGroup>
+                <DikiliKontrolButtonComponent
+                  araziVasfi={formData.arazi_vasfi}
+                  calculationType={calculationType}
+                  dikiliKontrolSonucu={dikiliKontrolSonucu}
+                  onOpenControl={handleDikiliKontrolOpen}
+                />
               )}
 
               {/* Tarla + Zeytinlik için Alan Kontrolü butonu */}
@@ -1031,24 +937,18 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
               <FormGrid>
                 {/* Hububat silo için özel alan */}
                 {calculationType === 'hububat-silo' && (
-                  <FormGroup>
-                    <Label>
-                      Planlanan Silo Taban Alanı (m²) <RequiredIndicator>*</RequiredIndicator>
-                    </Label>
-                    <Input
-                      type="number"
-                      name="silo_taban_alani_m2"
-                      value={formData.silo_taban_alani_m2 || ''}
-                      onChange={handleInputChange}
-                      placeholder="Örn: 1000"
-                      min="1"
-                      step="1"
-                      required
-                    />
-                    {validationErrors.silo_taban_alani_m2 && (
-                      <ErrorMessage>{validationErrors.silo_taban_alani_m2}</ErrorMessage>
-                    )}
-                  </FormGroup>
+                  <FormField
+                    label="Planlanan Silo Taban Alanı (m²)"
+                    name="silo_taban_alani_m2"
+                    type="number"
+                    value={formData.silo_taban_alani_m2 || ''}
+                    onChange={handleInputChange}
+                    placeholder="Örn: 1000"
+                    min="1"
+                    step="1"
+                    required
+                    error={validationErrors.silo_taban_alani_m2}
+                  />
                 )}
 
                 {/* İpek böcekçiliği için özel alan */}
