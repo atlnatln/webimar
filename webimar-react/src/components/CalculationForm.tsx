@@ -9,14 +9,13 @@ import BagEviCalculator from '../utils/bagEviCalculator';
 import SmartDetectionFeedback from './CalculationForm/SmartDetectionFeedback';
 import FormField from './CalculationForm/FormField';
 import DikiliKontrolButtonComponent from './CalculationForm/DikiliKontrolButtonComponent';
+import FormSectionComponent from './CalculationForm/FormSectionComponent';
 import { FormValidator } from './CalculationForm/FormValidator';
 import { useTypewriter } from './CalculationForm/useTypewriter';
 import {
   FormContainer,
   FormTitle,
   FormContent,
-  FormSection,
-  SectionTitle,
   FormGrid,
   FormGroup,
   Label,
@@ -672,10 +671,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
 
         <form onSubmit={handleSubmit}>
           {/* Temel Bilgiler */}
-          <FormSection>
-            <SectionTitle>
-              📊 Temel Bilgiler
-            </SectionTitle>
+          <FormSectionComponent title="📊 Temel Bilgiler">
             <FormGrid>
               {/* Bağ evi dışındaki hesaplamalar için genel alan inputu */}
               {calculationType !== 'bag-evi' && (
@@ -926,14 +922,11 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                 </FormGroup>
               )}
             </FormGrid>
-          </FormSection>
+          </FormSectionComponent>
 
           {/* Özel Parametreler */}
           {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi' || calculationType === 'bag-evi') && (
-            <FormSection>
-              <SectionTitle>
-                ⚙️ Özel Parametreler
-              </SectionTitle>
+            <FormSectionComponent title="⚙️ Özel Parametreler">
               <FormGrid>
                 {/* Hububat silo için özel alan */}
                 {calculationType === 'hububat-silo' && (
@@ -1341,29 +1334,27 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                   </>
                 )}
               </FormGrid>
-            </FormSection>
+            </FormSectionComponent>
           )}
 
           {/* Hesaplama Butonu */}
-          <FormSection>
-            <SubmitButton
-              type="submit"
-              $isLoading={isLoading}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <span>⏳</span>
-                  Hesaplanıyor...
-                </>
-              ) : (
-                <>
-                  <span>🧮</span>
-                  Hesapla
-                </>
-              )}
-            </SubmitButton>
-          </FormSection>
+          <SubmitButton
+            type="submit"
+            $isLoading={isLoading}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span>⏳</span>
+                Hesaplanıyor...
+              </>
+            ) : (
+              <>
+                <span>🧮</span>
+                Hesapla
+              </>
+            )}
+          </SubmitButton>
         </form>
       </FormContent>
 
