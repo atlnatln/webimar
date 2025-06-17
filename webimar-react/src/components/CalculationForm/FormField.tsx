@@ -10,6 +10,7 @@ interface FormFieldProps {
   placeholder?: string;
   required?: boolean;
   min?: string;
+  max?: string;
   step?: string;
   error?: string;
   helpText?: string;
@@ -25,6 +26,7 @@ const FormField: React.FC<FormFieldProps> = ({
   placeholder,
   required = false,
   min,
+  max,
   step,
   error,
   helpText,
@@ -42,6 +44,7 @@ const FormField: React.FC<FormFieldProps> = ({
         onChange={onChange}
         placeholder={placeholder}
         min={min}
+        max={max}
         step={step}
         required={required}
       />

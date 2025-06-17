@@ -30,6 +30,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
           onChange={onInputChange}
           placeholder="Örn: 5000"
           min="1"
+          max="200000"
           step="1"
           required
           error={validationErrors.alan_m2}
@@ -49,6 +50,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             onChange={onInputChange}
             placeholder="Tarla alanını giriniz"
             min="1"
+            max="200000"
             step="1"
             required
             error={validationErrors.tarla_alani}
@@ -64,6 +66,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             onChange={onInputChange}
             placeholder="Zeytinlik alanını giriniz"
             min="1"
+            max="200000"
             step="1"
             required
             error={validationErrors.zeytinlik_alani}
@@ -84,6 +87,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             onChange={onInputChange}
             placeholder="Örn: 15000"
             min="1"
+            max="200000"
             step="1"
             required
             error={validationErrors.tarla_alani}
@@ -100,6 +104,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             onChange={onInputChange}
             placeholder="Örn: 12000"
             min="1"
+            max="200000"
             step="1"
             required
             error={validationErrors.dikili_alani}
@@ -121,6 +126,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
           onChange={onInputChange}
           placeholder="Dikili alanını giriniz"
           min="1"
+          max="200000"
           step="1"
           required
           error={validationErrors.dikili_alani}
@@ -191,6 +197,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             onChange={onInputChange}
             placeholder="Örn: 25000"
             min="1"
+            max="200000"
             step="1"
             required
             error={validationErrors.tarla_alani}

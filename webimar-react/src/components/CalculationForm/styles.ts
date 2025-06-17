@@ -224,6 +224,79 @@ export const RequiredIndicator = styled.span`
   margin-left: 4px;
 `;
 
+// Emsal türü seçim butonları container
+export const EmsalTuruContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 8px;
+  }
+`;
+
+// Emsal türü seçim butonu
+export const EmsalTuruButton = styled.button<{ $isSelected: boolean }>`
+  flex: 1;
+  padding: 14px 20px;
+  border: 2px solid ${props => props.$isSelected ? '#3498db' : '#e0e6ed'};
+  border-radius: 8px;
+  background: ${props => props.$isSelected ? '#3498db' : '#ffffff'};
+  color: ${props => props.$isSelected ? '#ffffff' : '#2c3e50'};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  
+  &:hover {
+    border-color: #3498db;
+    background: ${props => props.$isSelected ? '#2980b9' : '#f8f9fa'};
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  .emsal-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  
+  .emsal-subtitle {
+    font-size: 12px;
+    opacity: 0.8;
+    font-weight: 400;
+  }
+  
+  .emsal-percentage {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 4px 0;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    
+    .emsal-title {
+      font-size: 14px;
+    }
+    
+    .emsal-percentage {
+      font-size: 18px;
+    }
+    
+    .emsal-subtitle {
+      font-size: 11px;
+    }
+  }
+`;
+
 // Dikili kontrol butonu
 export const DikiliKontrolButton = styled.button`
   background: linear-gradient(135deg, #27ae60, #2ecc71);

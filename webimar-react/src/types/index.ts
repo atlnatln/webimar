@@ -25,6 +25,9 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // İpek böcekçiliği için dut bahçesi durumu
   dut_bahcesi_var_mi?: boolean;
 
+  // Emsal türü seçimi (tarımsal yapılar için)
+  emsal_turu?: 'marjinal' | 'mutlak_dikili';
+
   // Bağ evi için özel alanlar
   tarla_alani?: number;
   dikili_alani?: number;

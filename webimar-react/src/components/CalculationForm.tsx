@@ -25,7 +25,9 @@ import {
   RequiredIndicator,
   AnimatedSelectContainer,
   AnimatedSelect,
-  TypewriterPlaceholder
+  TypewriterPlaceholder,
+  EmsalTuruContainer,
+  EmsalTuruButton
 } from './CalculationForm/styles';
 
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
@@ -61,7 +63,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   
   const [formData, setFormData] = useState<DetailedCalculationInput>({
     alan_m2: 0,
-    arazi_vasfi: '' // Başlangıçta boş olacak ki placeholder görünsün
+    arazi_vasfi: '', // Başlangıçta boş olacak ki placeholder görünsün
+    emsal_turu: 'marjinal' // Default olarak marjinal (%20) seçili
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -250,6 +253,15 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         return newErrors;
       });
     }
+  };
+
+  // Emsal türü değiştirme handler'ı
+  const handleEmsalTuruChange = (yeniEmsalTuru: 'marjinal' | 'mutlak_dikili') => {
+    console.log(`🔄 Emsal türü değişti: ${formData.emsal_turu} → ${yeniEmsalTuru}`);
+    setFormData(prev => ({
+      ...prev,
+      emsal_turu: yeniEmsalTuru
+    }));
   };
 
   // Dikili alan kontrolü handler'ları
@@ -542,6 +554,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         finalFormData.longitude = selectedCoordinate.lng;
         console.log('📍 Koordinat bilgisi form dataya eklendi:', selectedCoordinate);
       }
+
+      // Emsal türü bilgisini ekle (bağ evi hariç)
+      if (calculationType !== 'bag-evi') {
+        finalFormData.emsal_turu = formData.emsal_turu || 'marjinal';
+        console.log(`📐 Emsal türü eklendi: ${finalFormData.emsal_turu} (${finalFormData.emsal_turu === 'marjinal' ? '%20' : '%5'})`);
+      }
       
       // Explicitly debug each step
       console.log('🔬 Debug Info:');
@@ -682,6 +700,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                   onChange={handleInputChange}
                   placeholder="Örn: 5000"
                   min="1"
+                  max="200000"
                   step="1"
                   required
                   error={validationErrors.alan_m2}
@@ -755,6 +774,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                 />
               )}
             </FormGrid>
+
+            {/* Emsal Türü Seçimi artık ResultDisplay bileşeninde */}
           </FormSectionComponent>
 
           {/* Özel Parametreler */}
@@ -771,6 +792,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                     onChange={handleInputChange}
                     placeholder="Örn: 1000"
                     min="1"
+                    max="200000"
                     step="1"
                     required
                     error={validationErrors.silo_taban_alani_m2}

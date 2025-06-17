@@ -2,12 +2,15 @@ import React from 'react';
 import styled from 'styled-components';
 import { CalculationResult, StructureType } from '../types';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
+import { EmsalTuruContainer, EmsalTuruButton } from './CalculationForm/styles';
 
 interface ResultDisplayProps {
   result: CalculationResult | null;
   isLoading: boolean;
   calculationType: StructureType;
   araziVasfi?: string; // Arazi vasfı bilgisi manuel kontrol butonu için
+  onEmsalTypeChange?: (emsalType: string) => void; // Emsal türü değiştiğinde çağrılacak fonksiyon
+  selectedEmsalType?: string; // Seçili emsal türü
 }
 
 const ResultContainer = styled.div`
@@ -353,7 +356,14 @@ const formatNumber = (value: number | string): string => {
   }).format(num);
 };
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calculationType, araziVasfi }) => {
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ 
+  result, 
+  isLoading, 
+  calculationType, 
+  araziVasfi, 
+  onEmsalTypeChange,
+  selectedEmsalType
+}) => {
   const { structureTypeLabels } = useStructureTypes();
 
   console.log('🖼️ ResultDisplay props:', { result, isLoading, calculationType });
@@ -450,6 +460,42 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, calcul
             {data.izin_durumu === 'izin_verilebilir_varsayimsal' 
               ? 'Bu sonuç girdiğiniz veriler doğru olduğu varsayımıyla hesaplanmıştır. Kesin sonuç için manuel kontrol gereklidir.'
               : 'Mevcut mevzuat kapsamında tespit edilen izin durumu'}
+          </ResultDescription>
+        </ResultCard>
+      )}
+      
+      {/* Emsal Türü Seçimi - Bağ evi hariç tüm tarımsal yapılar için */}
+      {calculationType !== 'bag-evi' && onEmsalTypeChange && selectedEmsalType && (
+        <ResultCard style={{ 
+          marginTop: '16px',
+          padding: '20px'
+        }}>
+          <ResultLabel style={{ marginBottom: '12px' }}>
+            Emsal Türü Seçimi
+          </ResultLabel>
+          <EmsalTuruContainer>
+            <EmsalTuruButton
+              type="button"
+              $isSelected={selectedEmsalType === 'marjinal'}
+              onClick={() => onEmsalTypeChange('marjinal')}
+            >
+              <div className="emsal-title">🏜️ Marjinal Alan</div>
+              <div className="emsal-percentage">%20</div>
+              <div className="emsal-subtitle">Marjinal tarım arazileri için emsal</div>
+            </EmsalTuruButton>
+            
+            <EmsalTuruButton
+              type="button"
+              $isSelected={selectedEmsalType === 'mutlak_dikili'}
+              onClick={() => onEmsalTypeChange('mutlak_dikili')}
+            >
+              <div className="emsal-title">🌱 Mutlak & Dikili Alan</div>
+              <div className="emsal-percentage">%5</div>
+              <div className="emsal-subtitle">Mutlak tarım arazisi, dikili tarım arazisi ve özel ürün arazileri için emsal</div>
+            </EmsalTuruButton>
+          </EmsalTuruContainer>
+          <ResultDescription style={{ marginTop: '12px', textAlign: 'center', fontStyle: 'italic' }}>
+            Emsal türünü değiştirdiğinizde hesaplamalar otomatik olarak güncellenir
           </ResultDescription>
         </ResultCard>
       )}
