@@ -1,7 +1,6 @@
 // Bag Evi specific form fields component
 import React from 'react';
 import FormField from './FormField';
-import SmartDetectionFeedback from './SmartDetectionFeedback';
 import { FormGrid } from './styles';
 
 interface BagEviFormFieldsProps {

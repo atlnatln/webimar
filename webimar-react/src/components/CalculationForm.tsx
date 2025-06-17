@@ -8,7 +8,7 @@ import BagEviCalculator from '../utils/bagEviCalculator';
 // Ayrılmış bileşen ve stil import'ları
 import SmartDetectionFeedback from './CalculationForm/SmartDetectionFeedback';
 import FormField from './CalculationForm/FormField';
-import DikiliKontrolButtonComponent from './CalculationForm/DikiliKontrolButtonComponent';
+import AlanKontrolButtons from './CalculationForm/AlanKontrolButtons';
 import FormSectionComponent from './CalculationForm/FormSectionComponent';
 import BagEviFormFields from './CalculationForm/BagEviFormFields';
 import { FormValidator } from './CalculationForm/FormValidator';
@@ -20,11 +20,9 @@ import {
   FormGrid,
   FormGroup,
   Label,
-  Input,
   SubmitButton,
   ErrorMessage,
   RequiredIndicator,
-  DikiliKontrolButton,
   AnimatedSelectContainer,
   AnimatedSelect,
   TypewriterPlaceholder
@@ -741,186 +739,20 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                 )}
               </FormGroup>
 
-              {/* Bağ evi için Dikili Alan Kontrolü butonu - 3. sütun */}
-              {calculationType === 'bag-evi' && (formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' || formData.arazi_vasfi === 'Dikili vasıflı') && (
-                <DikiliKontrolButtonComponent
-                  araziVasfi={formData.arazi_vasfi}
-                  calculationType={calculationType}
+              {/* Alan Kontrol Butonları - Konsolide Edilmiş */}
+              {calculationType === 'bag-evi' && (
+                formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' ||
+                formData.arazi_vasfi === 'Dikili vasıflı' ||
+                formData.arazi_vasfi === 'Tarla + Zeytinlik' ||
+                formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' ||
+                formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla' ||
+                formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf'
+              ) && (
+                <AlanKontrolButtons
                   dikiliKontrolSonucu={dikiliKontrolSonucu}
-                  onOpenControl={handleDikiliKontrolOpen}
+                  onOpenDikiliKontrol={handleDikiliKontrolOpen}
+                  formData={formData}
                 />
-              )}
-
-              {/* Tarla + Zeytinlik için Alan Kontrolü butonu */}
-              {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Tarla + Zeytinlik' && (
-                <FormGroup>
-                  <Label>
-                    Alan Kontrolü
-                  </Label>
-
-                  <DikiliKontrolButton
-                    type="button"
-                    onClick={handleDikiliKontrolOpen}
-                  >
-                    🗺️ Haritadan Kontrol
-                  </DikiliKontrolButton>
-                  {dikiliKontrolSonucu && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : '#f8d7da',
-                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : '#f5c6cb'),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : '#721c24'
-                    }}>
-                      {dikiliKontrolSonucu.directTransfer ? (
-                        <>
-                          🚀 Doğrudan aktarım yapıldı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Tarla: {dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m² | Zeytinlik: {dikiliKontrolSonucu.zeytinlikAlani?.toLocaleString()} m²
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          ❌ Alan kontrolü başarısız
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Lütfen harita üzerinden alanları belirleyin
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </FormGroup>
-              )}
-
-              {/* Zeytin ağaçlı + herhangi bir dikili vasıf için Alan Kontrolü butonu */}
-              {calculationType === 'bag-evi' && formData.arazi_vasfi === 'Zeytin ağaçlı + herhangi bir dikili vasıf' && (
-                <FormGroup>
-                  <Label>
-                    Alan Kontrolü
-                  </Label>
-
-                  <DikiliKontrolButton
-                    type="button"
-                    onClick={handleDikiliKontrolOpen}
-                  >
-                    🗺️ Haritadan Kontrol
-                  </DikiliKontrolButton>
-                  {dikiliKontrolSonucu && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : '#f8d7da',
-                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : '#f5c6cb'),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : '#721c24'
-                    }}>
-                      {dikiliKontrolSonucu.directTransfer ? (
-                        <>
-                          🚀 Doğrudan aktarım yapıldı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Dikili Alan: {dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m² | Zeytin Ağacı: {dikiliKontrolSonucu.zeytinlikAlani?.toLocaleString()} adet
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          ❌ Alan kontrolü başarısız
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Lütfen harita üzerinden dikili alanı belirleyin
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </FormGroup>
-              )}
-
-              {/* … Adetli Zeytin Ağacı bulunan tarla için Alan Kontrolü butonu */}
-              {calculationType === 'bag-evi' && formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan tarla' && (
-                <FormGroup>
-                  <Label>
-                    Harita Kontrolü
-                  </Label>
-
-                  <DikiliKontrolButton
-                    type="button"
-                    onClick={handleDikiliKontrolOpen}
-                  >
-                    🗺️ Harita Bilgisi
-                  </DikiliKontrolButton>
-                  {dikiliKontrolSonucu && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : '#f8d7da',
-                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : '#f5c6cb'),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : '#721c24'
-                    }}>
-                      {dikiliKontrolSonucu.directTransfer ? (
-                        <>
-                          🚀 Harita bilgisi alındı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Tarla Alanı: {dikiliKontrolSonucu.tarlaAlani?.toLocaleString()} m²
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          ❌ Harita bilgisi alınamadı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Lütfen harita üzerinden tarla alanını belirleyin
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </FormGroup>
-              )}
-
-              {/* … Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf için Alan Kontrolü butonu */}
-              {calculationType === 'bag-evi' && formData.arazi_vasfi === '… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf' && (
-                <FormGroup>
-                  <Label>
-                    Harita Kontrolü
-                  </Label>
-
-                  <DikiliKontrolButton
-                    type="button"
-                    onClick={handleDikiliKontrolOpen}
-                  >
-                    🗺️ Harita Bilgisi
-                  </DikiliKontrolButton>
-                  {dikiliKontrolSonucu && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: dikiliKontrolSonucu.directTransfer ? '#e8f5e8' : '#f8d7da',
-                      border: '1px solid ' + (dikiliKontrolSonucu.directTransfer ? '#c3e6cb' : '#f5c6cb'),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: dikiliKontrolSonucu.directTransfer ? '#155724' : '#721c24'
-                    }}>
-                      {dikiliKontrolSonucu.directTransfer ? (
-                        <>
-                          🚀 Harita bilgisi alındı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Dikili Alan: {dikiliKontrolSonucu.dikiliAlan?.toLocaleString()} m²
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          ❌ Harita bilgisi alınamadı
-                          <div style={{ fontSize: '11px', marginTop: '2px' }}>
-                            Lütfen harita üzerinden dikili alanını belirleyin
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </FormGroup>
               )}
             </FormGrid>
           </FormSectionComponent>
