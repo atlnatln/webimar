@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import CalculationForm from '../components/CalculationForm';
 import ResultDisplay from '../components/ResultDisplay';
@@ -195,6 +195,21 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
     setAraziVasfi(newAraziVasfi);
     console.log('✅ CalculationPage - Arazi vasfı güncellendi');
   };
+
+  // CalculationType değişiminde form ve sonuçları sıfırla
+  useEffect(() => {
+    console.log(`🔄 CalculationPage - calculationType değişti: "${calculationType}"`);
+    console.log('🧹 CalculationPage - calculationType değişiminde önceki hesaplama verileri temizleniyor');
+    
+    // Form ve sonuçları sıfırla
+    setResult(null);
+    setIsLoading(false);
+    setAraziVasfi(''); // Arazi vasfını da sıfırla
+    setSelectedCoordinate(null); // Seçili koordinatları da temizle
+    setIsManualSelection(false); // Manuel seçim flag'ini sıfırla
+    
+    console.log('✅ CalculationPage - calculationType değişiminde sıfırlama tamamlandı');
+  }, [calculationType]);
 
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
     setSelectedCoordinate(coordinate);
