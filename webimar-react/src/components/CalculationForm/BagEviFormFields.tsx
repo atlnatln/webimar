@@ -18,21 +18,25 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
 }) => {
   return (
     <FormGrid>
-      {/* Alan bilgileri */}
-      <FormField
-        label="Alan (m²)"
-        name="alan_m2"
-        type="number"
-        value={formData.alan_m2 || ''}
-        onChange={onInputChange}
-        placeholder="Örn: 5000"
-        min="1"
-        step="1"
-        required
-        error={validationErrors.alan_m2}
-      >
-        {renderSmartDetectionFeedback('alan_m2')}
-      </FormField>
+      {/* Alan bilgileri - sadece belirli arazi tiplerinde göster */}
+      {(formData.arazi_vasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı' ||
+        formData.arazi_vasfi === 'Tarla' ||
+        formData.arazi_vasfi === 'Sera') && (
+        <FormField
+          label="Alan (m²)"
+          name="alan_m2"
+          type="number"
+          value={formData.alan_m2 || ''}
+          onChange={onInputChange}
+          placeholder="Örn: 5000"
+          min="1"
+          step="1"
+          required
+          error={validationErrors.alan_m2}
+        >
+          {renderSmartDetectionFeedback('alan_m2')}
+        </FormField>
+      )}
 
       {/* Tarla + Zeytinlik senaryosu için özel alanlar */}
       {formData.arazi_vasfi === 'Tarla + Zeytinlik' && (

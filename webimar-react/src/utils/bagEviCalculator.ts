@@ -391,6 +391,27 @@ export const validateVineyardEligibility = (
       agacYogTlugu: undefined
     };
   }
+
+  // "Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı" arazi tipi için özel kontrol (YENİ EKLENDİ)
+  if (araziVasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı') {
+    // Bu arazi tipinde:
+    // - Alan >= 20000 m² gerekli (backend constants'a göre)
+    
+    const hamToprakAlaniYeterli = dikiliAlan >= 20000; // Ham toprak alanı dikili alan olarak geçer
+    const kriter2SaglandiMi = hamToprakAlaniYeterli;
+    const yeterli = kriter2SaglandiMi;
+    
+    return {
+      yeterli,
+      oran: yogunlukOrani,
+      minimumOran: 0, // Ağaç yoğunluğu şartı yok
+      kriter1: false, // Dikili alan kriteri geçerli değil
+      kriter2: kriter2SaglandiMi,
+      eksikOran: undefined,
+      dikiliAlanYeterli: false, // Dikili alan kriteri bu tip için geçerli değil
+      agacYogTlugu: undefined
+    };
+  }
   
   // "Tarla + herhangi bir dikili vasıflı" için normal kontrol
   // Kriter 1: Dikili alan yeterli - ağaç sayımı yapılmışsa yoğunluk da kontrol edilir
@@ -548,6 +569,10 @@ export const calculateVineyardResult = (
       // Sera arazi için özel mesaj (YENİ EKLENDİ)
       message = 'Bağ Evi Kontrolü Başarılı (Sera - Minimum Alan ≥ 3000 m²)';
       type = 'success';
+    } else if (araziVasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı' && yeterlilik.kriter2) {
+      // Ham toprak arazi için özel mesaj (YENİ EKLENDİ)
+      message = 'Bağ Evi Kontrolü Başarılı (Ham Toprak Vasıflı - Minimum Alan ≥ 20000 m²)';
+      type = 'success';
     } else if (yeterlilik.kriter1) {
       // Normal dikili alan kriteri sağlanıyor - ağaç sayımı yapıldı mı kontrol et
       const agacSayimiYapildi = eklenenAgaclar.length > 0;
@@ -619,6 +644,14 @@ export const calculateVineyardResult = (
         message = 'Bağ Evi Kontrolü Başarısız (Sera - Alan < 3000 m²)';
       } else {
         message = 'Bağ Evi Kontrolü Başarısız (Sera)';
+      }
+    } else if (araziVasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı') {
+      // Ham toprak arazi için hata mesajı (YENİ EKLENDİ)
+      const hamToprakAlani = dikiliAlan; // Ham toprak durumunda dikili alan ham toprak alanıdır
+      if (hamToprakAlani < 20000) {
+        message = 'Bağ Evi Kontrolü Başarısız (Ham Toprak Vasıflı - Alan < 20000 m²)';
+      } else {
+        message = 'Bağ Evi Kontrolü Başarısız (Ham Toprak Vasıflı)';
       }
     } else if (!dikiliAlanYeterli && !buyukTarlaAlani) {
       message = 'Bağ Evi Kontrolü Başarısız (Dikili Alan < 5000 m² ve Tarla Alanı < 20000 m²)';
@@ -933,6 +966,19 @@ export const validateBagEviForm = (formData: BagEviFormData): BagEviValidationRe
     // Minimum alan kontrolü kaldırıldı - kullanıcı istediği değeri girebilir
   }
 
+  // Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı (ID: 9) - YENİ EKLENDİ
+  if (formData.arazi_vasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı') {
+    if (!formData.alan_m2 || formData.alan_m2 <= 0) {
+      errors.push({
+        field: 'alan_m2',
+        message: 'Alan pozitif bir sayı olmalıdır.',
+        severity: 'error'
+      });
+    }
+
+    // Bu arazi tipi için sadece alan kontrolü yeterlidir
+  }
+
   const isValid = errors.length === 0;
   const canProceed = isValid || ((formData.tarla_alani || 0) >= BUYUK_TARLA_ALANI);
 
@@ -1017,6 +1063,9 @@ export const prepareFormDataForBackend = (formData: BagEviFormData): BagEviFormD
     finalFormData.alan_m2 = formData.alan_m2 || 0;
   } else if (formData.arazi_vasfi === 'Sera') {
     // Sera arazi tipi için özel işleme (YENİ EKLENDİ)
+    finalFormData.alan_m2 = formData.alan_m2 || 0;
+  } else if (formData.arazi_vasfi === 'Ham toprak, taşlık, kıraç, palamutluk, koruluk gibi diğer vasıflı') {
+    // Ham toprak arazi tipi için özel işleme (YENİ EKLENDİ)
     finalFormData.alan_m2 = formData.alan_m2 || 0;
   }
 
