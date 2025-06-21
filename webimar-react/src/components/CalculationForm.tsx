@@ -25,9 +25,7 @@ import {
   RequiredIndicator,
   AnimatedSelectContainer,
   AnimatedSelect,
-  TypewriterPlaceholder,
-  EmsalTuruContainer,
-  EmsalTuruButton
+  TypewriterPlaceholder
 } from './CalculationForm/styles';
 
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
@@ -44,6 +42,8 @@ interface CalculationFormComponentProps {
   onCalculationStart: () => void;
   selectedCoordinate?: { lat: number; lng: number } | null;
   onAraziVasfiChange?: (araziVasfi: string) => void;
+  emsalTuru?: string; // Seçili emsal türü
+  onEmsalTuruChange?: (emsalTuru: string) => void; // Emsal türü değiştiğinde çağrılacak fonksiyon
 }
 
 const CalculationForm: React.FC<CalculationFormComponentProps> = ({
@@ -51,7 +51,9 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   onResult,
   onCalculationStart,
   selectedCoordinate,
-  onAraziVasfiChange
+  onAraziVasfiChange,
+  emsalTuru,
+  onEmsalTuruChange
 }) => {
   const { structureTypeLabels } = useStructureTypes();
   
@@ -80,8 +82,17 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [dikiliKontrolOpen, setDikiliKontrolOpen] = useState(false);
   const [dikiliKontrolSonucu, setDikiliKontrolSonucu] = useState<any>(null);
   
+
+
   // Typewriter efekti için
   const { displayedText } = useTypewriter('Arazi vasfınızı seçiniz', 80);
+
+  // External emsal türü ile senkronizasyon
+  useEffect(() => {
+    if (emsalTuru && emsalTuru !== formData.emsal_turu) {
+      setFormData(prev => ({ ...prev, emsal_turu: emsalTuru as 'marjinal' | 'mutlak_dikili' }));
+    }
+  }, [emsalTuru]);
 
   // API'den arazi tiplerini çek
   useEffect(() => {
@@ -253,15 +264,6 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         return newErrors;
       });
     }
-  };
-
-  // Emsal türü değiştirme handler'ı
-  const handleEmsalTuruChange = (yeniEmsalTuru: 'marjinal' | 'mutlak_dikili') => {
-    console.log(`🔄 Emsal türü değişti: ${formData.emsal_turu} → ${yeniEmsalTuru}`);
-    setFormData(prev => ({
-      ...prev,
-      emsal_turu: yeniEmsalTuru
-    }));
   };
 
   // Dikili alan kontrolü handler'ları
@@ -496,7 +498,6 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
       return;
     }
 
-    console.log('✅ CalculationForm - Form validation passed');
     setIsLoading(true);
     setError(null);
     console.log('📞 CalculationForm - Calling onCalculationStart');

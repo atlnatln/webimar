@@ -154,7 +154,6 @@ const MapContainer = styled.div<{ $isOpen: boolean }>`
 `;
 
 
-
 const CalculationPage: React.FC<CalculationPageProps> = ({ 
   calculationType, 
   title, 
@@ -166,6 +165,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
   const [isManualSelection, setIsManualSelection] = useState(false); // Manuel harita tıklaması mı?
   const [isMapVisible, setIsMapVisible] = useState(true);
   const [araziVasfi, setAraziVasfi] = useState<string>(''); // Arazi vasfı bilgisi
+  const [emsalTuru, setEmsalTuru] = useState<string>('marjinal'); // Default olarak marjinal (%20) seçili
   const mapRef = useRef<MapRef>(null);
 
   const handleCalculationResult = (newResult: CalculationResult) => {
@@ -194,6 +194,32 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
     
     setAraziVasfi(newAraziVasfi);
     console.log('✅ CalculationPage - Arazi vasfı güncellendi');
+  };
+
+  // Emsal türü değişikliği için handler
+  const handleEmsalTuruChange = (newEmsalTuru: string) => {
+    console.log(`🔄 CalculationPage - Emsal türü değişti: "${emsalTuru}" → "${newEmsalTuru}"`);
+    setEmsalTuru(newEmsalTuru);
+    
+    // Eğer sonuç zaten varsa, yeni hesaplama başlat
+    if (result) {
+      console.log('🔄 CalculationPage - Emsal türü değiştiği için yeniden hesaplama yapılacak');
+      setIsLoading(true);
+      
+      // Form submit işlemini tetikle
+      setTimeout(() => {
+        const form = document.querySelector('form');
+        if (form) {
+          console.log('🚀 CalculationPage - Form submit tetikleniyor (emsal türü değişikliği)');
+          form.dispatchEvent(new Event('submit', { bubbles: true }));
+        } else {
+          console.error('❌ CalculationPage - Form bulunamadı, loading durumu sıfırlanıyor');
+          setIsLoading(false);
+        }
+      }, 100); // Form'un güncellenmesi için kısa bir bekleme
+    }
+    
+    console.log('✅ CalculationPage - Emsal türü güncellendi');
   };
 
   // CalculationType değişiminde form ve sonuçları sıfırla
@@ -346,6 +372,8 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
             onCalculationStart={handleCalculationStart}
             selectedCoordinate={isManualSelection ? selectedCoordinate : null}
             onAraziVasfiChange={handleAraziVasfiChange}
+            emsalTuru={emsalTuru}
+            onEmsalTuruChange={handleEmsalTuruChange}
           />
         </FormSection>
         
@@ -356,6 +384,8 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
               isLoading={isLoading}
               calculationType={calculationType}
               araziVasfi={araziVasfi}
+              selectedEmsalType={emsalTuru}
+              onEmsalTypeChange={handleEmsalTuruChange}
             />
           </ResultSection>
         )}
