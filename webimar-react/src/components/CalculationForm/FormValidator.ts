@@ -64,6 +64,13 @@ export class FormValidator {
           errors.silo_taban_alani_m2 = 'Planlanan silo taban alanı pozitif bir sayı olmalıdır';
         }
       }
+
+      // Sera için özel validation
+      if (calculationType === 'sera') {
+        if (!formData.sera_alani_m2 || formData.sera_alani_m2 <= 0) {
+          errors.sera_alani_m2 = 'Planlanan sera alanı pozitif bir sayı olmalıdır';
+        }
+      }
     }
 
     return {

@@ -562,6 +562,46 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
         console.log(`📐 Emsal türü eklendi: ${finalFormData.emsal_turu} (${finalFormData.emsal_turu === 'marjinal' ? '%20' : '%5'})`);
       }
       
+      // Dinamik emsal gerektiren tipler için emsal_orani ekle
+      const dynamicEmsalTypes = [
+        'mantar-tesisi',
+        'aricilik',
+        'hububat-silo',
+        'tarimsal-silo',
+        'solucan-tesisi',
+        'tarimsal-depo',
+        'lisansli-depo',
+        'kurutma-tesisi',
+        'meyve-sebze-kurutma',
+        'yikama-tesisi',
+        'su-depolama',
+        'soguk-hava-deposu',
+        // Hayvancılık tesisleri - dinamik emsal
+        'sut-sigirciligi',
+        'agil-kucukbas',
+        'kumes-yumurtaci',
+        'kumes-etci',
+        'kumes-gezen',
+        'kumes-hindi',
+        'kaz-ordek',
+        'hara',
+        'ipek-bocekciligi',
+        'evcil-hayvan',
+        'besi-sigirciligi'
+      ];
+      if (dynamicEmsalTypes.includes(calculationType)) {
+        // emsal_turu 'marjinal' ise 0.20, 'mutlak_dikili' ise 0.05
+        let emsalOrani = 0.20;
+        if (finalFormData.emsal_turu === 'mutlak_dikili') {
+          emsalOrani = 0.05;
+        }
+        finalFormData.emsal_orani = emsalOrani;
+        console.log(`📐 Emsal oranı eklendi: ${emsalOrani} (${finalFormData.emsal_turu})`);
+      }
+
+      // API'ye gönderilecek payload'u debug için yazdır
+      console.log('📦 API payload:', finalFormData);
+
       // Explicitly debug each step
       console.log('🔬 Debug Info:');
       console.log('- calculationType:', calculationType);
@@ -624,17 +664,17 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           ...(apiResult as any),
           // Detaylar varsa onları da üst seviyeye taşı
           ...((apiResult as any).detaylar || {}),
-          // İzin durumunu doğru şekilde map et - hububat silo, tarımsal depo, lisanslı depo, yıkama tesisi, kurutma tesisi, meyve-sebze-kurutma, zeytinyagi-fabrikasi, su-depolama, su-kuyulari, zeytinyagi-uretim-tesisi, soguk-hava-deposu, sut-sigirciligi, besi-sigirciligi, agil-kucukbas, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, sera ve bağ evi için özel handling
-          izin_durumu: (calculationType === 'hububat-silo' || calculationType === 'tarimsal-depo' || calculationType === 'lisansli-depo' || calculationType === 'yikama-tesisi' || calculationType === 'kurutma-tesisi' || calculationType === 'meyve-sebze-kurutma' || calculationType === 'zeytinyagi-fabrikasi' || calculationType === 'su-depolama' || calculationType === 'su-kuyulari' || calculationType === 'zeytinyagi-uretim-tesisi' || calculationType === 'soguk-hava-deposu' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sera' || calculationType === 'bag-evi')
-            ? (apiResult as any).data?.izin_durumu || (apiResult as any).results?.izin_durumu || (apiResult as any).izin_durumu || (apiResult as any).detaylar?.izin_durumu || 'izin_verilemez'
+          // İzin durumunu doğru şekilde map et - hububat silo, tarımsal depo, lisanslı depo, yıkama tesisi, kurutma tesisi, meyve-sebze-kurutma, zeytinyagi-fabrikasi, su-depolama, su-kuyulari, zeytinyagi-uretim-tesisi, soguk-hava-deposu, sut-sigirciligi, besi-sigirciligi, agil-kucukbas, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, sera, solucan tesisi ve bağ evi için özel handling
+          izin_durumu: (calculationType === 'hububat-silo' || calculationType === 'tarimsal-depo' || calculationType === 'lisansli-depo' || calculationType === 'yikama-tesisi' || calculationType === 'kurutma-tesisi' || calculationType === 'meyve-sebze-kurutma' || calculationType === 'zeytinyagi-fabrikasi' || calculationType === 'su-depolama' || calculationType === 'su-kuyulari' || calculationType === 'zeytinyagi-uretim-tesisi' || calculationType === 'soguk-hava-deposu' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sera' || calculationType === 'solucan-tesisi' || calculationType === 'bag-evi')
+            ? (apiResult as any).data?.detaylar?.izin_durumu || (apiResult as any).detaylar?.izin_durumu || (apiResult as any).data?.izin_durumu || (apiResult as any).results?.izin_durumu || (apiResult as any).izin_durumu || 'izin_verilemez'
             : (apiResult as any).detaylar?.izin_durumu || 
               ((apiResult as any).sonuc?.includes('YAPILABİLİR') ? 'izin_verilebilir' : 'izin_verilemez'),
           // Ana mesajı ayarla - Bağ evi için özel mapping
           ana_mesaj: calculationType === 'bag-evi' 
             ? (apiResult as any).mesaj || (apiResult as any).data?.mesaj || (apiResult as any).sonuc || (apiResult as any).message
             : (apiResult as any).sonuc || (apiResult as any).message,
-          // HTML mesajını ayarla - ağıl, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, süt sığırcılığı, besi sığırcılığı, sera, kurutma tesisi ve bağ evi için results.html_mesaj öncelikli
-          mesaj: (calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'sera' || calculationType === 'kurutma-tesisi' || calculationType === 'bag-evi')
+          // HTML mesajını ayarla - ağıl, kümes türleri, kaz-ördek, hara, ipek böcekçiliği, evcil hayvan, süt sığırcılığı, besi sığırcılığı, sera, kurutma tesisi, solucan tesisi, bağ evi, hububat-silo, lisansli-depo ve soguk-hava-deposu için results.html_mesaj öncelikli
+          mesaj: (calculationType === 'agil-kucukbas' || calculationType === 'kumes-gezen' || calculationType === 'kumes-hindi' || calculationType === 'kumes-yumurtaci' || calculationType === 'kumes-etci' || calculationType === 'kaz-ordek' || calculationType === 'hara' || calculationType === 'ipek-bocekciligi' || calculationType === 'evcil-hayvan' || calculationType === 'sut-sigirciligi' || calculationType === 'besi-sigirciligi' || calculationType === 'sera' || calculationType === 'kurutma-tesisi' || calculationType === 'solucan-tesisi' || calculationType === 'bag-evi' || calculationType === 'hububat-silo' || calculationType === 'lisansli-depo' || calculationType === 'soguk-hava-deposu')
             ? (apiResult as any).results?.html_mesaj || (apiResult as any).results?.mesaj || (apiResult as any).html_mesaj || (apiResult as any).mesaj || (apiResult as any).data?.html_mesaj || (apiResult as any).data?.mesaj
             : (apiResult as any).mesaj || (apiResult as any).html_mesaj || (apiResult as any).data?.html_mesaj || (apiResult as any).results?.html_mesaj,
           // Diğer önemli alanları map et
@@ -780,9 +820,26 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           </FormSectionComponent>
 
           {/* Özel Parametreler */}
-          {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi' || calculationType === 'bag-evi') && (
+          {(calculationType === 'hububat-silo' || calculationType === 'ipek-bocekciligi' || calculationType === 'bag-evi' || calculationType === 'sera') && (
             <FormSectionComponent title="⚙️ Özel Parametreler">
               <FormGrid>
+                {/* Sera için özel alan */}
+                {calculationType === 'sera' && (
+                  <FormField
+                    label="Planlanan Sera Alanı (m²)"
+                    name="sera_alani_m2"
+                    type="number"
+                    value={formData.sera_alani_m2 || ''}
+                    onChange={handleInputChange}
+                    placeholder="Örn: 4000"
+                    min="1"
+                    max="200000"
+                    step="1"
+                    required
+                    error={validationErrors.sera_alani_m2}
+                  />
+                )}
+
                 {/* Hububat silo için özel alan */}
                 {calculationType === 'hububat-silo' && (
                   <FormField

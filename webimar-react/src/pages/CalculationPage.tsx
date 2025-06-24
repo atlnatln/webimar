@@ -168,11 +168,39 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
   const [emsalTuru, setEmsalTuru] = useState<string>('marjinal'); // Default olarak marjinal (%20) seçili
   const mapRef = useRef<MapRef>(null);
 
+  // Render Debug - Component her render edildiğinde çalışır
+  console.log('🔄 CalculationPage - Component Render:', {
+    result: result,
+    isLoading: isLoading,
+    calculationType: calculationType,
+    resultExists: !!result,
+    shouldShowResult: !!(result || isLoading)
+  });
+
   const handleCalculationResult = (newResult: CalculationResult) => {
     console.log('🎯 CalculationPage - handleCalculationResult called with:', newResult);
+    console.log('🔍 CalculationPage - Before state update:', { currentResult: result, currentIsLoading: isLoading });
+    
     setResult(newResult);
     setIsLoading(false);
+    
     console.log('📊 CalculationPage - State updated: result set, isLoading set to false');
+    
+    // Debug: State güncellendikten sonra render koşulunu kontrol et
+    setTimeout(() => {
+      console.log('🔍 CalculationPage - Render Condition Debug:', {
+        result: newResult,
+        isLoading: false,
+        shouldRenderResult: (newResult || false),
+        newResult_truthy: !!newResult,
+        newResult_success: newResult?.success
+      });
+    }, 100);
+    
+    // Force re-render debug
+    setTimeout(() => {
+      console.log('🔍 CalculationPage - Force check after 500ms...');
+    }, 500);
   };
 
   const handleCalculationStart = () => {
@@ -377,8 +405,17 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
           />
         </FormSection>
         
+        {(() => {
+          console.log('🔍 CalculationPage - Render Check:', { result, isLoading, shouldRender: (result || isLoading) });
+          return null;
+        })()}
+        
         {(result || isLoading) && (
           <ResultSection>
+            {(() => {
+              console.log('🖼️ CalculationPage - Rendering ResultDisplay with:', { result, isLoading, calculationType, araziVasfi, emsalTuru });
+              return null;
+            })()}
             <ResultDisplay
               result={result}
               isLoading={isLoading}

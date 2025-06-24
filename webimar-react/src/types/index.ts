@@ -22,6 +22,9 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // Hububat silo için özel alanlar
   silo_taban_alani_m2?: number;
   
+  // Sera için özel alanlar
+  sera_alani_m2?: number;
+  
   // İpek böcekçiliği için dut bahçesi durumu
   dut_bahcesi_var_mi?: boolean;
 
@@ -45,6 +48,9 @@ export interface DetailedCalculationInput extends BaseCalculationInput {
   // Koordinat bilgileri
   latitude?: number;
   longitude?: number;
+
+  // Emsal oranı (dinamik emsal için)
+  emsal_orani?: number;
 }
 
 // Calculation Result Types
@@ -106,7 +112,7 @@ export type StructureType =
   | 'su-depolama'               // ID: 12 - "Su depolama"
   | 'su-kuyulari'               // ID: 13 - "Su kuyuları"
   | 'bag-evi'                   // ID: 14 - "Bağ evi"
-  | 'zeytinyagi-uretim-tesisi'   // ID: 15 - "Zeytinyağı üretim tesisi"
+  | 'zeytinyagi-uretim-tesisi'   // ID: 28 - "Zeytinyağı üretim tesisi"
   | 'soguk-hava-deposu'         // ID: 16 - "Soğuk hava deposu"
   
   // Hayvancılık Tesisleri (11 tür) - ID: 17-27
@@ -138,7 +144,7 @@ export const STRUCTURE_TYPE_MAPPING: Record<number, StructureType> = {
   12: 'su-depolama',
   13: 'su-kuyulari',
   14: 'bag-evi',
-  15: 'zeytinyagi-uretim-tesisi',
+  15: 'su-depolama',                // Su depolama ve pompaj sistemi için su-depolama kullanıyoruz
   16: 'soguk-hava-deposu',
   17: 'sut-sigirciligi',
   18: 'agil-kucukbas',
@@ -150,7 +156,8 @@ export const STRUCTURE_TYPE_MAPPING: Record<number, StructureType> = {
   24: 'hara',
   25: 'ipek-bocekciligi',
   26: 'evcil-hayvan',
-  27: 'besi-sigirciligi'
+  27: 'besi-sigirciligi',
+  28: 'zeytinyagi-uretim-tesisi'
 };
 
 // Ters mapping - frontend type'dan backend ID'ye

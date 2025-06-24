@@ -8,6 +8,9 @@ import { StructureType } from './types';
 import { StructureTypesProvider, useStructureTypes } from './contexts/StructureTypesContext';
 import './App.css';
 
+// Console log filtresi aktif et
+import './utils/consoleLogFilter';
+
 // Yapı türü descriptions mapping - Backend constants.py ile uyumlu 27 yapı türü
 const getStructureDescription = (structureType: StructureType, structureTypeLabels: Record<StructureType, string>): string => {
   const descriptions: Record<StructureType, string> = {

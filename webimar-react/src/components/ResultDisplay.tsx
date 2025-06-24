@@ -411,6 +411,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
   const data = result.data;
   console.log('✨ Rendering successful result with data:', data);
 
+  // İzin durumu için backend detaylarındaki değeri kullan
+  const izinDurumu = data.detaylar?.izin_durumu || data.izin_durumu;
+
   return (
     <ResultContainer>
       <ResultHeader>
@@ -425,47 +428,47 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
       </ResultGrid>
 
       {/* İzin Durumu - Özel varsayımsal görünüm */}
-      {data.izin_durumu && (
+      {izinDurumu && (
         <ResultCard style={{ 
           marginTop: '20px', 
-          borderColor: data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+          borderColor: izinDurumu === 'izin_verilebilir_varsayimsal' 
             ? '#f59e0b' 
-            : data.izin_durumu.includes('YAPILABİLİR') || data.izin_durumu.includes('izin_verilebilir') 
+            : izinDurumu.includes('YAPILABİLİR') || izinDurumu.includes('izin_verilebilir') 
             ? '#10b981' 
             : '#ef4444',
-          ...(data.izin_durumu === 'izin_verilebilir_varsayimsal' && {
+          ...(izinDurumu === 'izin_verilebilir_varsayimsal' && {
             background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
             border: '2px solid #f59e0b'
           })
         }}>
           <ResultLabel>
-            {data.izin_durumu === 'izin_verilebilir_varsayimsal' ? 'Varsayımsal Değerlendirme' : 'İzin Durumu'}
+            {izinDurumu === 'izin_verilebilir_varsayimsal' ? 'Varsayımsal Değerlendirme' : 'İzin Durumu'}
           </ResultLabel>
           <ResultValue style={{ 
-            color: data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+            color: izinDurumu === 'izin_verilebilir_varsayimsal' 
               ? '#d97706' 
-              : data.izin_durumu.includes('YAPILABİLİR') || data.izin_durumu.includes('izin_verilebilir') 
+              : izinDurumu.includes('YAPILABİLİR') || izinDurumu.includes('izin_verilebilir') 
               ? '#10b981' 
               : '#ef4444',
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
           }}>
-            {data.izin_durumu === 'izin_verilebilir_varsayimsal' && <span>⚠️</span>}
-            {data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+            {izinDurumu === 'izin_verilebilir_varsayimsal' && <span>⚠️</span>}
+            {izinDurumu === 'izin_verilebilir_varsayimsal' 
               ? 'Girilen Bilgilere Göre İzin Verilebilir' 
-              : data.izin_durumu}
+              : izinDurumu}
           </ResultValue>
           <ResultDescription>
-            {data.izin_durumu === 'izin_verilebilir_varsayimsal' 
+            {izinDurumu === 'izin_verilebilir_varsayimsal' 
               ? 'Bu sonuç girdiğiniz veriler doğru olduğu varsayımıyla hesaplanmıştır. Kesin sonuç için manuel kontrol gereklidir.'
               : 'Mevcut mevzuat kapsamında tespit edilen izin durumu'}
           </ResultDescription>
         </ResultCard>
       )}
       
-      {/* Emsal Türü Seçimi - Bağ evi hariç tüm tarımsal yapılar için */}
-      {calculationType !== 'bag-evi' && onEmsalTypeChange && selectedEmsalType && (
+      {/* Emsal Türü Seçimi - Bağ evi, sera, zeytinyağı fabrikası ve su kuyuları hariç tüm tarımsal yapılar için */}
+      {calculationType !== 'bag-evi' && calculationType !== 'sera' && calculationType !== 'zeytinyagi-fabrikasi' && calculationType !== 'su-kuyulari' && onEmsalTypeChange && selectedEmsalType && (
         <ResultCard style={{ 
           marginTop: '16px',
           padding: '20px'

@@ -40,7 +40,7 @@ const createStructureTypeFromUrl = (yapiTuru: YapiTuru): StructureType => {
     12: 'su-depolama',
     13: 'su-kuyulari',
     14: 'bag-evi',
-    15: 'zeytinyagi-uretim-tesisi',
+    15: 'su-depolama',
     16: 'soguk-hava-deposu',
     17: 'sut-sigirciligi',
     18: 'agil-kucukbas',
@@ -52,7 +52,8 @@ const createStructureTypeFromUrl = (yapiTuru: YapiTuru): StructureType => {
     24: 'hara',
     25: 'ipek-bocekciligi',
     26: 'evcil-hayvan',
-    27: 'besi-sigirciligi'
+    27: 'besi-sigirciligi',
+    28: 'zeytinyagi-uretim-tesisi'
   };
   
   return urlMap[yapiTuru.id] || 'sera'; // fallback
