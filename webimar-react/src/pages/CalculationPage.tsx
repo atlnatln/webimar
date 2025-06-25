@@ -4,6 +4,8 @@ import CalculationForm from '../components/CalculationForm';
 import ResultDisplay from '../components/ResultDisplay';
 import MapComponent, { MapRef } from '../components/Map/MapComponent';
 import LocationAutocomplete from '../components/LocationAutocomplete';
+import LocationInfoCard from '../components/Map/LocationInfoCard';
+import { LocationValidationProvider, useLocationValidation } from '../contexts/LocationValidationContext';
 import { CalculationResult, StructureType } from '../types';
 
 interface CalculationPageProps {
@@ -149,24 +151,67 @@ const MapToggleButton = styled.button<{ $isOpen: boolean }>`
 const MapContainer = styled.div<{ $isOpen: boolean }>`
   overflow: hidden;
   transition: all 0.3s ease;
-  max-height: ${props => props.$isOpen ? '600px' : '0'};
+  max-height: ${props => props.$isOpen ? '800px' : '0'};
   opacity: ${props => props.$isOpen ? 1 : 0};
 `;
 
+const LocationValidationSection = styled.div`
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+`;
 
-const CalculationPage: React.FC<CalculationPageProps> = ({ 
+const FormBlockingOverlay = styled.div<{ $isBlocked: boolean }>`
+  position: relative;
+  
+  ${props => props.$isBlocked && `
+    pointer-events: none;
+    opacity: 0.6;
+    
+    &::after {
+      content: "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #dc3545;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+  `}
+`;
+
+// Ana sayfa bileşeni - location validation ile wrap edilmiş
+const CalculationPageContent: React.FC<CalculationPageProps> = ({ 
   calculationType, 
   title, 
   description 
 }) => {
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedCoordinate, setSelectedCoordinate] = useState<{lat: number, lng: number} | null>(null);
-  const [isManualSelection, setIsManualSelection] = useState(false); // Manuel harita tıklaması mı?
+  const [isManualSelection, setIsManualSelection] = useState(false);
   const [isMapVisible, setIsMapVisible] = useState(true);
-  const [araziVasfi, setAraziVasfi] = useState<string>(''); // Arazi vasfı bilgisi
-  const [emsalTuru, setEmsalTuru] = useState<string>('marjinal'); // Default olarak marjinal (%20) seçili
+  const [araziVasfi, setAraziVasfi] = useState<string>('');
+  const [emsalTuru, setEmsalTuru] = useState<string>('marjinal');
   const mapRef = useRef<MapRef>(null);
+  
+  // Location validation context
+  const { 
+    state: locationState, 
+    setSelectedPoint, 
+    setSuTahsisBelgesi,
+    canUserProceedWithCalculation 
+  } = useLocationValidation();
+
+  // Form engelleme durumu
+  const isFormBlocked = !canUserProceedWithCalculation(calculationType);
 
   // Render Debug - Component her render edildiğinde çalışır
   console.log('🔄 CalculationPage - Component Render:', {
@@ -259,14 +304,14 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
     setResult(null);
     setIsLoading(false);
     setAraziVasfi(''); // Arazi vasfını da sıfırla
-    setSelectedCoordinate(null); // Seçili koordinatları da temizle
+    setSelectedPoint(null); // Seçili koordinatları da temizle
     setIsManualSelection(false); // Manuel seçim flag'ini sıfırla
     
     console.log('✅ CalculationPage - calculationType değişiminde sıfırlama tamamlandı');
-  }, [calculationType]);
+  }, [calculationType, setSelectedPoint]);
 
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
-    setSelectedCoordinate(coordinate);
+    setSelectedPoint(coordinate);
     setIsManualSelection(true); // Manuel seçim olarak işaretle
     console.log('Manuel seçilen koordinat:', coordinate);
   };
@@ -286,7 +331,7 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
     }
     
     // Mahalle/İlçe seçimi için koordinat gösterimi ve marker'ı kaldır
-    setSelectedCoordinate(null);
+    setSelectedPoint(null);
     setIsManualSelection(false);
     
     console.log(`📍 ${location.tur}: ${location.ad}, ${location.ilce} seçildi (zoom: ${zoomLevel}) - Marker gösterilmiyor`);
@@ -353,8 +398,8 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
             center={[38.4237, 27.1428]} // İzmir merkezi
             zoom={10}
             onMapClick={handleMapClick}
-            selectedCoordinate={selectedCoordinate}
-            showMarker={isManualSelection} // Sadece manuel seçimde marker göster
+            selectedCoordinate={locationState.selectedPoint}
+            showMarker={isManualSelection && locationState.kmlCheckResult?.izmirinIcinde} // Sadece İzmir içinde ve manuel seçimde marker göster
             height="400px"
             kmlLayers={[
               {
@@ -362,47 +407,42 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
                 name: 'İzmir Sınırları',
                 style: {
                   color: '#006600',
-                  weight: 3,
-                  fillOpacity: 0.05
-                }
-              },
-              {
-                url: '/izmir_kapali_alan.kml', 
-                name: 'Yasak Kapalı Alanlar',
-                style: {
-                  color: 'red',
                   weight: 2,
-                  fillOpacity: 0.3,
-                  fillColor: 'red'
-                }
-              },
-              {
-                url: '/Büyük Ovalar İzmir.kml',
-                name: 'Büyük Ovalar',
-                style: {
-                  color: 'blue',
-                  weight: 2,
-                  fillOpacity: 0.2,
-                  fillColor: 'blue'
+                  fillOpacity: 0.0 // Tamamen şeffaf dolgu
                 }
               }
+              // Diğer KML katmanları gizlendi - sadece İzmir sınırları görünür
             ]}
           />
+
+          {/* Location Validation Info Card */}
+          {locationState.selectedPoint && (
+            <LocationValidationSection>
+              <LocationInfoCard
+                locationResult={locationState.kmlCheckResult}
+                calculationType={calculationType}
+                selectedPoint={locationState.selectedPoint}
+                onSuTahsisResponse={setSuTahsisBelgesi}
+              />
+            </LocationValidationSection>
+          )}
 
         </MapContainer>
       </MapSection>
       
       <ContentGrid>
         <FormSection>
-          <CalculationForm
-            calculationType={calculationType}
-            onResult={handleCalculationResult}
-            onCalculationStart={handleCalculationStart}
-            selectedCoordinate={isManualSelection ? selectedCoordinate : null}
-            onAraziVasfiChange={handleAraziVasfiChange}
-            emsalTuru={emsalTuru}
-            onEmsalTuruChange={handleEmsalTuruChange}
-          />
+          <FormBlockingOverlay $isBlocked={isFormBlocked}>
+            <CalculationForm
+              calculationType={calculationType}
+              onResult={handleCalculationResult}
+              onCalculationStart={handleCalculationStart}
+              selectedCoordinate={isManualSelection ? locationState.selectedPoint : null}
+              onAraziVasfiChange={handleAraziVasfiChange}
+              emsalTuru={emsalTuru}
+              onEmsalTuruChange={handleEmsalTuruChange}
+            />
+          </FormBlockingOverlay>
         </FormSection>
         
         {(() => {
@@ -428,6 +468,15 @@ const CalculationPage: React.FC<CalculationPageProps> = ({
         )}
       </ContentGrid>
     </PageContainer>
+  );
+};
+
+// Ana bileşen - LocationValidationProvider ile wrap edilmiş
+const CalculationPage: React.FC<CalculationPageProps> = (props) => {
+  return (
+    <LocationValidationProvider>
+      <CalculationPageContent {...props} />
+    </LocationValidationProvider>
   );
 };
 

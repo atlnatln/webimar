@@ -161,6 +161,7 @@ const LocationBadge = styled.span<{ $type: 'İLÇE' | 'MAHALLE' }>`
 // CSV parser fonksiyonu
 const parseCSV = (csvText: string): LocationData[] => {
   const lines = csvText.trim().split('\n');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const headers = lines[0].split(',');
   
   return lines.slice(1).map(line => {

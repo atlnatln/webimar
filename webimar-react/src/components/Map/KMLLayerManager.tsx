@@ -49,16 +49,8 @@ const KMLLayerManager: React.FC<KMLLayerManagerProps> = ({
                 fillOpacity: parsedLayer.style.fillOpacity || 0.2
               }),
               onEachFeature: (feature, layer) => {
-                // Add popup with feature information - sadece çizim modunda değilse
-                if (!isDrawingMode && (feature.properties?.name || feature.properties?.description)) {
-                  const popupContent = `
-                    <div>
-                      ${feature.properties.name ? `<h4>${feature.properties.name}</h4>` : ''}
-                      ${feature.properties.description ? `<p>${feature.properties.description}</p>` : ''}
-                    </div>
-                  `;
-                  layer.bindPopup(popupContent);
-                }
+                // Popup'ları tamamen devre dışı bırak - kullanıcı deneyimini bozmamak için
+                // İzmir sınırları için popup gösterilmesin
               }
             });
 

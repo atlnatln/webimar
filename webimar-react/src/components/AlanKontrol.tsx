@@ -77,14 +77,21 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   const { drawingMode, tarlaPolygon, dikiliPolygon, zeytinlikPolygon, editTrigger } = mapState;
 
   // Create setter functions for form fields
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setSecilenAgacTuru = (value: string) => updateField('secilenAgacTuru', value);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setSecilenAgacTipi = (value: 'normal' | 'bodur' | 'yaribodur') => updateField('secilenAgacTipi', value);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setAgacSayisi = (value: number) => updateField('agacSayisi', value);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setDikiliAlan = (value: number) => updateField('dikiliAlan', value);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setTarlaAlani = (value: number) => updateField('tarlaAlani', value);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setZeytinlikAlani = (value: number) => updateField('zeytinlikAlani', value);
 
   // Clear all polygons function
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const clearAllPolygons = () => {
     clearPolygons();
     clearAllTrees();

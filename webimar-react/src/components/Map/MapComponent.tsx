@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import styled from 'styled-components';
 import 'leaflet/dist/leaflet.css';
@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-const MapContainer_Styled = styled.div`
+const MapContainerStyled = styled.div`
   height: 500px;
   width: 100%;
   border-radius: 8px;
@@ -116,7 +116,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({
   };
 
   return (
-    <MapContainer_Styled style={{ height }}>
+    <MapContainerStyled style={{ height }}>
       
       <MapContainer
         center={center}
@@ -141,7 +141,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({
         {/* Harita tıklama olayı */}
         <MapEventHandler onMapClick={handleMapClick} mapRef={mapRef} />
       </MapContainer>
-    </MapContainer_Styled>
+    </MapContainerStyled>
   );
 });
 

@@ -92,7 +92,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     if (emsalTuru && emsalTuru !== formData.emsal_turu) {
       setFormData(prev => ({ ...prev, emsal_turu: emsalTuru as 'marjinal' | 'mutlak_dikili' }));
     }
-  }, [emsalTuru]);
+  }, [emsalTuru, formData.emsal_turu]);
 
   // API'den arazi tiplerini çek
   useEffect(() => {
