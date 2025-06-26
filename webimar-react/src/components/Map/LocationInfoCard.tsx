@@ -1,53 +1,57 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import BuyukOvaModal from '../Modals/BuyukOvaModal';
-import SuTahsisModal from '../Modals/SuTahsisModal';
 import { LocationCheckResult } from '../../utils/kmlChecker';
 
 interface LocationInfoCardProps {
   locationResult: LocationCheckResult | null;
   calculationType?: string;
   selectedPoint?: { lat: number; lng: number } | null;
-  onSuTahsisResponse?: (hasSuTahsis: boolean) => void;
 }
 
 const CardContainer = styled.div`
   background: white;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin: 16px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin: 12px 0;
   overflow: hidden;
   border: 1px solid #e5e7eb;
-`;
+  position: relative;
+  z-index: 10;
 
-const CardHeader = styled.div`
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: white;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const CardTitle = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  @media (max-width: 600px) {
+    margin: 8px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
+  }
 `;
 
 const CardBody = styled.div`
-  padding: 20px;
+  padding: 14px;
+
+  @media (max-width: 600px) {
+    padding: 8px 6px;
+  }
 `;
 
 const InfoItem = styled.div<{ $type?: 'info' | 'warning' | 'error' | 'success' }>`
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   border-radius: 8px;
-  margin-bottom: 12px;
-  border-left: 4px solid;
-  
+  margin-bottom: 10px;
+  border-left: 3px solid;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-size: 14px;
+
+  @media (max-width: 600px) {
+    padding: 7px 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
   ${props => {
     switch (props.$type) {
       case 'warning':
@@ -55,33 +59,41 @@ const InfoItem = styled.div<{ $type?: 'info' | 'warning' | 'error' | 'success' }
           background: linear-gradient(135deg, #fffbeb, #fef3c7);
           border-left-color: #f59e0b;
           color: #92400e;
+          border: 1px solid rgba(245, 158, 11, 0.2);
         `;
       case 'error':
         return `
           background: linear-gradient(135deg, #fef2f2, #fecaca);
           border-left-color: #ef4444;
           color: #991b1b;
+          border: 1px solid rgba(239, 68, 68, 0.2);
         `;
       case 'success':
         return `
           background: linear-gradient(135deg, #ecfdf5, #d1fae5);
           border-left-color: #10b981;
           color: #065f46;
+          border: 1px solid rgba(16, 185, 129, 0.2);
         `;
       default:
         return `
           background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
           border-left-color: #0ea5e9;
           color: #0c4a6e;
+          border: 1px solid rgba(14, 165, 233, 0.2);
         `;
     }
   }}
 `;
 
 const InfoIcon = styled.div`
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
+
+  @media (max-width: 600px) {
+    font-size: 15px;
+  }
 `;
 
 const InfoContent = styled.div`
@@ -89,30 +101,46 @@ const InfoContent = styled.div`
 `;
 
 const InfoText = styled.p`
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.3;
+
+  @media (max-width: 600px) {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
 `;
 
 const InfoSubtext = styled.p`
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.8;
-  line-height: 1.3;
+  line-height: 1.2;
+
+  @media (max-width: 600px) {
+    font-size: 11px;
+  }
 `;
 
 const ActionButton = styled.button`
   background: none;
   border: 2px solid currentColor;
   color: inherit;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: 8px;
-  
+  margin-top: 6px;
+
+  @media (max-width: 600px) {
+    padding: 3px 6px;
+    font-size: 10px;
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
   &:hover {
     background: currentColor;
     color: white;
@@ -121,78 +149,35 @@ const ActionButton = styled.button`
 
 const CoordinateInfo = styled.div`
   background: #f8fafc;
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 5px;
+  padding: 7px 8px;
   font-family: 'Courier New', monospace;
-  font-size: 13px;
+  font-size: 12px;
   color: #475569;
-  margin-top: 12px;
-`;
+  margin-top: 8px;
 
-// Hayvancılık tesisleri ve tarımsal ürün yıkama tesisleri
-const WATER_DEPENDENT_FACILITIES = [
-  'sut-sigirciligi',
-  'besi-sigirciligi',
-  'agil-kucukbas',
-  'yumurta-tavukciligi',
-  'et-tavukciligi',
-  'hindi-yetistiriciligi',
-  'kaz-yetistiriciligi',
-  'serbest-dolasan-tavukculuk',
-  'kanatliyem-uretimi',
-  'tarimsal-urun-yikama' // Bu da eklenebilir gelecekte
-];
+  @media (max-width: 600px) {
+    font-size: 11px;
+    padding: 5px 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+  }
+`;
 
 const LocationInfoCard: React.FC<LocationInfoCardProps> = ({ 
   locationResult, 
   calculationType,
-  selectedPoint,
-  onSuTahsisResponse
+  selectedPoint
 }) => {
   const [showBuyukOvaModal, setShowBuyukOvaModal] = useState(false);
-  const [showSuTahsisModal, setShowSuTahsisModal] = useState(false);
 
-  // Debug logging
-  console.log('🔍 LocationInfoCard render:', {
-    locationResult,
-    calculationType,
-    selectedPoint,
-    hasBuyukOva: locationResult?.buyukOvaIcinde,
-    hasKapaliSu: locationResult?.kapaliSuHavzasiIcinde,
-    needsWaterPermit: calculationType && WATER_DEPENDENT_FACILITIES.includes(calculationType)
-  });
-
-  if (!locationResult || !selectedPoint) {
-    console.log('❌ LocationInfoCard: No result or point, returning null');
+  if (!locationResult || !selectedPoint || !locationResult.buyukOvaIcinde) {
     return null;
   }
-
-  // Su tahsis belgesi gerekli mi kontrol et
-  const needsWaterPermit = calculationType && 
-    WATER_DEPENDENT_FACILITIES.includes(calculationType);
-
-  console.log('🔍 Water permit check:', {
-    calculationType,
-    needsWaterPermit,
-    waterFacilities: WATER_DEPENDENT_FACILITIES
-  });
-
-  const handleSuTahsisResponse = (hasSuTahsis: boolean) => {
-    onSuTahsisResponse?.(hasSuTahsis);
-    if (!hasSuTahsis) {
-      // Su tahsis belgesi yoksa modal açık kalır
-      return;
-    }
-    setShowSuTahsisModal(false);
-  };
 
   return (
     <>
       <CardContainer>
-        <CardHeader>
-          <span>📍</span>
-          <CardTitle>Seçilen Konum Analizi</CardTitle>
-        </CardHeader>
         
         <CardBody>
           {/* İzmir sınırları kontrolü - sadece dışındaysa göster */}
@@ -219,64 +204,34 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
             </>
           )}
 
-          {/* Büyük ova kontrolü (sadece İzmir içindeyse) */}
+          {/* Dinamik genişleme - Büyük ova */}
           {locationResult.izmirinIcinde && locationResult.buyukOvaIcinde && (
             <InfoItem $type="warning">
               <InfoIcon>⚠️</InfoIcon>
               <InfoContent>
                 <InfoText>Büyük Ova Koruma Alanı İçinde</InfoText>
-                <InfoSubtext>
-                  İşlemler normalden uzun sürecektir
-                </InfoSubtext>
-                {locationResult.detaylar.buyukOvaAdi && (
+                <div style={{ 
+                  padding: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                  borderRadius: '6px',
+                  border: '1px dashed rgba(245, 158, 11, 0.3)'
+                }}>
                   <InfoSubtext>
-                    Ova: {locationResult.detaylar.buyukOvaAdi}
+                    İşlemler normalden uzun sürecektir
                   </InfoSubtext>
-                )}
-                <ActionButton onClick={() => setShowBuyukOvaModal(true)}>
-                  📋 Detayları Gör
-                </ActionButton>
+                  {locationResult.detaylar.buyukOvaAdi && (
+                    <InfoSubtext>
+                      Ova: {locationResult.detaylar.buyukOvaAdi}
+                    </InfoSubtext>
+                  )}
+                </div>
               </InfoContent>
             </InfoItem>
           )}
 
-          {/* Kapalı su havzası kontrolü (sadece İzmir içindeyse ve gerekli tesisler için) */}
-          {locationResult.izmirinIcinde && 
-           locationResult.kapaliSuHavzasiIcinde && 
-           needsWaterPermit && (
-            <InfoItem $type="warning">
-              <InfoIcon>💧</InfoIcon>
-              <InfoContent>
-                <InfoText>Kapalı Su Havzası İçinde</InfoText>
-                <InfoSubtext>
-                  Su tahsis belgesi gereklidir
-                </InfoSubtext>
-                {locationResult.detaylar.kapaliSuHavzaAdi && (
-                  <InfoSubtext>
-                    Havza: {locationResult.detaylar.kapaliSuHavzaAdi}
-                  </InfoSubtext>
-                )}
-                <ActionButton onClick={() => setShowSuTahsisModal(true)}>
-                  💧 Su Belgesi Kontrol
-                </ActionButton>
-              </InfoContent>
-            </InfoItem>
-          )}
-
-          {/* Başarılı durum mesajı */}
-          {locationResult.izmirinIcinde && 
-           !locationResult.buyukOvaIcinde && 
-           (!needsWaterPermit || !locationResult.kapaliSuHavzasiIcinde) && (
-            <InfoItem $type="success">
-              <InfoIcon>🎉</InfoIcon>
-              <InfoContent>
-                <InfoText>Konum Uygun</InfoText>
-                <InfoSubtext>
-                  Seçtiğiniz konumda hesaplama yapabilirsiniz
-                </InfoSubtext>
-              </InfoContent>
-            </InfoItem>
-          )}
+          <ActionButton onClick={() => setShowBuyukOvaModal(true)}>
+            ❓ Daha Fazla Bilgi
+          </ActionButton>
         </CardBody>
       </CardContainer>
 
@@ -286,13 +241,6 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
         onClose={() => setShowBuyukOvaModal(false)}
         calculationType={calculationType}
         selectedPoint={selectedPoint}
-      />
-
-      <SuTahsisModal
-        isOpen={showSuTahsisModal}
-        onClose={() => setShowSuTahsisModal(false)}
-        onResponse={handleSuTahsisResponse}
-        calculationType={calculationType}
       />
     </>
   );

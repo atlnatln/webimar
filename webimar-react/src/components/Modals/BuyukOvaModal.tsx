@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styled from 'styled-components';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -165,6 +165,8 @@ const BuyukOvaModal: React.FC<BuyukOvaModalProps> = ({
   calculationType,
   selectedPoint
 }) => {
+  const mapRef = useRef<L.Map | null>(null);
+
   // Bağ evi ve sera hariç diğer yapılar için alternatif alan uyarısı
   const showAlternativeWarning = calculationType && 
     !['bag-evi', 'sera'].includes(calculationType);
@@ -243,8 +245,21 @@ const BuyukOvaModal: React.FC<BuyukOvaModalProps> = ({
               <MapSection>
                 <MapContainer
                   center={[selectedPoint.lat, selectedPoint.lng]}
-                  zoom={18}
+                  zoom={15}
                   style={{ height: '100%', width: '100%' }}
+                  ref={mapRef}
+                  whenReady={() => {
+                    console.log('🗺️ Modal haritası hazır');
+                    if (mapRef.current) {
+                      // Modal açıldıktan sonra zoom yap
+                      setTimeout(() => {
+                        if (mapRef.current) {
+                          mapRef.current.setView([selectedPoint.lat, selectedPoint.lng], 18);
+                          console.log('🗺️ Modal haritası zoom yapıldı:', selectedPoint);
+                        }
+                      }, 100);
+                    }
+                  }}
                 >
                   <TileLayer
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"

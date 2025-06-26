@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DetailedCalculationInput, CalculationResult, StructureType } from '../types';
 import { apiService } from '../services/api';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
+import { useLocationValidation } from '../contexts/LocationValidationContext';
 import AlanKontrol from './AlanKontrol';
 import BagEviCalculator from '../utils/bagEviCalculator';
 
@@ -77,6 +78,10 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectFocused, setSelectFocused] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
+  const [suTahsisBelgesi, setSuTahsisBelgesi] = useState<boolean>(false);
+  
+  // Location validation context
+  const { state: locationState } = useLocationValidation();
   
   // Dikili alan kontrolü için
   const [dikiliKontrolOpen, setDikiliKontrolOpen] = useState(false);
@@ -485,6 +490,17 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const validateForm = (): boolean => {
     // Use the separated FormValidator
     const validationResult = formValidator.validateForm(formData, calculationType);
+    
+    // Su tahsis belgesi kontrolü
+    const needsWaterPermit = WATER_DEPENDENT_FACILITIES.includes(calculationType) && 
+                            locationState.kmlCheckResult?.izmirinIcinde &&
+                            locationState.kmlCheckResult?.kapaliSuHavzasiIcinde;
+    
+    if (needsWaterPermit && !suTahsisBelgesi) {
+      validationResult.errors.suTahsisBelgesi = 'Su tahsis belgesi durumunuzu belirtmeniz gerekiyor';
+      validationResult.isValid = false;
+    }
+    
     setValidationErrors(validationResult.errors);
     return validationResult.isValid;
   };
@@ -799,6 +815,86 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                 )}
               </FormGroup>
 
+              {/* Su Tahsis Belgesi Kontrolü */}
+              {WATER_DEPENDENT_FACILITIES.includes(calculationType) && 
+               locationState.kmlCheckResult?.izmirinIcinde &&
+               locationState.kmlCheckResult?.kapaliSuHavzasiIcinde && (
+                <FormGroup>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    borderRadius: '8px',
+                    border: '2px solid rgba(14, 165, 233, 0.3)',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '12px',
+                      color: '#0c4a6e',
+                      fontWeight: '600'
+                    }}>
+                      <span>💧</span>
+                      <span>Kapalı Su Havzası Kontrolü</span>
+                    </div>
+                    <p style={{
+                      margin: '0 0 12px 0',
+                      color: '#0c4a6e',
+                      fontSize: '14px'
+                    }}>
+                      Bu tesis için kapalı su havzası içinde olduğunuz için su tahsis belgesi gereklidir.
+                    </p>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      color: '#0c4a6e',
+                      fontWeight: '600'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={suTahsisBelgesi}
+                        onChange={(e) => {
+                          setSuTahsisBelgesi(e.target.checked);
+                          // Checkbox işaretlendiğinde error'u temizle
+                          if (e.target.checked && validationErrors.suTahsisBelgesi) {
+                            setValidationErrors(prev => {
+                              const newErrors = { ...prev };
+                              delete newErrors.suTahsisBelgesi;
+                              return newErrors;
+                            });
+                          }
+                        }}
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          accentColor: '#0ea5e9'
+                        }}
+                      />
+                      <span>Su tahsis belgem mevcut</span>
+                      <RequiredIndicator>*</RequiredIndicator>
+                    </label>
+                    {!suTahsisBelgesi && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(12, 74, 110, 0.7)',
+                        marginTop: '6px',
+                        marginLeft: '24px'
+                      }}>
+                        Bu belge olmadan hesaplama yapılamaz
+                      </div>
+                    )}
+                    {validationErrors.suTahsisBelgesi && (
+                      <ErrorMessage style={{ marginTop: '8px' }}>
+                        {validationErrors.suTahsisBelgesi}
+                      </ErrorMessage>
+                    )}
+                  </div>
+                </FormGroup>
+              )}
+
               {/* Alan Kontrol Butonları - Konsolide Edilmiş */}
               {calculationType === 'bag-evi' && (
                 formData.arazi_vasfi === 'Tarla + herhangi bir dikili vasıflı' ||
@@ -933,3 +1029,18 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
 };
 
 export default CalculationForm;
+
+// Hayvancılık tesisleri ve tarımsal ürün yıkama tesisleri
+const WATER_DEPENDENT_FACILITIES = [
+  'sut-sigirciligi',
+  'besi-sigirciligi', 
+  'agil-kucukbas',
+  'kumes-yumurtaci',
+  'kumes-etci',
+  'kumes-hindi',
+  'kaz-ordek',
+  'kumes-gezen',
+  'hara',
+  'evcil-hayvan',
+  'yikama-tesisi'
+];

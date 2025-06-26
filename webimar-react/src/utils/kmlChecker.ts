@@ -189,8 +189,9 @@ export const checkLocationInKML = (lat: number, lng: number): KMLCheckResult => 
           result.kapaliSuHavzasiIcinde = true;
           result.detaylar.kapaliSuHavzaAdi = polygon.name;
           break;
-        }    }
-    if (result.kapaliSuHavzasiIcinde) break;
+        }
+      }
+      if (result.kapaliSuHavzasiIcinde) break;
     }
   }
   

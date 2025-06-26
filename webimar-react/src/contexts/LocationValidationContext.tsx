@@ -80,13 +80,25 @@ export const LocationValidationProvider: React.FC<{ children: React.ReactNode }>
   const canUserProceedWithCalculation = useCallback((calculationType?: string) => {
     const { kmlCheckResult, suTahsisBelgesi } = state;
     
+    console.log('🔍 canUserProceedWithCalculation check:', {
+      calculationType,
+      kmlCheckResult: kmlCheckResult ? {
+        izmirinIcinde: kmlCheckResult.izmirinIcinde,
+        kapaliSuHavzasiIcinde: kmlCheckResult.kapaliSuHavzasiIcinde
+      } : null,
+      suTahsisBelgesi,
+      state
+    });
+    
     // Konum seçilmemişse false
     if (!kmlCheckResult) {
+      console.log('❌ No KML result');
       return false;
     }
     
     // İzmir dışındaysa false
     if (!kmlCheckResult.izmirinIcinde) {
+      console.log('❌ Outside İzmir');
       return false;
     }
     
@@ -95,13 +107,14 @@ export const LocationValidationProvider: React.FC<{ children: React.ReactNode }>
       'sut-sigirciligi',
       'besi-sigirciligi',
       'agil-kucukbas',
-      'yumurta-tavukciligi',
-      'et-tavukciligi',
-      'hindi-yetistiriciligi',
-      'kaz-yetistiriciligi',
-      'serbest-dolasan-tavukculuk',
-      'kanatliyem-uretimi',
-      'tarimsal-urun-yikama'
+      'kumes-yumurtaci',  // yumurta tavukçuluğu
+      'kumes-etci',       // et tavukçuluğu
+      'kumes-hindi',      // hindi yetiştiriciliği
+      'kaz-ordek',        // kaz yetiştiriciliği
+      'kumes-gezen',      // serbest dolaşan tavukçuluk
+      'hara',             // at üretimi/yetiştiriciliği tesisi
+      'evcil-hayvan',     // evcil hayvan ve bilimsel araştırma hayvanı üretim tesisi
+      'yikama-tesisi'     // tarımsal ürün yıkama tesisi
     ];
 
     // Su tahsis belgesi gerekiyorsa ve kullanıcı cevaplamadıysa false
@@ -109,6 +122,7 @@ export const LocationValidationProvider: React.FC<{ children: React.ReactNode }>
         waterDependentFacilities.includes(calculationType) && 
         kmlCheckResult.kapaliSuHavzasiIcinde &&
         suTahsisBelgesi === null) {
+      console.log('❌ Water permit needed but not answered');
       return false;
     }
     
@@ -117,9 +131,11 @@ export const LocationValidationProvider: React.FC<{ children: React.ReactNode }>
         waterDependentFacilities.includes(calculationType) && 
         kmlCheckResult.kapaliSuHavzasiIcinde &&
         suTahsisBelgesi === false) {
+      console.log('❌ Water permit needed but user says no');
       return false;
     }
     
+    console.log('✅ User can proceed');
     return true;
   }, [state]);
 

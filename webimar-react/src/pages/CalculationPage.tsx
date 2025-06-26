@@ -163,7 +163,7 @@ const LocationValidationSection = styled.div`
   border: 1px solid #e9ecef;
 `;
 
-const FormBlockingOverlay = styled.div<{ $isBlocked: boolean }>`
+const FormBlockingOverlay = styled.div<{ $isBlocked: boolean; $blockReason?: string }>`
   position: relative;
   
   ${props => props.$isBlocked && `
@@ -171,7 +171,7 @@ const FormBlockingOverlay = styled.div<{ $isBlocked: boolean }>`
     opacity: 0.6;
     
     &::after {
-      content: "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor";
+      content: "${props.$blockReason || "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor"}";
       position: absolute;
       top: 50%;
       left: 50%;
@@ -184,6 +184,7 @@ const FormBlockingOverlay = styled.div<{ $isBlocked: boolean }>`
       z-index: 10;
       text-align: center;
       box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+      max-width: 300px;
     }
   `}
 `;
@@ -206,12 +207,53 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
   const { 
     state: locationState, 
     setSelectedPoint, 
-    setSuTahsisBelgesi,
     canUserProceedWithCalculation 
   } = useLocationValidation();
 
-  // Form engelleme durumu
+  // Form engelleme durumu ve nedeni
   const isFormBlocked = !canUserProceedWithCalculation(calculationType);
+  
+  const getBlockReason = () => {
+    const { kmlCheckResult, suTahsisBelgesi } = locationState;
+    
+    if (!kmlCheckResult) {
+      return "⚠️ Haritadan bir konum seçmeniz gerekiyor";
+    }
+    
+    if (!kmlCheckResult.izmirinIcinde) {
+      return "❌ İzmir sınırları içinde bir konum seçmeniz gerekiyor";
+    }
+    
+    // Su tahsis belgesi kontrolü
+    const waterDependentFacilities = [
+      'sut-sigirciligi', 'besi-sigirciligi', 'agil-kucukbas',
+      'kumes-yumurtaci', 'kumes-etci', 'kumes-hindi', 'kaz-ordek',
+      'kumes-gezen', 'hara', 'evcil-hayvan', 'yikama-tesisi'
+    ];
+    
+    if (calculationType && 
+        waterDependentFacilities.includes(calculationType) && 
+        kmlCheckResult.kapaliSuHavzasiIcinde &&
+        suTahsisBelgesi === null) {
+      return "💧 Su tahsis belgesi durumunu belirtmeniz gerekiyor";
+    }
+    
+    if (calculationType && 
+        waterDependentFacilities.includes(calculationType) && 
+        kmlCheckResult.kapaliSuHavzasiIcinde &&
+        suTahsisBelgesi === false) {
+      return "❌ Bu konumda su tahsis belgesi gereklidir";
+    }
+    
+    return "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor";
+  };
+  
+  console.log('🔍 CalculationPage - Form block check:', {
+    calculationType,
+    isFormBlocked,
+    blockReason: getBlockReason(),
+    canProceed: canUserProceedWithCalculation(calculationType)
+  });
 
   // Render Debug - Component her render edildiğinde çalışır
   console.log('🔄 CalculationPage - Component Render:', {
@@ -313,7 +355,8 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
   const handleMapClick = (coordinate: {lat: number, lng: number}) => {
     setSelectedPoint(coordinate);
     setIsManualSelection(true); // Manuel seçim olarak işaretle
-    console.log('Manuel seçilen koordinat:', coordinate);
+    console.log('🗺️ Manuel seçilen koordinat:', coordinate);
+    console.log('📍 Calculation type:', calculationType);
   };
 
   const toggleMapVisibility = () => {
@@ -423,7 +466,6 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
                 locationResult={locationState.kmlCheckResult}
                 calculationType={calculationType}
                 selectedPoint={locationState.selectedPoint}
-                onSuTahsisResponse={setSuTahsisBelgesi}
               />
             </LocationValidationSection>
           )}
@@ -433,7 +475,7 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
       
       <ContentGrid>
         <FormSection>
-          <FormBlockingOverlay $isBlocked={isFormBlocked}>
+          <FormBlockingOverlay $isBlocked={isFormBlocked} $blockReason={getBlockReason()}>
             <CalculationForm
               calculationType={calculationType}
               onResult={handleCalculationResult}
