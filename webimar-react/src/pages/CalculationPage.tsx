@@ -408,7 +408,8 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
                 style: {
                   color: '#006600',
                   weight: 2,
-                  fillOpacity: 0.0 // Tamamen şeffaf dolgu
+                  fillOpacity: 0,
+                  fillColor: 'transparent'
                 }
               }
               // Diğer KML katmanları gizlendi - sadece İzmir sınırları görünür

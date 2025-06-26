@@ -45,8 +45,8 @@ const KMLLayerManager: React.FC<KMLLayerManagerProps> = ({
                 color: parsedLayer.style.color || '#3388ff',
                 weight: parsedLayer.style.weight || 3,
                 opacity: parsedLayer.style.opacity || 1,
-                fillColor: parsedLayer.style.fillColor || parsedLayer.style.color || '#3388ff',
-                fillOpacity: parsedLayer.style.fillOpacity || 0.2
+                fillColor: 'transparent',
+                fillOpacity: 0
               }),
               onEachFeature: (feature, layer) => {
                 // Popup'ları tamamen devre dışı bırak - kullanıcı deneyimini bozmamak için

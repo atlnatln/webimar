@@ -152,13 +152,30 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
   const [showBuyukOvaModal, setShowBuyukOvaModal] = useState(false);
   const [showSuTahsisModal, setShowSuTahsisModal] = useState(false);
 
+  // Debug logging
+  console.log('🔍 LocationInfoCard render:', {
+    locationResult,
+    calculationType,
+    selectedPoint,
+    hasBuyukOva: locationResult?.buyukOvaIcinde,
+    hasKapaliSu: locationResult?.kapaliSuHavzasiIcinde,
+    needsWaterPermit: calculationType && WATER_DEPENDENT_FACILITIES.includes(calculationType)
+  });
+
   if (!locationResult || !selectedPoint) {
+    console.log('❌ LocationInfoCard: No result or point, returning null');
     return null;
   }
 
   // Su tahsis belgesi gerekli mi kontrol et
   const needsWaterPermit = calculationType && 
     WATER_DEPENDENT_FACILITIES.includes(calculationType);
+
+  console.log('🔍 Water permit check:', {
+    calculationType,
+    needsWaterPermit,
+    waterFacilities: WATER_DEPENDENT_FACILITIES
+  });
 
   const handleSuTahsisResponse = (hasSuTahsis: boolean) => {
     onSuTahsisResponse?.(hasSuTahsis);
@@ -178,34 +195,29 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
         </CardHeader>
         
         <CardBody>
-          {/* Koordinat bilgisi */}
-          <CoordinateInfo>
-            📍 Koordinatlar: {selectedPoint.lat.toFixed(6)}, {selectedPoint.lng.toFixed(6)}
-          </CoordinateInfo>
+          {/* İzmir sınırları kontrolü - sadece dışındaysa göster */}
+          {!locationResult.izmirinIcinde && (
+            <>
+              <CoordinateInfo>
+                📍 Koordinatlar: {selectedPoint.lat.toFixed(6)}, {selectedPoint.lng.toFixed(6)}
+              </CoordinateInfo>
 
-          {/* İzmir sınırları kontrolü */}
-          <InfoItem $type={locationResult.izmirinIcinde ? 'success' : 'error'}>
-            <InfoIcon>
-              {locationResult.izmirinIcinde ? '✅' : '❌'}
-            </InfoIcon>
-            <InfoContent>
-              <InfoText>
-                {locationResult.izmirinIcinde 
-                  ? 'İzmir sınırları içinde' 
-                  : 'İzmir sınırları dışında'}
-              </InfoText>
-              <InfoSubtext>
-                {locationResult.izmirinIcinde 
-                  ? 'Hesaplamalar yapılabilir' 
-                  : 'Hesaplamalarımız sadece İzmir ili sınırları içinde yapılabilmektedir. Lütfen harita üzerinden İzmir sınırları içinde bir nokta seçiniz.'}
-              </InfoSubtext>
-              {locationResult.detaylar.izmirBolgeAdi && (
-                <InfoSubtext>
-                  Bölge: {locationResult.detaylar.izmirBolgeAdi}
-                </InfoSubtext>
-              )}
-            </InfoContent>
-          </InfoItem>
+              <InfoItem $type="error">
+                <InfoIcon>❌</InfoIcon>
+                <InfoContent>
+                  <InfoText>İzmir sınırları dışında</InfoText>
+                  <InfoSubtext>
+                    Hesaplamalarımız sadece İzmir ili sınırları içinde yapılabilmektedir. Lütfen harita üzerinden İzmir sınırları içinde bir nokta seçiniz.
+                  </InfoSubtext>
+                  {locationResult.detaylar.izmirBolgeAdi && (
+                    <InfoSubtext>
+                      Bölge: {locationResult.detaylar.izmirBolgeAdi}
+                    </InfoSubtext>
+                  )}
+                </InfoContent>
+              </InfoItem>
+            </>
+          )}
 
           {/* Büyük ova kontrolü (sadece İzmir içindeyse) */}
           {locationResult.izmirinIcinde && locationResult.buyukOvaIcinde && (

@@ -83,6 +83,13 @@ export const loadKMLData = async (): Promise<void> => {
       kapaliSuHavzasi: kapaliSuHavzasi.length,
       izmirSiniri: izmirSiniri.length
     });
+    
+    // Debug: İlk polygon adlarını göster
+    console.log('🔍 Yüklenen poligonlar:', {
+      buyukOvalar: buyukOvalar.map(p => p.name),
+      kapaliSuHavzasi: kapaliSuHavzasi.map(p => p.name),
+      izmirSiniri: izmirSiniri.map(p => p.name)
+    });
   } catch (error) {
     console.error('❌ KML verileri yüklenirken hata:', error);
   }
@@ -142,6 +149,13 @@ export const checkLocationInKML = (lat: number, lng: number): KMLCheckResult => 
     detaylar: {}
   };
   
+  console.log('🔍 KML kontrol başlıyor:', { lat, lng, kmlDataLoaded: isKMLDataLoaded() });
+  console.log('📊 Mevcut KML verileri:', {
+    izmirSiniri: kmlData.izmirSiniri.length,
+    buyukOvalar: kmlData.buyukOvalar.length,
+    kapaliSuHavzasi: kmlData.kapaliSuHavzasi.length
+  });
+  
   // İzmir sınırları kontrolü
   for (const polygon of kmlData.izmirSiniri) {
     for (const coords of polygon.coordinates) {
@@ -175,11 +189,12 @@ export const checkLocationInKML = (lat: number, lng: number): KMLCheckResult => 
           result.kapaliSuHavzasiIcinde = true;
           result.detaylar.kapaliSuHavzaAdi = polygon.name;
           break;
-        }
-      }
-      if (result.kapaliSuHavzasiIcinde) break;
+        }    }
+    if (result.kapaliSuHavzasiIcinde) break;
     }
   }
+  
+  console.log('✅ KML kontrol sonucu:', result);
   
   return result;
 };

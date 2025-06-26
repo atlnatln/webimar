@@ -234,8 +234,8 @@ const BuyukOvaModal: React.FC<BuyukOvaModalProps> = ({
             </LegalText>
           </LegalSection>
 
-          {/* Seçilen nokta haritası - sadece bağ evi modalında göster */}
-          {selectedPoint && calculationType === 'bag-evi' && (
+          {/* Seçilen nokta haritası - tüm yapı türleri için göster */}
+          {selectedPoint && (
             <>
               <MapTitle>
                 📍 Seçtiğiniz Konum
@@ -243,14 +243,22 @@ const BuyukOvaModal: React.FC<BuyukOvaModalProps> = ({
               <MapSection>
                 <MapContainer
                   center={[selectedPoint.lat, selectedPoint.lng]}
-                  zoom={15}
+                  zoom={18}
                   style={{ height: '100%', width: '100%' }}
                 >
                   <TileLayer
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                     attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
                   />
-                  <Marker position={[selectedPoint.lat, selectedPoint.lng]} />
+                  <Marker 
+                    position={[selectedPoint.lat, selectedPoint.lng]}
+                    eventHandlers={{
+                      add: () => {
+                        // Marker eklendiğinde haritayı merkeze odakla
+                        console.log('🗺️ Modal haritası marker eklendi - Zoom: 18');
+                      }
+                    }}
+                  />
                 </MapContainer>
               </MapSection>
             </>
