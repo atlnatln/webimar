@@ -115,6 +115,45 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({
     onMapClick?.(coordinate);
   };
 
+  // İzmir KML sınırlarına fit ol
+  useEffect(() => {
+    if (!mapRef.current || !kmlLayers.length) return;
+    // Sadece İzmir sınırları katmanı için fitBounds uygula
+    const izmirKml = kmlLayers.find(k => k.name.includes('İzmir'));
+    if (!izmirKml) return;
+    fetch(izmirKml.url)
+      .then(res => res.text())
+      .then(kmlString => {
+        // KML'i GeoJSON'a çevir
+        const parser = new DOMParser();
+        const kmlDoc = parser.parseFromString(kmlString, 'text/xml');
+        const polygons = kmlDoc.getElementsByTagName('Polygon');
+        let allCoords: [number, number][] = [];
+        for (let i = 0; i < polygons.length; i++) {
+          const linearRing = polygons[i].getElementsByTagName('LinearRing')[0];
+          if (!linearRing) continue;
+          const coordinates = linearRing.getElementsByTagName('coordinates')[0];
+          if (!coordinates) continue;
+          const coordString = coordinates.textContent?.trim();
+          if (!coordString) continue;
+          const coords = coordString.split(/\s+/).map(c => {
+            const [lng, lat] = c.split(',').map(Number);
+            return [lat, lng] as [number, number];
+          });
+          allCoords = allCoords.concat(coords);
+        }
+        if (allCoords.length && mapRef.current) {
+          const bounds = L.latLngBounds(allCoords);
+          // fitBounds ile başla, ardından bir miktar daha zoom yap
+          mapRef.current.fitBounds(bounds, { padding: [window.innerWidth <= 600 ? 10 : 40, window.innerWidth <= 600 ? 10 : 40] });
+          setTimeout(() => {
+            const currentZoom = mapRef.current!.getZoom();
+            mapRef.current!.setZoom(currentZoom + 1); // 1 seviye daha yakınlaştır
+          }, 400);
+        }
+      });
+  }, [kmlLayers]);
+
   return (
     <MapContainerStyled style={{ height }}>
       

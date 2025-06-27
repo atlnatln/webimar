@@ -45,6 +45,8 @@ const SearchInputContainer = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 12px 16px 12px 40px;
   border: 2px solid #e0e6ed;
   border-radius: 8px;
@@ -52,22 +54,28 @@ const SearchInput = styled.input`
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   
+  @media (max-width: 600px) {
+    padding: 10px 8px 10px 34px;
+    font-size: 14px;
+    border-radius: 6px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100vw;
+  }
+  
   &:focus {
     outline: none;
     border-color: #3498db;
     box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
     transform: translateY(-1px);
   }
-  
   &::placeholder {
     color: #999;
     transition: color 0.2s ease;
   }
-  
   &:focus::placeholder {
     color: #bbb;
   }
-  
   &:disabled {
     background-color: #f5f7fa;
     cursor: not-allowed;
@@ -83,6 +91,11 @@ const SearchIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 18px;
+  @media (max-width: 600px) {
+    left: 8px;
+    font-size: 15px;
+  }
 `;
 
 const LoadingSpinner = styled.div`
@@ -118,6 +131,11 @@ const SuggestionsList = styled.ul`
   margin: 0;
   padding: 0;
   list-style: none;
+  @media (max-width: 600px) {
+    border-radius: 0 0 6px 6px;
+    max-height: 180px;
+    font-size: 13px;
+  }
 `;
 
 const SuggestionItem = styled.li<{ $isHighlighted: boolean }>`
@@ -126,11 +144,13 @@ const SuggestionItem = styled.li<{ $isHighlighted: boolean }>`
   border-bottom: 1px solid #f0f0f0;
   transition: background-color 0.2s ease;
   background-color: ${props => props.$isHighlighted ? '#f8f9fa' : 'white'};
-  
+  @media (max-width: 600px) {
+    padding: 9px 12px;
+    font-size: 13px;
+  }
   &:hover {
     background-color: #f8f9fa;
   }
-  
   &:last-child {
     border-bottom: none;
   }

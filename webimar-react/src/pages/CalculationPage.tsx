@@ -105,8 +105,12 @@ const MapHeader = styled.div<{ $isOpen: boolean }>`
   min-height: 60px;
   position: relative;
   
-  @media (max-width: 768px) {
-    padding: 12px 16px;
+  @media (max-width: 600px) {
+    padding: 8px 10px;
+    min-height: 44px;
+    border-radius: 0;
+    background: #f8fafc;
+    gap: 6px;
   }
 `;
 
@@ -119,8 +123,9 @@ const MapTitle = styled.h3`
   align-items: center;
   gap: 8px;
   
-  @media (max-width: 768px) {
-    font-size: 16px;
+  @media (max-width: 600px) {
+    font-size: 15px;
+    gap: 4px;
   }
 `;
 
@@ -146,6 +151,12 @@ const MapToggleButton = styled.button<{ $isOpen: boolean }>`
   &:active {
     transform: translateY(0);
   }
+  @media (max-width: 600px) {
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 5px;
+    gap: 3px;
+  }
 `;
 
 const MapContainer = styled.div<{ $isOpen: boolean }>`
@@ -161,32 +172,6 @@ const LocationValidationSection = styled.div`
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
-`;
-
-const FormBlockingOverlay = styled.div<{ $isBlocked: boolean; $blockReason?: string }>`
-  position: relative;
-  
-  ${props => props.$isBlocked && `
-    pointer-events: none;
-    opacity: 0.6;
-    
-    &::after {
-      content: "${props.$blockReason || "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor"}";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #dc3545;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-weight: 600;
-      z-index: 10;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-      max-width: 300px;
-    }
-  `}
 `;
 
 // Ana sayfa bileşeni - location validation ile wrap edilmiş
@@ -210,47 +195,44 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
     canUserProceedWithCalculation 
   } = useLocationValidation();
 
-  // Form engelleme durumu ve nedeni
-  const isFormBlocked = !canUserProceedWithCalculation(calculationType);
-  
   const getBlockReason = () => {
     const { kmlCheckResult, suTahsisBelgesi } = locationState;
-    
+
     if (!kmlCheckResult) {
       return "⚠️ Haritadan bir konum seçmeniz gerekiyor";
     }
-    
+
     if (!kmlCheckResult.izmirinIcinde) {
       return "❌ İzmir sınırları içinde bir konum seçmeniz gerekiyor";
     }
-    
+
     // Su tahsis belgesi kontrolü
     const waterDependentFacilities = [
       'sut-sigirciligi', 'besi-sigirciligi', 'agil-kucukbas',
       'kumes-yumurtaci', 'kumes-etci', 'kumes-hindi', 'kaz-ordek',
       'kumes-gezen', 'hara', 'evcil-hayvan', 'yikama-tesisi'
     ];
-    
+
     if (calculationType && 
         waterDependentFacilities.includes(calculationType) && 
         kmlCheckResult.kapaliSuHavzasiIcinde &&
         suTahsisBelgesi === null) {
       return "💧 Su tahsis belgesi durumunu belirtmeniz gerekiyor";
     }
-    
+
     if (calculationType && 
         waterDependentFacilities.includes(calculationType) && 
         kmlCheckResult.kapaliSuHavzasiIcinde &&
         suTahsisBelgesi === false) {
       return "❌ Bu konumda su tahsis belgesi gereklidir";
     }
-    
+
     return "⚠️ Haritadan geçerli bir konum seçmeniz gerekiyor";
   };
   
   console.log('🔍 CalculationPage - Form block check:', {
     calculationType,
-    isFormBlocked,
+    // isFormBlocked,
     blockReason: getBlockReason(),
     canProceed: canUserProceedWithCalculation(calculationType)
   });
@@ -380,6 +362,19 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
     console.log(`📍 ${location.tur}: ${location.ad}, ${location.ilce} seçildi (zoom: ${zoomLevel}) - Marker gösterilmiyor`);
   };
 
+  // Mobilde Leaflet attribution'ı gizle
+  useEffect(() => {
+    if (window.innerWidth <= 600) {
+      const style = document.createElement('style');
+      style.innerHTML = `.leaflet-control-attribution { display: none !important; }`;
+      style.setAttribute('data-hide-leaflet-attribution', 'true');
+      document.head.appendChild(style);
+      return () => {
+        document.querySelectorAll('style[data-hide-leaflet-attribution]').forEach(el => el.remove());
+      };
+    }
+  }, []);
+
   return (
     <PageContainer>
       <PageHeader>
@@ -409,15 +404,15 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
         <MapContainer $isOpen={isMapVisible}>
           {/* Konum Arama Bölümü */}
           <div style={{ 
-            marginBottom: '16px', 
-            padding: '16px', 
+            marginBottom: window.innerWidth <= 600 ? '12px' : '16px', 
+            padding: window.innerWidth <= 600 ? '12px' : '16px', 
             background: '#f8f9fa', 
-            borderRadius: '8px',
+            borderRadius: window.innerWidth <= 600 ? '6px' : '8px',
             border: '1px solid #e9ecef'
           }}>
             <div style={{ 
-              marginBottom: '8px', 
-              fontSize: '14px', 
+              marginBottom: window.innerWidth <= 600 ? '6px' : '8px', 
+              fontSize: window.innerWidth <= 600 ? '12px' : '14px', 
               fontWeight: '600', 
               color: '#2c3e50' 
             }}>
@@ -428,8 +423,8 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
               placeholder="İlçe veya mahalle adı yazın... (örn: Karşıyaka, Bornova)"
             />
             <div style={{ 
-              marginTop: '8px', 
-              fontSize: '12px', 
+              marginTop: window.innerWidth <= 600 ? '6px' : '8px', 
+              fontSize: window.innerWidth <= 600 ? '10px' : '12px', 
               color: '#6c757d' 
             }}>
               💡 İlçe veya mahalle seçtiğinizde harita otomatik olarak o konuma odaklanacak
@@ -475,17 +470,15 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
       
       <ContentGrid>
         <FormSection>
-          <FormBlockingOverlay $isBlocked={isFormBlocked} $blockReason={getBlockReason()}>
-            <CalculationForm
-              calculationType={calculationType}
-              onResult={handleCalculationResult}
-              onCalculationStart={handleCalculationStart}
-              selectedCoordinate={isManualSelection ? locationState.selectedPoint : null}
-              onAraziVasfiChange={handleAraziVasfiChange}
-              emsalTuru={emsalTuru}
-              onEmsalTuruChange={handleEmsalTuruChange}
-            />
-          </FormBlockingOverlay>
+          <CalculationForm
+            calculationType={calculationType}
+            onResult={handleCalculationResult}
+            onCalculationStart={handleCalculationStart}
+            selectedCoordinate={isManualSelection ? locationState.selectedPoint : null}
+            onAraziVasfiChange={handleAraziVasfiChange}
+            emsalTuru={emsalTuru}
+            onEmsalTuruChange={handleEmsalTuruChange}
+          />
         </FormSection>
         
         {(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import BuyukOvaModal from '../Modals/BuyukOvaModal';
 import { LocationCheckResult } from '../../utils/kmlChecker';
@@ -122,31 +122,6 @@ const InfoSubtext = styled.p`
   }
 `;
 
-const ActionButton = styled.button`
-  background: none;
-  border: 2px solid currentColor;
-  color: inherit;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 6px;
-
-  @media (max-width: 600px) {
-    padding: 3px 6px;
-    font-size: 10px;
-    border-radius: 4px;
-    margin-top: 4px;
-  }
-
-  &:hover {
-    background: currentColor;
-    color: white;
-  }
-`;
-
 const CoordinateInfo = styled.div`
   background: #f8fafc;
   border-radius: 5px;
@@ -170,6 +145,22 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
   selectedPoint
 }) => {
   const [showBuyukOvaModal, setShowBuyukOvaModal] = useState(false);
+
+  // Mobilde Leaflet attribution'ı gizle
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media (max-width: 600px) {
+        .leaflet-control-attribution {
+          display: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   if (!locationResult || !selectedPoint || !locationResult.buyukOvaIcinde) {
     return null;
@@ -209,29 +200,30 @@ const LocationInfoCard: React.FC<LocationInfoCardProps> = ({
             <InfoItem $type="warning">
               <InfoIcon>⚠️</InfoIcon>
               <InfoContent>
-                <InfoText>Büyük Ova Koruma Alanı İçinde</InfoText>
-                <div style={{ 
-                  padding: '8px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                  borderRadius: '6px',
-                  border: '1px dashed rgba(245, 158, 11, 0.3)'
-                }}>
-                  <InfoSubtext>
-                    İşlemler normalden uzun sürecektir
-                  </InfoSubtext>
-                  {locationResult.detaylar.buyukOvaAdi && (
-                    <InfoSubtext>
-                      Ova: {locationResult.detaylar.buyukOvaAdi}
-                    </InfoSubtext>
-                  )}
-                </div>
+                <InfoText>
+                  Büyük Ova Koruma Alanı İçinde
+                  <button
+                    type="button"
+                    aria-label="Büyük Ova hakkında bilgi al"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#f59e0b',
+                      fontSize: '15px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      marginLeft: '6px',
+                      lineHeight: 1,
+                      verticalAlign: 'middle'
+                    }}
+                    onClick={() => setShowBuyukOvaModal(true)}
+                  >
+                    ❓
+                  </button>
+                </InfoText>
               </InfoContent>
             </InfoItem>
           )}
-
-          <ActionButton onClick={() => setShowBuyukOvaModal(true)}>
-            ❓ Daha Fazla Bilgi
-          </ActionButton>
         </CardBody>
       </CardContainer>
 

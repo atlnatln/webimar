@@ -28,6 +28,7 @@ import {
   AnimatedSelect,
   TypewriterPlaceholder
 } from './CalculationForm/styles';
+import SuTahsisModal from './Modals/SuTahsisModal';
 
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
 
@@ -79,6 +80,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [selectFocused, setSelectFocused] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
   const [suTahsisBelgesi, setSuTahsisBelgesi] = useState<boolean>(false);
+  const [showSuTahsisModal, setShowSuTahsisModal] = useState(false);
   
   // Location validation context
   const { state: locationState } = useLocationValidation();
@@ -820,77 +822,105 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                locationState.kmlCheckResult?.izmirinIcinde &&
                locationState.kmlCheckResult?.kapaliSuHavzasiIcinde && (
                 <FormGroup>
-                  <div style={{
-                    padding: '16px',
-                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                    borderRadius: '8px',
-                    border: '2px solid rgba(14, 165, 233, 0.3)',
-                    marginBottom: '16px'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '12px',
-                      color: '#0c4a6e',
-                      fontWeight: '600'
-                    }}>
+                  <div
+                    style={{
+                      padding: window.innerWidth <= 600 ? '8px' : '16px',
+                      backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                      borderRadius: window.innerWidth <= 600 ? '4px' : '8px',
+                      border: '2px solid rgba(14, 165, 233, 0.3)',
+                      marginBottom: window.innerWidth <= 600 ? '8px' : '16px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: window.innerWidth <= 600 ? '4px' : '8px',
+                        marginBottom: window.innerWidth <= 600 ? '4px' : '12px',
+                        color: '#0c4a6e',
+                        fontWeight: 600,
+                        fontSize: window.innerWidth <= 600 ? '12px' : 'inherit',
+                      }}
+                    >
                       <span>💧</span>
                       <span>Kapalı Su Havzası Kontrolü</span>
                     </div>
-                    <p style={{
-                      margin: '0 0 12px 0',
-                      color: '#0c4a6e',
-                      fontSize: '14px'
-                    }}>
+                    <p
+                      style={{
+                        margin: window.innerWidth <= 600 ? '0 0 6px 0' : '0 0 12px 0',
+                        color: '#0c4a6e',
+                        fontSize: window.innerWidth <= 600 ? '11px' : '14px',
+                      }}
+                    >
                       Bu tesis için kapalı su havzası içinde olduğunuz için su tahsis belgesi gereklidir.
                     </p>
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      cursor: 'pointer',
-                      color: '#0c4a6e',
-                      fontWeight: '600'
-                    }}>
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: window.innerWidth <= 600 ? '6px' : '8px',
+                        cursor: 'pointer',
+                        color: '#0c4a6e',
+                        fontWeight: 600,
+                        fontSize: window.innerWidth <= 600 ? '11px' : 'inherit',
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={suTahsisBelgesi}
                         onChange={(e) => {
                           setSuTahsisBelgesi(e.target.checked);
-                          // Checkbox işaretlendiğinde error'u temizle
-                          if (e.target.checked && validationErrors.suTahsisBelgesi) {
-                            setValidationErrors(prev => {
-                              const newErrors = { ...prev };
-                              delete newErrors.suTahsisBelgesi;
-                              return newErrors;
-                            });
-                          }
+                          setValidationErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.suTahsisBelgesi;
+                            return next;
+                          });
                         }}
                         style={{
-                          width: '16px',
-                          height: '16px',
-                          accentColor: '#0ea5e9'
+                          width: window.innerWidth <= 600 ? '12px' : '16px',
+                          height: window.innerWidth <= 600 ? '12px' : '16px',
+                          accentColor: 'rgb(14, 165, 233)'
                         }}
                       />
                       <span>Su tahsis belgem mevcut</span>
-                      <RequiredIndicator>*</RequiredIndicator>
+                      <span className="sc-jVxTAy eMzjLw">*</span>
                     </label>
-                    {!suTahsisBelgesi && (
-                      <div style={{
-                        fontSize: '12px',
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: window.innerWidth <= 600 ? '4px' : '6px',
+                        fontSize: window.innerWidth <= 600 ? '10px' : '12px',
                         color: 'rgba(12, 74, 110, 0.7)',
-                        marginTop: '6px',
-                        marginLeft: '24px'
-                      }}>
-                        Bu belge olmadan hesaplama yapılamaz
-                      </div>
-                    )}
-                    {validationErrors.suTahsisBelgesi && (
-                      <ErrorMessage style={{ marginTop: '8px' }}>
-                        {validationErrors.suTahsisBelgesi}
-                      </ErrorMessage>
-                    )}
+                        marginTop: window.innerWidth <= 600 ? '2px' : '6px',
+                        marginLeft: window.innerWidth <= 600 ? '12px' : '24px',
+                      }}
+                    >
+                      <span>Bu belge olmadan hesaplama yapılamaz</span>
+                      <button
+                        type="button"
+                        aria-label="Su tahsis belgesi hakkında bilgi al"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#3b82f6',
+                          fontSize: window.innerWidth <= 600 ? '12px' : '15px',
+                          cursor: 'pointer',
+                          padding: 0,
+                          marginLeft: '2px',
+                          lineHeight: 1
+                        }}
+                        onClick={() => setShowSuTahsisModal(true)}
+                      >
+                        ❓
+                      </button>
+                    </div>
+                    <SuTahsisModal
+                      isOpen={showSuTahsisModal}
+                      onClose={() => setShowSuTahsisModal(false)}
+                      onResponse={() => setShowSuTahsisModal(false)}
+                      calculationType={calculationType}
+                    />
                   </div>
                 </FormGroup>
               )}
