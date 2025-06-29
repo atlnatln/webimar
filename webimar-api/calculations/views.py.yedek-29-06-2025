@@ -1,0 +1,1354 @@
+from django.shortcuts import render
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+import logging
+from django.utils.timezone import now
+
+# Import hesaplama modülleri
+from .tarimsal_yapilar import (
+    buyukbas, kucukbas, kanatli, hara, 
+    aricilik, mantar_tesisi, sera, solucan_tesisi, ipek_bocekciligi,
+    bag_evi, tarimsal_silo, lisansli_depo, evcil_hayvan, yikama_tesisi, kurutma_tesisi, meyve_sebze_kurutma, zeytinyagi_fabrikasi, su_depolama, su_kuyulari, zeytinyagi_uretim_tesisi, soguk_hava_deposu, tarimsal_amacli_depo, constants
+)
+from .models import CalculationHistory
+
+logger = logging.getLogger('calculations')
+
+@api_view(['GET'])
+def health_check(request):
+    """Calculations app health check endpoint"""
+    return Response({
+        'status': 'ok',
+        'app': 'calculations',
+        'message': 'Calculations app is running successfully'
+    })
+
+# Hayvancılık Tesisleri API Endpoints
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_hara(request):
+    """At yetiştiriciliği tesisi (hara) hesaplaması (ID: 24)"""
+    try:
+        logger.info(f"[HARA] API request.data: {request.data}")
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"[HARA] emsal_orani: {emsal_orani}")
+        alan_m2 = request.data.get('alan_m2')
+        arazi_vasfi = request.data.get('arazi_vasfi', 'Dikili tarım')
+        logger.info(f"[HARA] alan_m2: {alan_m2}, arazi_vasfi: {arazi_vasfi}")
+        if alan_m2 is not None:
+            arazi_bilgileri = {
+                'alan_m2': float(alan_m2),
+                'buyukluk_m2': float(alan_m2),
+                'arazi_vasfi': arazi_vasfi
+            }
+            yapi_bilgileri = {}
+        else:
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+        logger.info(f"[HARA] arazi_bilgileri: {arazi_bilgileri}, yapi_bilgileri: {yapi_bilgileri}")
+        result = hara.hara_tesisi_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        logger.info(f"[HARA] result: {result}")
+        # Hesaplama geçmişine kaydet (ana akışı bozmaz)
+        try:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type='Hara Tesisi',
+                parameters=dict(request.data),
+                result=result if isinstance(result, dict) else {'result': str(result)},
+                created_at=now()
+            )
+        except Exception as log_err:
+            logger.error(f"[HARA] CalculationHistory kayıt hatası: {log_err}")
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Hara tesisi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"[HARA] calculation error: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Hara tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_evcil_hayvan(request):
+    """Evcil hayvan ve bilimsel araştırma hayvanı üretim tesisi hesaplaması (ID: 26)"""
+    try:
+        logger.info(f"Evcil hayvan calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Frontend'den gelen veri yapısını backend beklentisine uyarla
+        alan_m2 = request.data.get('alan_m2')
+        arazi_vasfi = request.data.get('arazi_vasfi', 'Dikili tarım')
+        su_tahsis_belgesi = request.data.get('su_tahsis_belgesi', False)
+        yas_kapali_alan_durumu = request.data.get('yas_kapali_alan_durumu', 'dışında')
+        
+        # Frontend veri yapısını kontrol et
+        if alan_m2 is not None:
+            # Frontend formatından backend formatına dönüştür
+            arazi_bilgileri = {
+                'buyukluk_m2': float(alan_m2),
+                'arazi_vasfi': arazi_vasfi,
+                'su_tahsis_belgesi': str(su_tahsis_belgesi).lower(),
+                'yas_kapali_alan_durumu': yas_kapali_alan_durumu
+            }
+            yapi_bilgileri = {}
+        else:
+            # Eski format desteği
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+        
+        result = evcil_hayvan.evcil_hayvan_tesisi_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Evcil hayvan tesisi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Evcil hayvan calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Evcil hayvan tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_ipek_bocekciligi(request):
+    """İpek böcekçiliği hesaplaması (ID: 25)"""
+    try:
+        logger.info(f"Ipek bocekciligi calculation request: {request.data}")
+        
+        # Frontend'den gelen veri yapısını backend beklentisine uyarla
+        alan_m2 = request.data.get('alan_m2')
+        dut_bahcesi_var_mi = request.data.get('dut_bahcesi_var_mi', True)
+        arazi_vasfi = request.data.get('arazi_vasfi', 'Dikili tarım')
+        genel_emsal_orani = request.data.get('genel_emsal_orani', 0.20)
+        
+        # Frontend veri yapısını kontrol et
+        if alan_m2 is not None:
+            # Frontend formatından backend formatına dönüştür
+            arazi_bilgileri = {
+                'alan_m2': float(alan_m2),
+                'buyukluk_m2': float(alan_m2),  # hem alan_m2 hem buyukluk_m2 desteği
+                'arazi_vasfi': arazi_vasfi
+            }
+            yapi_bilgileri = {
+                'dut_bahcesi_var_mi': dut_bahcesi_var_mi  # dut_bahcesi_var_mi yapi_bilgileri içinde olmalı
+            }
+        else:
+            # Eski format desteği
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+        
+        result = ipek_bocekciligi.hesapla_ipek_bocekciligi_kurallari(arazi_bilgileri, yapi_bilgileri, genel_emsal_orani)
+        
+        return Response({
+            'success': True,
+            'sonuc': result,  # Frontend'in beklediği 'sonuc' field'ı
+            'message': 'İpek böcekçiliği hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Ipek bocekciligi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'İpek böcekçiliği hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+# Hayvancılık Tesisleri Endpoints (ID'lere göre)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_sut_sigirciligi(request):
+    """Süt sığırcılığı hesaplaması (ID: 17)"""
+    try:
+        logger.info(f"Sut sigirciligi calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de buyukluk_m2 destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        buyukluk_m2 = request.data.get('buyukluk_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        elif buyukluk_m2:
+            arazi_alani = float(buyukluk_m2)
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+            
+            result = buyukbas.sut_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+            
+            return Response({
+                'success': True,
+                'results': result,
+                'message': 'Süt sığırcılığı hesaplama başarıyla tamamlandı'
+            })
+        
+        # Yeni format: arazi_bilgileri ve yapi_bilgileri structure'ını oluştur
+        arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+        yapi_bilgileri = {}
+        
+        result = buyukbas.sut_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Süt sığırcılığı hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Sut sigirciligi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Süt sığırcılığı hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_besi_sigirciligi(request):
+    """Besi sığırcılığı hesaplaması (ID: 27)"""
+    try:
+        logger.info(f"Besi sigirciligi calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de buyukluk_m2 destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        buyukluk_m2 = request.data.get('buyukluk_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        elif buyukluk_m2:
+            arazi_alani = float(buyukluk_m2)
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+            
+            result = buyukbas.besi_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+            
+            return Response({
+                'success': True,
+                'results': result,
+                'message': 'Besi sığırcılığı hesaplama başarıyla tamamlandı'
+            })
+        
+        # Yeni format: arazi_bilgileri ve yapi_bilgileri structure'ını oluştur
+        arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+        yapi_bilgileri = {}
+        
+        result = buyukbas.besi_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Besi sığırcılığı hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Besi sigirciligi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Besi sığırcılığı hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_agil_kucukbas(request):
+    """Ağıl (küçükbaş hayvan barınağı) hesaplaması (ID: 18)"""
+    try:
+        logger.info(f"Agil kucukbas calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de buyukluk_m2 destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        buyukluk_m2 = request.data.get('buyukluk_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        elif buyukluk_m2:
+            arazi_alani = float(buyukluk_m2)
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+            
+            result = kucukbas.kucukbas_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+            
+            return Response({
+                'success': True,
+                'results': result,
+                'message': 'Ağıl hesaplama başarıyla tamamlandı'
+            })
+        
+        # Yeni format: arazi_bilgileri ve yapi_bilgileri structure'ını oluştur
+        arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+        yapi_bilgileri = {}
+        
+        result = kucukbas.kucukbas_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Ağıl hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Agil kucukbas calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Ağıl hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kumes_yumurtaci(request):
+    """Kümes (yumurtacı tavuk) hesaplaması (ID: 19)"""
+    try:
+        logger.info(f"Kumes yumurtaci calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de alan destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        else:
+            return Response({
+                'success': False,
+                'message': 'alan_m2, alan veya arazi_buyuklugu_m2 parametresi gereklidir',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if arazi_alani <= 0:
+            return Response({
+                'success': False,
+                'message': 'Alan 0\'dan büyük olmalıdır',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = kanatli.yumurtaci_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'message': 'Yumurtacı tavuk kümesi hesaplama başarıyla tamamlandı',
+            'data': result
+        })
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Yumurtacı tavuk kümesi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kumes_etci(request):
+    """Kümes (etçi tavuk) hesaplaması (ID: 20)"""
+    try:
+        logger.info(f"Kumes etci calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de alan destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        else:
+            return Response({
+                'success': False,
+                'message': 'alan_m2, alan veya arazi_buyuklugu_m2 parametresi gereklidir',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if arazi_alani <= 0:
+            return Response({
+                'success': False,
+                'message': 'Alan 0\'dan büyük olmalıdır',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = kanatli.etci_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'message': 'Etçi tavuk kümesi hesaplama başarıyla tamamlandı',
+            'data': result
+        })
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Etçi tavuk kümesi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kumes_gezen(request):
+    """Kümes (gezen tavuk) hesaplaması (ID: 21)"""
+    try:
+        logger.info(f"Kumes gezen calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de nested structure destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        elif alan:
+            arazi_alani = float(alan)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+        
+        result = kanatli.gezen_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Gezen tavuk kümes hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Kumes gezen calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Gezen tavuk kümes hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kumes_hindi(request):
+    """Kümes (hindi) hesaplaması (ID: 22)"""
+    try:
+        logger.info(f"Kumes hindi calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de nested structure destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        elif alan:
+            arazi_alani = float(alan)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+            arazi_bilgileri = {'buyukluk_m2': arazi_alani}
+            yapi_bilgileri = {}
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            yapi_bilgileri = request.data.get('yapi_bilgileri', {})
+        
+        result = kanatli.hindi_degerlendir(arazi_alani, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Hindi kümes hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Kumes hindi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Hindi kümes hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kaz_ordek(request):
+    """Kaz Ördek çiftliği hesaplaması (ID: 23)"""
+    try:
+        logger.info(f"Kaz ordek calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        # Parametreleri çıkar - hem alan_m2 hem de nested structure destekle
+        alan_m2 = request.data.get('alan_m2')
+        alan = request.data.get('alan')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif alan:
+            arazi_alani = float(alan)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        else:
+            # Eski format için fallback
+            arazi_bilgileri = request.data.get('arazi_bilgileri', {})
+            arazi_alani = arazi_bilgileri.get('buyukluk_m2', 0)
+            if arazi_alani == 0:
+                return Response({
+                    'success': False,
+                    'error': 'alan_m2, alan veya arazi_buyuklugu_m2 parametresi gereklidir',
+                    'message': 'Alan bilgisi gereklidir'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = kanatli.kaz_ordek_degerlendir(arazi_alani, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Kaz ördek çiftliği hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Kaz ordek calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Kaz ördek çiftliği hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+# Depolama ve İşleme Tesisleri için eksik endpoint'ler (ID: 1-16)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_solucan_tesisi(request):
+    """Solucan tesisi hesaplaması (ID: 1)"""
+    try:
+        logger.info(f"Solucan tesisi calculation request: {request.data}")
+        
+        # Use request.data directly as solucan_degerlendir expects
+        result = solucan_tesisi.solucan_degerlendir(request.data)
+        
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Solucan tesisi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Solucan tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_mantar_tesisi(request):
+    """Mantar tesisi hesaplaması (ID: 2)"""
+    try:
+        logger.info(f"Mantar tesisi calculation request: {request.data}")
+        
+        # Use request.data directly as mantar_degerlendir expects
+        result = mantar_tesisi.mantar_degerlendir(request.data)
+        
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Mantar tesisi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Mantar tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_sera(request):
+    """Sera hesaplaması (ID: 3)"""
+    try:
+        logger.info(f"Sera calculation request: {request.data}")
+        
+        # Frontend'den gelen veri yapısını backend beklentisine uyarla
+        alan_m2 = request.data.get('alan_m2')
+        arazi_vasfi = request.data.get('arazi_vasfi', 'TA')
+        sera_alani_m2 = request.data.get('sera_alani_m2')
+        
+        # Frontend veri yapısını kontrol et
+        if alan_m2 is not None:
+            # Frontend formatından backend formatına dönüştür
+            adapted_data = {
+                'arazi_buyuklugu_m2': float(alan_m2),
+                'arazi_vasfi': arazi_vasfi
+            }
+            # Sera alanı belirtilmişse ekle, yoksa backend varsayılan %80 kullanacak
+            if sera_alani_m2 is not None:
+                adapted_data['sera_alani_m2'] = float(sera_alani_m2)
+        else:
+            # Eski format desteği
+            adapted_data = request.data
+        
+        result = sera.sera_degerlendir(adapted_data)
+        
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Sera calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Sera hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_aricilik(request):
+    """Arıcılık tesisi hesaplaması (ID: 4)"""
+    try:
+        logger.info(f"Aricilik calculation request: {request.data}")
+        
+        # Use request.data directly as aricilik_frontend_degerlendir expects
+        result = aricilik.aricilik_frontend_degerlendir(request.data)
+        
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Aricilik calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Arıcılık tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_hububat_silo(request):
+    """Hububat silo hesaplaması (ID: 5)"""
+    try:
+        logger.info(f"Hububat silo calculation request: {request.data}")
+        logger.info(f"Request data type: {type(request.data)}")
+        logger.info(f"Request data keys: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'No keys'}")
+        
+        # Frontend'den gelen parametreleri al
+        alan_m2 = request.data.get('alan_m2') or request.data.get('alan', 0)
+        silo_taban_alani_m2 = request.data.get('silo_taban_alani_m2', 0)
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        
+        logger.info(f"Extracted values - alan_m2: {alan_m2} (type: {type(alan_m2)}), silo_taban_alani_m2: {silo_taban_alani_m2} (type: {type(silo_taban_alani_m2)}), emsal_orani: {emsal_orani}")
+        
+        # Parametreleri kontrol et
+        if not alan_m2 or alan_m2 <= 0:
+            logger.error(f"Alan_m2 validation failed: {alan_m2}")
+            return Response({
+                'success': False,
+                'error': 'Arazi alanı pozitif bir sayı olmalıdır',
+                'message': 'Arazi alanı pozitif bir sayı olmalıdır'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not silo_taban_alani_m2 or silo_taban_alani_m2 <= 0:
+            return Response({
+                'success': False,
+                'error': 'Planlanan silo taban alanı pozitif bir sayı olmalıdır',
+                'message': 'Planlanan silo taban alanı pozitif bir sayı olmalıdır'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # API için hububat_silo_degerlendir fonksiyonunu çağır (dinamik emsal ile)
+        result = tarimsal_silo.hububat_silo_degerlendir({
+            'arazi_buyuklugu_m2': float(alan_m2),
+            'silo_taban_alani_m2': float(silo_taban_alani_m2)
+        }, emsal_orani=emsal_orani)
+        
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Hububat silo hesaplama başarıyla tamamlandı'
+        })
+        
+    except Exception as e:
+        logger.error(f"Hububat silo calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Hububat silo hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_lisansli_depo(request):
+    """Lisanslı depo hesaplaması (ID: 7)"""
+    try:
+        logger.info(f"Lisansli depo calculation request: {request.data}")
+        
+        # PHASE 2 DİNAMİK EMSAL SİSTEMİ - emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        logger.info(f"Extracted emsal_orani: {emsal_orani}")
+        
+        result = lisansli_depo.lisansli_depo_degerlendir_api(request.data, emsal_orani)
+        
+        if result['success']:
+            logger.info(f"Lisansli depo calculation successful")
+            return Response({
+                'success': True,
+                'message': 'Lisanslı depo hesaplama başarıyla tamamlandı.',
+                'data': {
+                    'arazi_alani': result['arazi_buyuklugu_m2'],
+                    'depo_alani': result.get('depo_taban_alani_m2', 0),
+                    'maksimum_emsal': result['maksimum_emsal_alani_m2'],
+                    'emsal_orani': f"{result['emsal_orani']*100:.0f}%",
+                    'kalan_emsal': result['kalan_emsal_hakki_m2'],
+                    'izin_durumu': result['izin_durumu'],
+                    'html_mesaj': result.get('html_mesaj', ''),
+                    'mesaj': result.get('html_mesaj', '')  # Frontend için hem html_mesaj hem mesaj
+                }
+            })
+        else:
+            logger.warning(f"Lisansli depo calculation failed: {result['error']}")
+            return Response({
+                'success': False,
+                'message': result['error'],
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        logger.error(f"Lisansli depo calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Lisanslı depo hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_yikama_tesisi(request):
+    """Yıkama tesisi hesaplaması (ID: 8)"""
+    try:
+        logger.info(f"Yikama tesisi calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        
+        result = yikama_tesisi.yikama_tesisi_degerlendir(request.data, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Yıkama tesisi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Yikama tesisi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Yıkama tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_kurutma_tesisi(request):
+    """Kurutma tesisi hesaplaması (ID: 9)"""
+    try:
+        logger.info(f"Kurutma tesisi calculation request: {request.data}")
+        
+        # Frontend'den gelen veri yapısını backend beklentisine uyarla
+        alan_m2 = request.data.get('alan_m2')
+        
+        # Frontend veri yapısını kontrol et
+        if alan_m2 is not None:
+            # Frontend formatından backend formatına dönüştür
+            adapted_data = request.data.copy()
+            adapted_data['arazi_buyuklugu_m2'] = float(alan_m2)
+            # Eski alan_m2'yi kaldırmamıza gerek yok, backend onu görmezden gelir
+        else:
+            # Eski format desteği
+            adapted_data = request.data
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        
+        result = kurutma_tesisi.kurutma_tesisi_degerlendir(adapted_data, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Kurutma tesisi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Kurutma tesisi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Kurutma tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_meyve_sebze_kurutma(request):
+    """Meyve sebze kurutma alanı hesaplaması (ID: 10)"""
+    try:
+        logger.info(f"Meyve sebze kurutma calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        
+        result = meyve_sebze_kurutma.meyve_sebze_kurutma_degerlendir(request.data, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Meyve/sebze kurutma alanı hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Meyve sebze kurutma calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Meyve/sebze kurutma alanı hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_zeytinyagi_fabrikasi(request):
+    """Zeytinyağı fabrikası hesaplaması (ID: 11)"""
+    try:
+        logger.info(f"Zeytinyagi fabrikasi calculation request: {request.data}")
+        
+        # Zeytinyağı fabrikası hesaplaması
+        result = zeytinyagi_fabrikasi.zeytinyagi_fabrikasi_degerlendir(request.data)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Zeytinyağı fabrikası hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Zeytinyagi fabrikasi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Zeytinyağı fabrikası hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_su_depolama(request):
+    """Su depolama tesisi hesaplaması (ID: 12)"""
+    try:
+        logger.info(f"Su depolama calculation request: {request.data}")
+        
+        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
+        emsal_orani = request.data.get('emsal_orani')
+        
+        # Su depolama tesisi hesaplaması
+        result = su_depolama.su_depolama_degerlendir(request.data, emsal_orani=emsal_orani)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Su depolama tesisi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Su depolama calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Su depolama tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_su_kuyulari(request):
+    """Su kuyuları hesaplaması (ID: 13)"""
+    try:
+        logger.info(f"Su kuyulari calculation request: {request.data}")
+        
+        # Su kuyuları hesaplaması
+        result = su_kuyulari.su_kuyulari_degerlendir(request.data)
+        
+        return Response({
+            'success': True,
+            'results': result,
+            'message': 'Su kuyuları hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Su kuyulari calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Su kuyuları hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_zeytinyagi_uretim_tesisi(request):
+    """Zeytinyağı üretim tesisi hesaplaması (ID: 15)"""
+    try:
+        logger.info(f"Zeytinyagi uretim tesisi calculation request: {request.data}")
+        
+        # Parametreleri çıkar
+        alan_m2 = request.data.get('alan_m2')
+        arazi_buyuklugu_m2 = request.data.get('arazi_buyuklugu_m2')
+        
+        # Alan parametresini standartlaştır
+        if alan_m2:
+            arazi_alani = float(alan_m2)
+        elif arazi_buyuklugu_m2:
+            arazi_alani = float(arazi_buyuklugu_m2)
+        else:
+            raise ValueError("alan_m2 veya arazi_buyuklugu_m2 parametresi gereklidir")
+        
+        # Hesaplama yap
+        result = zeytinyagi_uretim_tesisi.zeytinyagi_uretim_tesisi_hesapla(arazi_alani)
+        
+        if result['success']:
+            logger.info(f"Zeytinyagi uretim tesisi calculation successful")
+            return Response({
+                'success': True,
+                'message': 'Zeytinyağı üretim tesisi hesaplama başarıyla tamamlandı.',
+                'data': {
+                    'izin_durumu': result['izin_durumu'],
+                    'arazi_alani': result['arazi_alani_m2'],
+                    'emsal_orani': f"{result['emsal_orani']*100:.0f}%",
+                    'maksimum_emsal_alani': result['maksimum_emsal_alani_m2'],
+                    'uretim_alani': result['uretim_alani_m2'],
+                    'idari_alan': result['idari_alan_m2'],
+                    'yardimci_alan': result['yardimci_alan_m2'],
+                    'toplam_insaat_alani': result['toplam_insaat_alani_m2'],
+                    'kalan_emsal_hakki': result['kalan_emsal_hakki_m2'],
+                    'emsal_kullanim_orani': result['emsal_kullanim_orani'],
+                    'html_mesaj': f"""
+                    <div class="calculation-result">
+                        <h3 style="color: #2d5016;">🏭 Zeytinyağı Üretim Tesisi Değerlendirme Sonucu</h3>
+                        <div class="result-item"><strong>📏 Arazi Alanı:</strong> {result['arazi_alani_m2']:,.0f} m²</div>
+                        <div class="result-item"><strong>📐 Emsal Oranı:</strong> %{result['emsal_orani']*100:.0f}</div>
+                        <div class="result-item"><strong>🏗️ Maksimum Emsal Alanı:</strong> {result['maksimum_emsal_alani_m2']:,.1f} m²</div>
+                        <div class="result-item"><strong>🏭 Üretim Alanı:</strong> {result['uretim_alani_m2']:,.1f} m²</div>
+                        <div class="result-item"><strong>🏢 İdari Alan:</strong> {result['idari_alan_m2']:,.1f} m²</div>
+                        <div class="result-item"><strong>🔧 Yardımcı Alan:</strong> {result['yardimci_alan_m2']:,.1f} m²</div>
+                        <div class="result-item"><strong>📊 Toplam İnşaat Alanı:</strong> {result['toplam_insaat_alani_m2']:,.1f} m²</div>
+                        <div class="result-item"><strong>📈 Emsal Kullanım Oranı:</strong> %{result['emsal_kullanim_orani']}</div>
+                        <div class="result-item"><strong>📋 Kalan Emsal Hakkı:</strong> {result['kalan_emsal_hakki_m2']:,.1f} m²</div>
+                        <div class="result-status success"><strong>✅ {result['izin_durumu']}</strong></div>
+                    </div>
+                    """
+                }
+            })
+        else:
+            logger.warning(f"Zeytinyagi uretim tesisi calculation failed: {result.get('error', 'Unknown error')}")
+            return Response({
+                'success': False,
+                'message': result.get('error', 'Hesaplama başarısız'),
+                'data': {
+                    'izin_durumu': result.get('izin_durumu', 'HESAPLANAMADI'),
+                    'html_mesaj': f"""
+                    <div class="calculation-result">
+                        <h3 style="color: #c41e3a;">🚫 Zeytinyağı Üretim Tesisi Değerlendirme Sonucu</h3>
+                        <div class="result-status error"><strong>❌ {result.get('izin_durumu', 'TESİS YAPILAMAZ')}</strong></div>
+                        <div class="result-item"><strong>❗ Hata:</strong> {result.get('error', 'Bilinmeyen hata')}</div>
+                    </div>
+                    """
+                }
+            })
+            
+    except Exception as e:
+        logger.error(f"Zeytinyagi uretim tesisi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Zeytinyağı üretim tesisi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_bag_evi(request):
+    """Bağ evi hesaplaması (ID: 14)"""
+    try:
+        logger.info(f"Bag evi calculation request: {request.data}")
+        
+        # Frontend'den gelen parametreleri al
+        arazi_vasfi = request.data.get('arazi_vasfi', '')
+        alan_m2 = request.data.get('alan_m2', 0)
+        tarla_alani = request.data.get('tarla_alani', 0)
+        dikili_alani = request.data.get('dikili_alani', 0)
+        zeytinlik_alani = request.data.get('zeytinlik_alani', 0)  # Zeytinlik alanı desteği eklendi
+        zeytin_alani = request.data.get('zeytin_alani', 0)  # Frontend'den gelen zeytin ağacı sayısı
+        
+        # "… Adetli Zeytin Ağacı bulunan tarla" için yeni alanlar
+        tapu_zeytin_agac_adedi = request.data.get('tapu_zeytin_agac_adedi', 0)
+        mevcut_zeytin_agac_adedi = request.data.get('mevcut_zeytin_agac_adedi', 0)
+        
+        # Zeytin ağacı adedi mapping - önce request'ten al, yoksa mevcut_zeytin_agac_adedi'ni kullan, son çare zeytin_alani
+        zeytin_agac_adedi = request.data.get('zeytin_agac_adedi', 0) or mevcut_zeytin_agac_adedi or zeytin_alani
+        
+        logger.info(f"🫒 Adetli Zeytin mapping - Tapu: {tapu_zeytin_agac_adedi}, Mevcut: {mevcut_zeytin_agac_adedi}, Kullanılan: {zeytin_agac_adedi}")
+        
+        # Frontend'den gelen manuel kontrol sonucu (manuel_kontrol_sonucu veya dikiliKontrolSonucu)
+        manuel_kontrol_sonucu = request.data.get('manuel_kontrol_sonucu') or request.data.get('dikiliKontrolSonucu')
+        bag_evi_var_mi = request.data.get('bag_evi_var_mi', False)
+        
+        # Frontend'den manuel kontrol sonucu geldi mi kontrol et ve logla
+        if manuel_kontrol_sonucu:
+            logger.info(f"📊 Manuel kontrol sonucu alındı: {manuel_kontrol_sonucu}")
+        
+        # Debug: Gelen parametreleri logla
+        logger.info(f"🔍 Parametreler - arazi_vasfi: {arazi_vasfi}, alan_m2: {alan_m2}")
+        logger.info(f"🔍 Tarla alanı: {tarla_alani}, Dikili alanı: {dikili_alani}, Zeytinlik alanı: {zeytinlik_alani}")
+        
+        # "Tarla + herhangi bir dikili vasıflı" özel durumu
+        if arazi_vasfi == "Tarla + herhangi bir dikili vasıflı":
+            # Frontend'den gelen verilerle arazi bilgilerini oluştur
+            toplam_arazi = tarla_alani + dikili_alani
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': toplam_arazi,
+                'buyuk_ova_icinde': False,  # Bu bilgi frontend'den gelebilir
+                'tarla_alani': tarla_alani,
+                'dikili_alani': dikili_alani
+            }
+            
+            # Yeni ana hesaplama fonksiyonunu kullan - manuel kontrol sonucunu geçir
+            result = bag_evi.hesapla(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        elif arazi_vasfi == "Tarla + Zeytinlik":
+            # "Tarla + Zeytinlik" özel durumu için yeni işleme
+            toplam_arazi = tarla_alani + zeytinlik_alani
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': toplam_arazi,
+                'buyuk_ova_icinde': False,
+                'tarla_alani': tarla_alani,
+                'zeytinlik_alani': zeytinlik_alani
+            }
+            
+            logger.info(f"🫒 Tarla + Zeytinlik hesaplama - Tarla: {tarla_alani}, Zeytinlik: {zeytinlik_alani}, Toplam: {toplam_arazi}")
+            
+            # Yeni ana hesaplama fonksiyonunu kullan
+            result = bag_evi.hesapla(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        elif arazi_vasfi == "… Adetli Zeytin Ağacı bulunan tarla":
+            # "… Adetli Zeytin Ağacı bulunan tarla" özel durumu için yeni işleme
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': alan_m2,
+                'buyuk_ova_icinde': False,
+                'tarla_alani': tarla_alani,
+                'zeytin_agac_adedi': zeytin_agac_adedi,
+                'tapu_zeytin_agac_adedi': tapu_zeytin_agac_adedi,
+                'mevcut_zeytin_agac_adedi': mevcut_zeytin_agac_adedi
+            }
+            
+            logger.info(f"🫒 Adetli Zeytin Ağacı bulunan tarla hesaplama - Tarla: {tarla_alani}, Tapu ağaç: {tapu_zeytin_agac_adedi}, Mevcut ağaç: {mevcut_zeytin_agac_adedi}")
+            
+            # Universal fonksiyonu kullan
+            result = bag_evi.bag_evi_universal_degerlendir(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        elif arazi_vasfi == "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf":
+            # "… Adetli Zeytin Ağacı bulunan + herhangi bir dikili vasıf" özel durumu için yeni işleme
+            
+            # Manuel kontrol sonucundan alan değerlerini al (eğer varsa)
+            final_dikili_alani = dikili_alani
+            if manuel_kontrol_sonucu and isinstance(manuel_kontrol_sonucu, dict):
+                # DirectTransfer durumunda harita verilerini kullan
+                if manuel_kontrol_sonucu.get('directTransfer'):
+                    final_dikili_alani = manuel_kontrol_sonucu.get('dikiliAlan', dikili_alani)
+                    logger.info(f"🗺️ DirectTransfer dikili alan güncellendi: {dikili_alani} → {final_dikili_alani}")
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': final_dikili_alani,  # Güncellenmiş dikili alan
+                'buyuk_ova_icinde': False,
+                'dikili_alani': final_dikili_alani,  # Güncellenmiş dikili alan
+                'zeytin_agac_adedi': zeytin_agac_adedi,
+                'tapu_zeytin_agac_adedi': tapu_zeytin_agac_adedi,
+                'mevcut_zeytin_agac_adedi': mevcut_zeytin_agac_adedi
+            }
+            
+            logger.info(f"🫒 Adetli Zeytin Ağacı bulunan + dikili vasıf hesaplama - Dikili: {dikili_alani}, Tapu ağaç: {tapu_zeytin_agac_adedi}, Mevcut ağaç: {mevcut_zeytin_agac_adedi}")
+            
+            # Universal fonksiyonu kullan
+            result = bag_evi.bag_evi_universal_degerlendir(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        elif arazi_vasfi == "Zeytin ağaçlı + tarla":
+            # "Zeytin ağaçlı + tarla" özel durumu için yeni işleme
+            # Sadece tarla alanı kullanılır, zeytin ağacı adedi kontrol edilir
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': tarla_alani,  # Sadece tarla alanı
+                'buyuk_ova_icinde': False,
+                'tarla_alani': tarla_alani,
+                'zeytin_agac_adedi': zeytin_agac_adedi
+            }
+            
+            logger.info(f"🫒 Zeytin ağaçlı + tarla hesaplama - Tarla: {tarla_alani} m², Zeytin ağacı: {zeytin_agac_adedi} adet")
+            
+            # Yeni ana hesaplama fonksiyonunu kullan
+            result = bag_evi.hesapla(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        elif arazi_vasfi == "Zeytin ağaçlı + herhangi bir dikili vasıf":
+            # "Zeytin ağaçlı + herhangi bir dikili vasıf" özel durumu için yeni işleme
+            # Dikili alan kullanılır, zeytin ağacı adedi kontrol edilir
+            
+            # Manuel kontrol sonucundan alan değerlerini al (eğer varsa)
+            final_dikili_alani = dikili_alani
+            if manuel_kontrol_sonucu and isinstance(manuel_kontrol_sonucu, dict):
+                # DirectTransfer durumunda harita verilerini kullan
+                if manuel_kontrol_sonucu.get('directTransfer'):
+                    final_dikili_alani = manuel_kontrol_sonucu.get('dikiliAlan', dikili_alani)
+                    logger.info(f"🗺️ DirectTransfer dikili alan güncellendi: {dikili_alani} → {final_dikili_alani}")
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': final_dikili_alani,  # Güncellenmiş dikili alan 
+                'buyuk_ova_icinde': False,
+                'dikili_alani': final_dikili_alani,  # Güncellenmiş dikili alan
+                'zeytin_agac_adedi': zeytin_agac_adedi
+            }
+            
+            logger.info(f"🫒 Zeytin ağaçlı + dikili vasıf hesaplama - Dikili alan: {dikili_alani} m², Zeytin ağacı: {zeytin_agac_adedi} adet")
+            
+            # Yeni ana hesaplama fonksiyonunu kullan
+            result = bag_evi.hesapla(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        else:
+            # Normal arazi vasfı için mevcut hesaplama (Dikili vasıflı dahil)
+            
+            # Manuel kontrol sonucundan alan değerlerini al (eğer varsa)
+            final_alan_m2 = alan_m2
+            final_dikili_alani = dikili_alani
+            
+            if manuel_kontrol_sonucu and isinstance(manuel_kontrol_sonucu, dict):
+                # DirectTransfer durumunda harita verilerini kullan
+                if manuel_kontrol_sonucu.get('directTransfer'):
+                    # Dikili vasıflı için dikiliAlan'ı kullan
+                    if arazi_vasfi == "Dikili vasıflı":
+                        final_alan_m2 = manuel_kontrol_sonucu.get('dikiliAlan', alan_m2)
+                        final_dikili_alani = manuel_kontrol_sonucu.get('dikiliAlan', dikili_alani)
+                        logger.info(f"🗺️ DirectTransfer (Dikili vasıflı) alan güncellendi: {alan_m2} → {final_alan_m2}")
+                    else:
+                        # Diğer arazi vasfları için alan_m2 kullan
+                        final_alan_m2 = manuel_kontrol_sonucu.get('alan_m2', alan_m2)
+                        logger.info(f"🗺️ DirectTransfer alan güncellendi: {alan_m2} → {final_alan_m2}")
+            
+            arazi_bilgileri = {
+                'ana_vasif': arazi_vasfi,
+                'buyukluk_m2': final_alan_m2,
+                'buyuk_ova_icinde': False,
+                'dikili_alani': final_dikili_alani  # Dikili vasıflı için dikili alan da ekle
+            }
+            # "Dikili vasıflı" için de manuel kontrol sonucunu geçir
+            result = bag_evi.bag_evi_degerlendir(
+                arazi_bilgileri, 
+                {}, 
+                bag_evi_var_mi, 
+                manuel_kontrol_sonucu
+            )
+        
+        # Frontend için uygun format
+        return Response({
+            'success': True,
+            'data': {
+                'alan_m2': arazi_bilgileri.get('buyukluk_m2', 0),
+                'arazi_alani': arazi_bilgileri.get('buyukluk_m2', 0),
+                'maksimum_insaat_alani': 150,
+                'taban_alani': 75,
+                'izin_durumu': result.get('izin_durumu', ''),
+                'mesaj': result.get('ana_mesaj', '') + (
+                    f"<br><br>{result.get('uyari_mesaji_ozel_durum', '')}" if result.get('uyari_mesaji_ozel_durum') else ""
+                )
+            },
+            'message': 'Bağ evi hesaplama başarıyla tamamlandı'
+        })
+    except Exception as e:
+        logger.error(f"Bag evi calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Bağ evi hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_soguk_hava_deposu(request):
+    """Soğuk hava deposu hesaplaması (ID: 16)"""
+    try:
+        logger.info(f"Soguk hava deposu calculation request: {request.data}")
+        # Dummy response ile tamamlandı (hesaplama fonksiyonu eksikse sistem stabil kalsın diye)
+        return Response({
+            'success': True,
+            'message': 'Soğuk hava deposu hesaplama (dummy response)',
+            'data': None
+        })
+    except Exception as e:
+        logger.error(f"Soguk hava deposu calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Soğuk hava deposu hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_tarimsal_amacli_depo(request):
+    """Tarımsal amaçlı depo hesaplaması (ID: 6)"""
+    try:
+        logger.info(f"Tarımsal amaçlı depo calculation request: {request.data}")
+        # Dummy response ile tamamlandı (hesaplama fonksiyonu eksikse sistem stabil kalsın diye)
+        return Response({
+            'success': True,
+            'message': 'Tarımsal amaçlı depo hesaplama (dummy response)',
+            'data': None
+        })
+    except Exception as e:
+        logger.error(f"Tarımsal amaçlı depo calculation error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Tarımsal amaçlı depo hesaplama sırasında hata oluştu'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+# Static dosya servisleri
+@api_view(['GET'])
+def get_yonetmelikler(request):
+    return Response({
+        'success': True,
+        'message': 'Yonetmelikler endpoint ready',
+        'data': []
+    })
+
+@api_view(['GET'])
+def get_kml_files(request):
+    return Response({
+        'success': True,
+        'message': 'KML files endpoint ready',
+        'data': []
+    })
+
+@api_view(['GET'])
+def get_arazi_tipleri(request):
+    """Arazi tiplerini döndüren endpoint"""
+    try:
+        return Response({
+            'success': True,
+            'data': constants.ARAZI_TIPLERI,
+            'message': 'Arazi tipleri başarıyla getirildi'
+        })
+    except Exception as e:
+        logger.error(f"Arazi tipleri error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Arazi tipleri getirilirken hata oluştu'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_yapi_turleri(request):
+    """Yapı türlerini döndüren endpoint"""
+    try:
+        return Response({
+            'success': True,
+            'data': constants.YAPI_TURLERI,
+            'message': 'Yapı türleri başarıyla getirildi'
+        })
+    except Exception as e:
+        logger.error(f"Yapı türleri error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Yapı türleri getirilirken hata oluştu'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
