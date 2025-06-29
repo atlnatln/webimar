@@ -223,9 +223,9 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle,
           <CategoryTitle $isOpen={isOpen}>
             {categoryIcons[category as keyof typeof categoryIcons]} {categoryNames[category as keyof typeof categoryNames]}
           </CategoryTitle>
-          {items.map((item) => (
+          {items.map((item, idx) => (
             <NavItem
-              key={item.id}
+              key={item.id + '-' + idx}
               to={item.path}
               $isActive={location.pathname === item.path}
               onClick={handleNavigation}

@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
+import LoginModal from '../components/LoginModal';
 
 const HomeContainer = styled.div`
   padding: 40px;
@@ -230,8 +231,8 @@ const GetStartedButton = styled.button`
   }
 `;
 
-const Homepage: React.FC = () => {
-  const { structureCategories, structureTypeLabels, loading, error } = useStructureTypes();
+const HomePage: React.FC = () => {
+  const { structureTypeLabels, structureCategories } = useStructureTypes();
 
   const features = [
     {
@@ -266,36 +267,18 @@ const Homepage: React.FC = () => {
     }
   ];
 
-  if (loading) {
-    return (
-      <HomeContainer>
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p>Yapı türleri yükleniyor...</p>
-        </div>
-      </HomeContainer>
-    );
-  }
-
-  if (error) {
-    return (
-      <HomeContainer>
-        <div style={{ textAlign: 'center', padding: '40px', color: 'red' }}>
-          <p>Yapı türleri yüklenirken hata oluştu: {error}</p>
-        </div>
-      </HomeContainer>
-    );
-  }
-
   return (
     <HomeContainer>
       <HeroSection>
-        <HeroTitle>Webimar</HeroTitle>
-        <HeroSubtitle>Tarımsal Yapı Hesaplama Sistemi</HeroSubtitle>
+        <HeroTitle>Webimar Hesaplama Platformu</HeroTitle>
+        <HeroSubtitle>Tarım ve hayvancılık projeleri için hızlı, güvenilir ve güncel hesaplamalar</HeroSubtitle>
         <HeroDescription>
-          Tarımsal arazilerinizde yapılabilecek tarımsal yapıların alanlarını ve kapasitelerini 
-          mevzuata uygun olarak hesaplayan modern ve kullanıcı dostu sistem.
+          Webimar, yapılaşma ve izin süreçlerinde size yol gösteren, güncel mevzuata uygun hesaplama ve analizler sunar.
         </HeroDescription>
       </HeroSection>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', maxWidth: 1200, margin: '0 auto 16px auto' }}>
+        <LoginModal />
+      </div>
 
       <StatsSection>
         <StatsGrid>
@@ -331,16 +314,16 @@ const Homepage: React.FC = () => {
       <StructureTypesSection>
         <SectionTitle>Desteklenen Yapı Türleri</SectionTitle>
         <StructureTypesGrid>
-          {Object.values(structureCategories).map((category, index) => (
+          {Object.values(structureCategories).map((category: any, index) => (
             <CategorySection key={index}>
               <CategoryHeader>
                 <CategoryIcon>{category.icon}</CategoryIcon>
                 <CategoryTitle>{category.name}</CategoryTitle>
               </CategoryHeader>
               <CategoryGrid>
-                {category.types.map((type) => (
-                  <StructureTypeCard key={type}>
-                    <StructureTypeTitle>{structureTypeLabels[type]}</StructureTypeTitle>
+                {category.types.map((type: string, idx: number) => (
+                  <StructureTypeCard key={type + '-' + idx}>
+                    <StructureTypeTitle>{structureTypeLabels[type as keyof typeof structureTypeLabels] || type}</StructureTypeTitle>
                   </StructureTypeCard>
                 ))}
               </CategoryGrid>
@@ -362,4 +345,4 @@ const Homepage: React.FC = () => {
   );
 };
 
-export default Homepage;
+export default HomePage;

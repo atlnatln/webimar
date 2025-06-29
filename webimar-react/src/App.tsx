@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout';
 import HomePage from './pages/HomePage';
 import CalculationPage from './pages/CalculationPage';
 import MapTestPage from './pages/MapTestPage';
+import AccountPage from './pages/AccountPage';
 import { StructureType } from './types';
 import { StructureTypesProvider, useStructureTypes } from './contexts/StructureTypesContext';
 import './App.css';
@@ -67,7 +68,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/map-test" element={<MapTestPage />} />
-      
+      <Route path="/account" element={<AccountPage />} />
       {/* Dinamik routes - her yapı türü için */}
       {Object.keys(structureTypeLabels).map((structureType) => {
         const type = structureType as StructureType;

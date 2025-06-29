@@ -7,6 +7,7 @@ import LocationAutocomplete from '../components/LocationAutocomplete';
 import LocationInfoCard from '../components/Map/LocationInfoCard';
 import { LocationValidationProvider, useLocationValidation } from '../contexts/LocationValidationContext';
 import { CalculationResult, StructureType } from '../types';
+import LoginModal from '../components/LoginModal';
 
 interface CalculationPageProps {
   calculationType: StructureType;
@@ -375,8 +376,12 @@ const CalculationPageContent: React.FC<CalculationPageProps> = ({
     }
   }, []);
 
+  // Giriş formunu üstte göster
   return (
     <PageContainer>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', maxWidth: 1400, margin: '0 auto 16px auto' }}>
+        <LoginModal />
+      </div>
       <PageHeader>
         <PageTitle>{title}</PageTitle>
         <PageDescription>{description}</PageDescription>

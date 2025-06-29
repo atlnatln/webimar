@@ -133,6 +133,34 @@ export const getYapiTurleri = async (): Promise<YapiTuru[]> => {
   }
 };
 
+// Kullanıcı profilini JWT ile çeker
+export const getProfile = async (token: string) => {
+  const response = await apiClient.get('/accounts/me/', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};
+
+// Kullanıcıya ait hesaplama geçmişini JWT ile çeker
+export type CalculationHistory = {
+  id: number;
+  calculation_type: string;
+  parameters: any;
+  result: any;
+  created_at: string;
+};
+
+export const getCalculationHistory = async (token: string): Promise<CalculationHistory[]> => {
+  const response = await apiClient.get('/calculations/history/', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};
+
 // Named export for calculations and other functions
 export const apiService = {
   calculations,
