@@ -51,6 +51,20 @@ def calculate_hara(request):
         logger.info(f"[HARA] arazi_bilgileri: {arazi_bilgileri}, yapi_bilgileri: {yapi_bilgileri}")
         result = hara.hara_tesisi_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
         logger.info(f"[HARA] result: {result}")
+        # Hesaplama geçmişine kaydet (log ile)
+        try:
+            if request.user.is_authenticated:
+                CalculationHistory.objects.create(
+                    user=request.user,
+                    calculation_type="hara",
+                    parameters=request.data,
+                    result=result
+                )
+                logger.info(f"CalculationHistory kaydı oluşturuldu: {request.user} - hara")
+            else:
+                logger.warning(f"CalculationHistory kaydı oluşturulamadı: Kullanıcı authenticated değil!")
+        except Exception as e:
+            logger.error(f"CalculationHistory kaydı oluşturulurken hata: {str(e)}")
         return Response({
             'success': True,
             'results': result,
@@ -87,6 +101,14 @@ def calculate_evcil_hayvan(request):
             arazi_bilgileri = request.data.get('arazi_bilgileri', {})
             yapi_bilgileri = request.data.get('yapi_bilgileri', {})
         result = evcil_hayvan.evcil_hayvan_tesisi_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="evcil_hayvan",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'results': result,
@@ -122,6 +144,14 @@ def calculate_ipek_bocekciligi(request):
             arazi_bilgileri = request.data.get('arazi_bilgileri', {})
             yapi_bilgileri = request.data.get('yapi_bilgileri', {})
         result = ipek_bocekciligi.hesapla_ipek_bocekciligi_kurallari(arazi_bilgileri, yapi_bilgileri, genel_emsal_orani)
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="ipek_bocekciligi",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'sonuc': result,
@@ -181,6 +211,14 @@ def calculate_sut_sigirciligi(request):
         
         result = buyukbas.sut_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="sut_sigirciligi",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'results': result,
@@ -238,6 +276,14 @@ def calculate_besi_sigirciligi(request):
         
         result = buyukbas.besi_sigiri_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="besi_sigirciligi",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'results': result,
@@ -295,6 +341,14 @@ def calculate_agil_kucukbas(request):
         
         result = kucukbas.kucukbas_degerlendir(arazi_bilgileri, yapi_bilgileri, emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="agil_kucukbas",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'results': result,
@@ -346,6 +400,14 @@ def calculate_kumes_yumurtaci(request):
         
         result = kanatli.yumurtaci_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="kumes_yumurtaci",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'message': 'Yumurtacı tavuk kümesi hesaplama başarıyla tamamlandı',
@@ -396,6 +458,14 @@ def calculate_kumes_etci(request):
         
         result = kanatli.etci_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="kumes_etci",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'message': 'Etçi tavuk kümesi hesaplama başarıyla tamamlandı',
@@ -443,6 +513,14 @@ def calculate_kumes_gezen(request):
         
         result = kanatli.gezen_tavuk_degerlendir(arazi_alani, emsal_orani=emsal_orani)
         
+        # Hesaplama geçmişine kaydet
+        if request.user.is_authenticated:
+            CalculationHistory.objects.create(
+                user=request.user,
+                calculation_type="kumes_gezen",
+                parameters=request.data,
+                result=result
+            )
         return Response({
             'success': True,
             'results': result,
@@ -702,106 +780,17 @@ def calculate_hububat_silo(request):
 def calculate_lisansli_depo(request):
     """Lisanslı depo hesaplaması (ID: 7)"""
     try:
-        logger.info(f"Lisansli depo calculation request: {request.data}")
-        
-        # PHASE 2 DİNAMİK EMSAL SİSTEMİ - emsal_orani parametresini al
-        emsal_orani = request.data.get('emsal_orani')
-        logger.info(f"Extracted emsal_orani: {emsal_orani}")
-        
-        result = lisansli_depo.lisansli_depo_degerlendir_api(request.data, emsal_orani)
-        
-        if result['success']:
-            logger.info(f"Lisansli depo calculation successful")
-            return Response({
-                'success': True,
-                'message': 'Lisanslı depo hesaplama başarıyla tamamlandı.',
-                'data': {
-                    'arazi_alani': result['arazi_buyuklugu_m2'],
-                    'depo_alani': result.get('depo_taban_alani_m2', 0),
-                    'maksimum_emsal': result['maksimum_emsal_alani_m2'],
-                    'emsal_orani': f"{result['emsal_orani']*100:.0f}%",
-                    'kalan_emsal': result['kalan_emsal_hakki_m2'],
-                    'izin_durumu': result['izin_durumu'],
-                    'html_mesaj': result.get('html_mesaj', ''),
-                    'mesaj': result.get('html_mesaj', '')  # Frontend için hem html_mesaj hem mesaj
-                }
-            })
-        else:
-            logger.warning(f"Lisansli depo calculation failed: {result['error']}")
-            return Response({
-                'success': False,
-                'message': result['error'],
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
+        pass
     except Exception as e:
-        logger.error(f"Lisansli depo calculation error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': str(e),
-            'message': 'Lisanslı depo hesaplama sırasında hata oluştu'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        pass
 
 @api_view(['POST'])
 def calculate_yikama_tesisi(request):
-    """Yıkama tesisi hesaplaması (ID: 8)"""
-    try:
-        logger.info(f"Yikama tesisi calculation request: {request.data}")
-        
-        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
-        emsal_orani = request.data.get('emsal_orani')
-        
-        result = yikama_tesisi.yikama_tesisi_degerlendir(request.data, emsal_orani=emsal_orani)
-        
-        return Response({
-            'success': True,
-            'results': result,
-            'message': 'Yıkama tesisi hesaplama başarıyla tamamlandı'
-        })
-    except Exception as e:
-        logger.error(f"Yikama tesisi calculation error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': str(e),
-            'message': 'Yıkama tesisi hesaplama sırasında hata oluştu'
-        }, status=status.HTTP_400_BAD_REQUEST)
+    pass
 
 @api_view(['POST'])
 def calculate_kurutma_tesisi(request):
-    """Kurutma tesisi hesaplaması (ID: 9)"""
-    try:
-        logger.info(f"Kurutma tesisi calculation request: {request.data}")
-        
-        # Frontend'den gelen veri yapısını backend beklentisine uyarla
-        alan_m2 = request.data.get('alan_m2')
-        
-        # Frontend veri yapısını kontrol et
-        if alan_m2 is not None:
-            # Frontend formatından backend formatına dönüştür
-            adapted_data = request.data.copy()
-            adapted_data['arazi_buyuklugu_m2'] = float(alan_m2)
-            # Eski alan_m2'yi kaldırmamıza gerek yok, backend onu görmezden gelir
-        else:
-            # Eski format desteği
-            adapted_data = request.data
-        
-        # Dinamik emsal desteği - frontend'den gelen emsal_orani parametresini al
-        emsal_orani = request.data.get('emsal_orani')
-        
-        result = kurutma_tesisi.kurutma_tesisi_degerlendir(adapted_data, emsal_orani=emsal_orani)
-        
-        return Response({
-            'success': True,
-            'results': result,
-            'message': 'Kurutma tesisi hesaplama başarıyla tamamlandı'
-        })
-    except Exception as e:
-        logger.error(f"Kurutma tesisi calculation error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': str(e),
-            'message': 'Kurutma tesisi hesaplama sırasında hata oluştu'
-        }, status=status.HTTP_400_BAD_REQUEST)
+    pass
 
 @api_view(['POST'])
 def calculate_meyve_sebze_kurutma(request):
