@@ -39,14 +39,24 @@ dist/
 Thumbs.db
 
 # Test files
-test-*.js
-# test-*.html
+**/test_*.py
+**/test_*.js
+**/__tests__/
+**/__mocks__/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+jest.config.js
 
-# Docker files
-# Dockerfile.prod
+# Development files
+*.md
+!README.md
+!docs/**/*.md
 
-# İstisna Kuralları
-!docs/**
+# Production exceptions
 !webimar/**
 !webimar-api/**
 !webimar-react/**
