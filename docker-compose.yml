@@ -1,43 +1,32 @@
 version: '3.8'
 
 services:
-  # Mevcut sistem (korunur)
-  webimar-legacy:
-    build: ./webimar
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./webimar:/app
-    environment:
-      - DEBUG=True
-
-  # Yeni backend API
+  # Backend API - Production
   webimar-api:
     build: ./webimar-api
     ports:
       - "8001:8001"
-    volumes:
-      - ./webimar-api:/app
     environment:
-      - DEBUG=True
-      - DATABASE_URL=sqlite:///db.sqlite3
+      - DEBUG=False
+      - DATABASE_URL=postgresql://webimar:webimar123@postgres:5432/webimar_api
+      - ALLOWED_HOSTS=localhost,127.0.0.1,webimar-api
     depends_on:
       - postgres
+    restart: unless-stopped
 
-  # Yeni frontend
+  # Frontend - Production
   webimar-react:
     build: ./webimar-react
     ports:
       - "3000:3000"
-    volumes:
-      - ./webimar-react:/app
-      - /app/node_modules
     environment:
       - REACT_APP_API_URL=http://localhost:8001/api
+      - NODE_ENV=production
+    restart: unless-stopped
 
-  # PostgreSQL (yeni sistem için)
+  # PostgreSQL - Production
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
       POSTGRES_DB: webimar_api
       POSTGRES_USER: webimar
@@ -46,12 +35,15 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    restart: unless-stopped
 
-  # Redis (cache için)
+  # Redis - Production Cache
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --save 20 1 --loglevel warning
 
 volumes:
   postgres_data:

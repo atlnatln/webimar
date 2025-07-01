@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { getProfile } from '../services/api';
 
 const ModalOverlay = styled.div`
   position: fixed;

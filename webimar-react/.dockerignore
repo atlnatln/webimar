@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env*
+
+# Test files
+src/__tests__
+src/__mocks__
+*.test.*
+*.spec.*
+jest.config.js
+
+# Development files
+README.old.md
+*.md
+!README.md
+
+# Cache
+.cache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output (only for development, production builds are needed)
+# build

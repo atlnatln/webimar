@@ -6,6 +6,7 @@ Django==5.2
 django-cors-headers==4.7.0
 django-crispy-forms==2.4
 djangorestframework==3.16.0
+gunicorn==21.2.0
 idna==3.10
 lxml==5.4.0
 numpy==2.2.5
