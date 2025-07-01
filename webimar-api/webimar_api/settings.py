@@ -23,10 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-temp-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Mevcut webimar ile çakışmayı önlemek için farklı host
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']  # Production için domain ekleyin
 
 
 # Application definition
@@ -187,24 +187,24 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'file': {
-            'level': 'INFO',
+            'level': 'WARNING',  # INFO yerine WARNING
             'class': 'logging.FileHandler',
             'filename': 'webimar_api.log',
         },
         'console': {
-            'level': 'DEBUG',
+            'level': 'WARNING',  # DEBUG yerine WARNING
             'class': 'logging.StreamHandler',
         },
     },
     'loggers': {
         'django': {
             'handlers': ['file', 'console'],
-            'level': 'INFO',
+            'level': 'WARNING',  # INFO yerine WARNING
             'propagate': True,
         },
         'calculations': {
             'handlers': ['file', 'console'],
-            'level': 'DEBUG',
+            'level': 'WARNING',  # DEBUG yerine WARNING
             'propagate': True,
         },
     },

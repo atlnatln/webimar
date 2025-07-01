@@ -29,7 +29,7 @@ def silo_projesi_degerlendir(
     Returns:
         Değerlendirme sonucunu ve detaylı mesajı içeren bir sözlük.
     """
-    print(f"Silo değerlendirme için gelen değerler - Parsel: {parsel_buyuklugu_m2}, Silo alanı: {planlanan_silo_taban_alani_m2}, Tipler: {type(parsel_buyuklugu_m2)}, {type(planlanan_silo_taban_alani_m2)}")
+    # print(f"Silo değerlendirme için gelen değerler - Parsel: {parsel_buyuklugu_m2}, Silo alanı: {planlanan_silo_taban_alani_m2}, Tipler: {type(parsel_buyuklugu_m2)}, {type(planlanan_silo_taban_alani_m2)}")
     
     # PHASE 2 DİNAMİK EMSAL SİSTEMİ
     kullanilacak_emsal_orani = emsal_orani if emsal_orani is not None else DEFAULT_EMSAL_ORANI
@@ -648,99 +648,4 @@ def hububat_silo_degerlendir(data, emsal_orani: float = None):
 
 # --- Test için örnek kullanım ---
 if __name__ == "__main__":
-    print("--- SENARYO 1 TESTİ ---")
-    sonuc1 = silo_projesi_degerlendir(1000.0, 250.0)
-    print(f"Senaryo Tipi: {sonuc1['senaryo_tipi']}")
-    print(sonuc1["mesaj"])
-    print("-" * 50)
-
-    print("\n--- SENARYO 2 TESTİ ---")
-    sonuc2 = silo_projesi_degerlendir(1000.0, 200.0)
-    print(f"Senaryo Tipi: {sonuc2['senaryo_tipi']}")
-    print(sonuc2["mesaj"])
-    print("-" * 50)
-
-    print("\n--- SENARYO 3 TESTİ ---")
-    sonuc3 = silo_projesi_degerlendir(1100.0, 200.0)
-    print(f"Senaryo Tipi: {sonuc3['senaryo_tipi']}")
-    print(sonuc3["mesaj"])
-    print("-" * 50)
-
-    print("\n--- SENARYO 4 TESTİ ---")
-    sonuc4 = silo_projesi_degerlendir(2000.0, 200.0)
-    print(f"Senaryo Tipi: {sonuc4['senaryo_tipi']}")
-    print(sonuc4["mesaj"])
-    print("-" * 50)
-
-    print("\n--- EK TEST: Silo alanı çok küçük ---")
-    sonuc_ek1 = silo_projesi_degerlendir(1000.0, 50.0)
-    print(f"Senaryo Tipi: {sonuc_ek1['senaryo_tipi']}")
-    print(sonuc_ek1["mesaj"])
-    print(f"Maks. İdari/Teknik Bina Alanı: {sonuc_ek1['maks_idari_teknik_bina_alani_m2']:.2f} m² (50 * 0.10 = 5 m²)")
-    print(f"Kalan Emsal Hakkı: {sonuc_ek1['kalan_emsal_hakki_m2']:.2f} m² (200 - (50+5) = 145 m²)")
-    print("-" * 50)
-
-# --- Basitleştirilmiş API için wrapper fonksiyonu ---
-def calculate_hububat_silo(alan, emsal_orani: float = None):
-    """
-    Hububat silo hesaplama fonksiyonu - sadece alan parametresi ile
-    
-    Args:
-        alan (float): Arazi alanı (m²)
-        
-    Returns:
-        dict: Hesaplama sonuçları
-    """
-    
-    # Hububat silo için sabitler
-    MIN_ALAN = 1000  # Minimum arazi alanı (m²)
-    VARSAYILAN_SILO_ORANI = 0.15  # Arazi alanının %15'i varsayılan silo alanı
-    
-    result = {
-        'success': False,
-        'message': '',
-        'calculations': {}
-    }
-    
-    try:
-        # Alan kontrolü
-        if alan < MIN_ALAN:
-            result['message'] = f'Hububat silo için minimum {MIN_ALAN} m² arazi alanı gereklidir.'
-            return result
-        
-        # PHASE 2 DİNAMİK EMSAL SİSTEMİ
-        kullanilacak_emsal_orani = emsal_orani if emsal_orani is not None else DEFAULT_EMSAL_ORANI
-        
-        # Varsayılan silo taban alanını hesapla (arazinin %15'i)
-        varsayilan_silo_alani = alan * VARSAYILAN_SILO_ORANI
-        
-        # Mevcut detaylı hesaplama fonksiyonunu kullan
-        detayli_sonuc = silo_projesi_degerlendir(alan, varsayilan_silo_alani, kullanilacak_emsal_orani)  # DİNAMİK EMSAL
-        
-        # Sonucu basitleştirilmiş formata çevir
-        if "Hata:" not in detayli_sonuc.get('senaryo_tipi', ''):
-            result.update({
-                'success': True,
-                'message': 'Hububat silo hesaplaması başarıyla tamamlandı.',
-                'calculations': {
-                    'arazi_alani': alan,
-                    'emsal_orani': f'{kullanilacak_emsal_orani*100:.0f}%',  # DİNAMİK EMSAL
-                    'maksimum_emsal': round(detayli_sonuc.get('maks_toplam_kapali_yapi_hakki_m2', 0), 1),
-                    'varsayilan_silo_alani': round(varsayilan_silo_alani, 1),
-                    'maks_idari_teknik_alan': round(detayli_sonuc.get('maks_idari_teknik_bina_alani_m2', 0), 1),
-                    'kalan_emsal': round(detayli_sonuc.get('kalan_emsal_hakki_m2', 0), 1),
-                    'senaryo_tipi': detayli_sonuc.get('senaryo_tipi', ''),
-                    'detayli_mesaj': detayli_sonuc.get('mesaj', ''),
-                    'emsal_kullanim_orani': f'{(varsayilan_silo_alani + detayli_sonuc.get("maks_idari_teknik_bina_alani_m2", 0)) / detayli_sonuc.get("maks_toplam_kapali_yapi_hakki_m2", 1) * 100:.1f}%'
-                }
-            })
-        else:
-            result['message'] = detayli_sonuc.get('mesaj', 'Hesaplama sırasında hata oluştu.')
-        
-    except Exception as e:
-        result['message'] = f'Hesaplama sırasında hata oluştu: {str(e)}'
-    
-    return result
-
-
-# Wrapper fonksiyonu kaldırıldı - doğrudan silo_projesi_degerlendir kullanılacak
+    pass

@@ -17,3 +17,4 @@ requests==2.32.3
 shapely==2.1.0
 sqlparse==0.5.3
 urllib3==2.4.0
+djangorestframework-simplejwt

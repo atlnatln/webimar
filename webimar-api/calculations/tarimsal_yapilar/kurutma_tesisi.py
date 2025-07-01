@@ -112,7 +112,7 @@ if __name__ == "__main__":
     }
     
     result = kurutma_tesisi_degerlendir(test_data)
-    print(f"Test Sonucu: {result['izin_durumu']}")
-    print(f"Success: {result['success']}")
-    if result['success']:
-        print(f"Maksimum yapılaşma alanı: {result.get('maksimum_emsal_alani_m2', 0):.0f} m²")
+    # print(f"Test Sonucu: {result['izin_durumu']}")
+    # print(f"Success: {result['success']}")
+    # if result['success']:
+    #     print(f"Maksimum yapılaşma alanı: {result.get('maksimum_emsal_alani_m2', 0):.0f} m²")
