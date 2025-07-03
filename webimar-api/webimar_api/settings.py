@@ -183,6 +183,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3003",
     "http://127.0.0.1:3003",
+    "http://104.247.166.125:3000",  # <--- SUNUCUDAKİ REACT ADRESİNİ EKLE
+    "https://tarlada-ruhsat.com.tr",  # <-- Bu satırı ekle!
+    "http://tarlada-ruhsat.com.tr",   # (Varsa http ile de ekle)
 ]
 
 CORS_ALLOW_CREDENTIALS = True
