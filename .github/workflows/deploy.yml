@@ -1,0 +1,25 @@
+name: Otomatik Deploy
+
+on:
+  push:
+    branches:
+      - '**'  # Tüm branch'lerdeki push'larda çalışır
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu klonla
+        uses: actions/checkout@v4
+
+      - name: Sunucuya deploy et
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/akn/webimar
+            git pull origin main
+            # Eğer başka işlemler gerekiyorsa buraya ekle (örn. npm install, docker compose, vs.)
