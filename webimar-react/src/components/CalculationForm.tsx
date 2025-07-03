@@ -29,6 +29,7 @@ import {
   TypewriterPlaceholder
 } from './CalculationForm/styles';
 import SuTahsisModal from './Modals/SuTahsisModal';
+import LocationSelectionModal from './Modals/LocationSelectionModal';
 
 // Backend constants.py ile senkronize yapı türü labels - artık types dosyasından import ediliyor
 
@@ -81,6 +82,7 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   const [selectOpen, setSelectOpen] = useState(false);
   const [suTahsisBelgesi, setSuTahsisBelgesi] = useState<boolean>(false);
   const [showSuTahsisModal, setShowSuTahsisModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   
   // Location validation context
   const { state: locationState } = useLocationValidation();
@@ -94,6 +96,9 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
   // Typewriter efekti için
   const { displayedText } = useTypewriter('Arazi vasfınızı seçiniz', 80);
 
+  // Form alanlarının aktif olup olmadığını kontrol eden fonksiyon
+  const isFormDisabled = !selectedCoordinate;
+  
   // External emsal türü ile senkronizasyon
   useEffect(() => {
     if (emsalTuru && emsalTuru !== formData.emsal_turu) {
@@ -764,6 +769,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                   step="1"
                   required
                   error={validationErrors.alan_m2}
+                  disabled={isFormDisabled}
+                  onClick={() => setShowLocationModal(true)}
                 />
               )}
 
@@ -781,11 +788,28 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                       setSelectFocused(false);
                       setSelectOpen(false);
                     }}
-                    onMouseDown={() => setSelectOpen(true)}
-                    onClick={() => setSelectOpen(true)}
+                    onMouseDown={() => {
+                      if (isFormDisabled) {
+                        setShowLocationModal(true);
+                      } else {
+                        setSelectOpen(true);
+                      }
+                    }}
+                    onClick={() => {
+                      if (isFormDisabled) {
+                        setShowLocationModal(true);
+                      } else {
+                        setSelectOpen(true);
+                      }
+                    }}
                     required
-                    disabled={araziTipleriLoading}
+                    disabled={araziTipleriLoading || isFormDisabled}
                     $hasValue={!!formData.arazi_vasfi}
+                    style={{
+                      opacity: isFormDisabled ? 0.5 : 1,
+                      cursor: isFormDisabled ? 'not-allowed' : 'pointer',
+                      backgroundColor: isFormDisabled ? '#f5f5f5' : undefined
+                    }}
                   >
                     {araziTipleriLoading ? (
                       <option>Arazi tipleri yükleniyor...</option>
@@ -964,6 +988,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                     step="1"
                     required
                     error={validationErrors.sera_alani_m2}
+                    disabled={isFormDisabled}
+                    onClick={() => setShowLocationModal(true)}
                   />
                 )}
 
@@ -981,6 +1007,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                     step="1"
                     required
                     error={validationErrors.silo_taban_alani_m2}
+                    disabled={isFormDisabled}
+                    onClick={() => setShowLocationModal(true)}
                   />
                 )}
 
@@ -998,6 +1026,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                             dut_bahcesi_var_mi: e.target.checked
                           }));
                         }}
+                        disabled={isFormDisabled}
+                        onClick={isFormDisabled ? () => setShowLocationModal(true) : undefined}
+                        style={{
+                          opacity: isFormDisabled ? 0.5 : 1,
+                          cursor: isFormDisabled ? 'not-allowed' : 'pointer'
+                        }}
                       />
                       Arazide dut bahçesi var mı? <RequiredIndicator>*</RequiredIndicator>
                     </Label>
@@ -1014,6 +1048,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
                     validationErrors={validationErrors}
                     onInputChange={handleInputChange}
                     renderSmartDetectionFeedback={renderSmartDetectionFeedback}
+                    isFormDisabled={isFormDisabled}
+                    onDisabledClick={() => setShowLocationModal(true)}
                   />
                 )}
               </FormGrid>
@@ -1024,7 +1060,15 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
           <SubmitButton
             type="submit"
             $isLoading={isLoading}
-            disabled={isLoading}
+            disabled={isLoading || isFormDisabled}
+            onClick={isFormDisabled ? (e) => {
+              e.preventDefault();
+              setShowLocationModal(true);
+            } : undefined}
+            style={{
+              opacity: isFormDisabled ? 0.5 : 1,
+              cursor: isFormDisabled ? 'not-allowed' : 'pointer'
+            }}
           >
             {isLoading ? (
               <>
@@ -1054,6 +1098,12 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
             : (formData.dikili_alani || 0)
         }
         initialTarlaAlani={formData.tarla_alani || 0}
+      />
+
+      {/* Lokasyon Seçimi Uyarı Modalı */}
+      <LocationSelectionModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
       />
     </FormContainer>
   );

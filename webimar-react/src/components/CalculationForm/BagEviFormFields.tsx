@@ -8,14 +8,24 @@ interface BagEviFormFieldsProps {
   validationErrors: Record<string, string>;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   renderSmartDetectionFeedback: (fieldName: string) => React.ReactNode;
+  isFormDisabled?: boolean;
+  onDisabledClick?: () => void;
 }
 
 const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
   formData,
   validationErrors,
   onInputChange,
-  renderSmartDetectionFeedback
+  renderSmartDetectionFeedback,
+  isFormDisabled = false,
+  onDisabledClick
 }) => {
+  // Tüm FormField'lar için ortak props
+  const commonFieldProps = {
+    disabled: isFormDisabled,
+    onClick: onDisabledClick
+  };
+
   return (
     <FormGrid>
       {/* Alan bilgileri - sadece belirli arazi tiplerinde göster */}
@@ -34,6 +44,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
           step="1"
           required
           error={validationErrors.alan_m2}
+          {...commonFieldProps}
         >
           {renderSmartDetectionFeedback('alan_m2')}
         </FormField>
@@ -54,6 +65,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             step="1"
             required
             error={validationErrors.tarla_alani}
+            {...commonFieldProps}
           >
             {renderSmartDetectionFeedback('tarla_alani')}
           </FormField>
@@ -70,6 +82,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             step="1"
             required
             error={validationErrors.zeytinlik_alani}
+            {...commonFieldProps}
           >
             {renderSmartDetectionFeedback('zeytinlik_alani')}
           </FormField>
@@ -92,6 +105,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             required
             error={validationErrors.tarla_alani}
             helpText="Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+            {...commonFieldProps}
           >
             {renderSmartDetectionFeedback('tarla_alani')}
           </FormField>
@@ -108,6 +122,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             step="1"
             required
             error={validationErrors.dikili_alani}
+            {...commonFieldProps}
           >
             {renderSmartDetectionFeedback('dikili_alani')}
           </FormField>
@@ -130,6 +145,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
           step="1"
           required
           error={validationErrors.dikili_alani}
+          {...commonFieldProps}
         >
           {renderSmartDetectionFeedback('dikili_alani')}
         </FormField>
@@ -149,6 +165,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
           required
           error={validationErrors.zeytin_agac_sayisi}
           helpText="Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+          {...commonFieldProps}
         />
       )}
 
@@ -168,6 +185,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             required
             error={validationErrors.tapu_zeytin_agac_adedi}
             helpText="Tapu senesinde kayıtlı zeytin ağacı sayısı"
+            {...commonFieldProps}
           />
 
           <FormField
@@ -182,6 +200,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             required
             error={validationErrors.mevcut_zeytin_agac_adedi}
             helpText="Arazide mevcut bulunan zeytin ağacı sayısı. Dekara 10+ ağaç varsa izin verilmez."
+            {...commonFieldProps}
           />
         </>
       )}
@@ -202,6 +221,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             required
             error={validationErrors.tarla_alani}
             helpText="Tarla alanınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+            {...commonFieldProps}
           />
 
           <FormField
@@ -216,6 +236,7 @@ const BagEviFormFields: React.FC<BagEviFormFieldsProps> = ({
             required
             error={validationErrors.zeytin_agac_sayisi}
             helpText="Zeytin ağacı sayınızı girin. Hesaplama sonucu pozitif veya negatif çıkabilir."
+            {...commonFieldProps}
           />
         </>
       )}
