@@ -70,7 +70,7 @@ jobs:
             cd webimar-react
             
             # Yeni process'i başlat
-            nohup npx serve -s build -l 3000 --no-cache --single > ../logs/react.log 2>&1 &
+            nohup npx serve -s build -l 3000 > /home/akn/webimar/logs/react.log 2>&1 &
             sleep 2
             
             # Process'in başladığını doğrula
