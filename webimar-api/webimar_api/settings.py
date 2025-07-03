@@ -32,7 +32,8 @@ ALLOWED_HOSTS = [
     '0.0.0.0',
     'tarlada-ruhsat.com.tr',
     'www.tarlada-ruhsat.com.tr',
-    '123.45.67.89'
+    '123.45.67.89',
+    '104.247.166.125'
 ]
 
 # Application definition
