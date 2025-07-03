@@ -26,8 +26,14 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-temp-key-for-developm
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Mevcut webimar ile çakışmayı önlemek için farklı host
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']  # Production için domain ekleyin
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'tarlada-ruhsat.com.tr',
+    'www.tarlada-ruhsat.com.tr',
+    '123.45.67.89'
+]
 
 # Application definition
 
