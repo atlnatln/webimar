@@ -54,14 +54,25 @@ jobs:
             echo "REACT_APP_BACKEND_URL=http://104.247.166.125:8000" >> .env.production
             echo "NODE_ENV=production" >> .env.production
             echo "GENERATE_SOURCEMAP=false" >> .env.production
+            echo "BUILD_TIME=$(date +%s)" >> .env.production
 
+            # Cache temizleme ve yeni build
+            rm -rf build
             npm run build
 
-            pkill -f "serve -s build" || true
-            sleep 2
+            # Eski process'leri kesin sonlandır
+            pkill -f "serve.*build" || true
+            pkill -f "node.*serve.*build" || true
+            sleep 3
 
             cd ..
             mkdir -p logs
             cd webimar-react
-            nohup npx serve -s build -l 3000 > ../logs/react.log 2>&1 &
-            sleep 1
+            
+            # Yeni process'i başlat
+            nohup npx serve -s build -l 3000 --no-cache --single > ../logs/react.log 2>&1 &
+            sleep 2
+            
+            # Process'in başladığını doğrula
+            echo "React serve process started:"
+            ps aux | grep "serve.*build" | grep -v grep || echo "Warning: serve process not found!"
