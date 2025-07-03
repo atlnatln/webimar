@@ -57,4 +57,4 @@ See `.env.production.template` files in `webimar-api/` and `webimar-react/` dire
 - Set strong SECRET_KEY for Django
 - Configure ALLOWED_HOSTS appropriately
 - Enable SSL in production (HTTPS)
-- Review security headers and settings
+- Review security headers and settings# Manual deploy trigger
