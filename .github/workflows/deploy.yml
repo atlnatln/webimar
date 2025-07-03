@@ -39,6 +39,14 @@ jobs:
             # React Frontend Deploy
             cd ../webimar-react
             npm install
+            
+            # Create production environment file
+            echo "REACT_APP_API_BASE_URL=http://104.247.166.125:8000/api" > .env.production
+            echo "REACT_APP_BACKEND_URL=http://104.247.166.125:8000" >> .env.production
+            echo "NODE_ENV=production" >> .env.production
+            echo "GENERATE_SOURCEMAP=false" >> .env.production
+            
+            # Build with production environment
             npm run build
             
             # Kill existing React process
