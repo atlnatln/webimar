@@ -58,3 +58,4 @@ See `.env.production.template` files in `webimar-api/` and `webimar-react/` dire
 - Configure ALLOWED_HOSTS appropriately
 - Enable SSL in production (HTTPS)
 - Review security headers and settings# Manual deploy trigger
+Deploy testi
