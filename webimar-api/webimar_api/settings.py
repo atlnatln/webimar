@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,15 +27,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-temp-key-for-developm
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Mevcut webimar ile çakışmayı önlemek için farklı host
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    'tarlada-ruhsat.com.tr',
-    'www.tarlada-ruhsat.com.tr',
-    '123.45.67.89',
-    '104.247.166.125'
-]
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')]
 
 # Application definition
 
@@ -93,12 +86,25 @@ WSGI_APPLICATION = 'webimar_api.wsgi.application'
 # Database - Development için SQLite, Production için PostgreSQL
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Primary database from DATABASE_URL or default to SQLite
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
+
+# Security settings for production
+SECURE_PROXY_SSL_HEADER_VALUE = config('SECURE_PROXY_SSL_HEADER', default='')
+if SECURE_PROXY_SSL_HEADER_VALUE:
+    header_parts = [part.strip() for part in SECURE_PROXY_SSL_HEADER_VALUE.split(',')]
+    if len(header_parts) == 2:
+        SECURE_PROXY_SSL_HEADER = tuple(header_parts)
+    else:
+        SECURE_PROXY_SSL_HEADER = None
+else:
+    SECURE_PROXY_SSL_HEADER = None
 
 
 # Password validation
@@ -178,15 +184,28 @@ SIMPLE_JWT = {
 
 
 # CORS ayarları (React frontend için)
-CORS_ALLOWED_ORIGINS = [
+# Base origins from environment variable
+CORS_ALLOWED_ORIGINS_LIST = [origin.strip() for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000').split(',')]
+
+# Add both http and https versions for production domains
+CORS_ALLOWED_ORIGINS = []
+for origin in CORS_ALLOWED_ORIGINS_LIST:
+    CORS_ALLOWED_ORIGINS.append(origin)
+    # Add https version if origin uses http
+    if origin.startswith('http://') and not origin.startswith('http://localhost') and not origin.startswith('http://127.0.0.1'):
+        https_origin = origin.replace('http://', 'https://')
+        CORS_ALLOWED_ORIGINS.append(https_origin)
+
+# Add default development ports
+CORS_ALLOWED_ORIGINS.extend([
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3003",
     "http://127.0.0.1:3003",
-    "http://104.247.166.125:3000",  # <--- SUNUCUDAKİ REACT ADRESİNİ EKLE
-    "https://tarlada-ruhsat.com.tr",  # <-- Bu satırı ekle!
-    "http://tarlada-ruhsat.com.tr",   # (Varsa http ile de ekle)
-]
+])
+
+# Remove duplicates while preserving order
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(CORS_ALLOWED_ORIGINS))
 
 CORS_ALLOW_CREDENTIALS = True
 
