@@ -40,6 +40,14 @@ jobs:
             pkill -f "gunicorn webimar_api.wsgi" || true
             sleep 2
 
+            # 8000 portunu dinleyen tüm process'leri öldür
+            fuser -k 8000/tcp || true
+            lsof -ti:8000 | xargs -r kill -9 || true
+
+            # Eski gunicorn process'lerini kesin olarak öldür
+            pkill -9 -f gunicorn || true
+            sleep 3
+
             cd ..
             mkdir -p logs
             cd webimar-api
