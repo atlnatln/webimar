@@ -38,11 +38,13 @@ jobs:
             python3 manage.py collectstatic --noinput
 
             pkill -f "gunicorn webimar_api.wsgi" || true
+            sleep 2
 
             cd ..
             mkdir -p logs
             cd webimar-api
             nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 > ../logs/django.log 2>&1 &
+            sleep 1
 
             # React Frontend Deploy
             cd ../webimar-react
@@ -56,8 +58,10 @@ jobs:
             npm run build
 
             pkill -f "serve -s build" || true
+            sleep 2
 
             cd ..
             mkdir -p logs
             cd webimar-react
             nohup npx serve -s build -l 3000 > ../logs/react.log 2>&1 &
+            sleep 1
