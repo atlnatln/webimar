@@ -51,3 +51,4 @@ jobs:
             sudo systemctl restart webimar-react
 
             echo "Deploy işlemi tamamlandı."
+# test: systemd sadeleştirme sonrası deploy zinciri çalışıyor mu?
