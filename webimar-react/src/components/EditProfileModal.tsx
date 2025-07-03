@@ -89,8 +89,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose, onPr
     setSuccess('');
     setLoading(true);
     try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
       const token = localStorage.getItem('access');
-      const res = await fetch('http://localhost:8000/api/accounts/me/', {
+      const res = await fetch(`${API_BASE_URL}/accounts/me/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

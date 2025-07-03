@@ -94,8 +94,9 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClose }) =>
     }
     setLoading(true);
     try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
       const token = localStorage.getItem('access');
-      const res = await fetch('http://localhost:8000/api/accounts/me/change-password/', {
+      const res = await fetch(`${API_BASE_URL}/accounts/me/change-password/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
