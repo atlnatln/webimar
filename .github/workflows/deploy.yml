@@ -26,6 +26,43 @@ jobs:
             git clean -fd
             git pull origin main
 
+            # Systemd servis birimleri oluştur (varsa üzerine yazar)
+            sudo tee /etc/systemd/system/webimar-api.service > /dev/null << 'EOF'
+            [Unit]
+            Description=Webimar Django API
+            After=network.target
+
+            [Service]
+            User=akn
+            Group=www-data
+            WorkingDirectory=/home/akn/webimar/webimar-api
+            Environment=PATH=/home/akn/webimar/webimar-api/venv/bin
+            ExecStart=/home/akn/webimar/webimar-api/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 webimar_api.wsgi:application
+            Restart=on-failure
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            sudo tee /etc/systemd/system/webimar-react.service > /dev/null << 'EOF'
+            [Unit]
+            Description=Webimar React Frontend
+            After=network.target
+
+            [Service]
+            User=akn
+            Group=www-data
+            WorkingDirectory=/home/akn/webimar/webimar-react
+            ExecStart=/usr/bin/npm exec serve -- -s build -l 3000
+            Restart=on-failure
+
+            [Install]
+            WantedBy=multi-user-target
+            EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable webimar-api webimar-react
+
             # Django API Deploy
             cd webimar-api
             if [ ! -d "venv" ]; then
@@ -37,49 +74,21 @@ jobs:
             python3 manage.py migrate
             python3 manage.py collectstatic --noinput
 
-            # PID dosyasından eski Gunicorn process'ini bul ve sonlandır
-            if [ -f /tmp/gunicorn.pid ]; then
-              kill -9 $(cat /tmp/gunicorn.pid) || true
-              rm -f /tmp/gunicorn.pid
-            fi
-            # Yedek olarak, çalışan diğer gunicorn process'lerini de sonlandır
-            pkill -9 -f "gunicorn" || true
-            sleep 3
-
-            cd ..
-            mkdir -p logs
-            cd webimar-api
-            # Gunicorn'u PID dosyası oluşturarak başlat
-            nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 --pid /tmp/gunicorn.pid > ../logs/django.log 2>&1 &
-            sleep 1
+            # Systemd üzerinden Django servisini yeniden başlat
+            sudo systemctl restart webimar-api
 
             # React Frontend Deploy
             cd ../webimar-react
             npm install
-
             echo "REACT_APP_API_BASE_URL=http://104.247.166.125:8000/api" > .env.production
             echo "REACT_APP_BACKEND_URL=http://104.247.166.125:8000" >> .env.production
             echo "NODE_ENV=production" >> .env.production
             echo "GENERATE_SOURCEMAP=false" >> .env.production
             echo "BUILD_TIME=$(date +%s)" >> .env.production
-
-            # Cache temizleme ve yeni build
             rm -rf build
             npm run build
 
-            # Eski process'leri kesin sonlandır
-            pkill -f "serve.*build" || true
-            pkill -f "node.*serve.*build" || true
-            sleep 3
+            # Systemd üzerinden React servisini yeniden başlat
+            sudo systemctl restart webimar-react
 
-            cd ..
-            mkdir -p logs
-            cd webimar-react
-            
-            # Yeni process'i başlat
-            nohup npx serve -s build -l 3000 > /home/akn/webimar/logs/react.log 2>&1 &
-            sleep 2
-            
-            # Process'in başladığını doğrula
-            echo "React serve process started:"
-            ps aux | grep "serve.*build" | grep -v grep || echo "Warning: serve process not found!"
+            echo "Deploy işlemi tamamlandı."
