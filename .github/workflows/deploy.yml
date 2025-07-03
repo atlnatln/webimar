@@ -22,4 +22,31 @@ jobs:
           script: |
             cd /home/akn/webimar
             git pull origin main
-            # Eğer başka işlemler gerekiyorsa buraya ekle (örn. npm install, docker compose, vs.)
+            
+            # Django API Deploy
+            cd webimar-api
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+            
+            # Kill existing Django process
+            pkill -f "gunicorn webimar_api.wsgi" || true
+            
+            # Start Django API server in background
+            nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 > ../logs/django.log 2>&1 &
+            
+            # React Frontend Deploy
+            cd ../webimar-react
+            npm install
+            npm run build
+            
+            # Kill existing React process
+            pkill -f "serve -s build" || true
+            
+            # Start React server in background
+            nohup npx serve -s build -l 3000 > ../logs/react.log 2>&1 &
+            
+            # Create logs directory if it doesn't exist
+            cd ..
+            mkdir -p logs
