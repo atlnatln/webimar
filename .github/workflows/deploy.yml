@@ -26,43 +26,6 @@ jobs:
             git clean -fd
             git pull origin main
 
-            # Systemd servis birimleri oluştur (varsa üzerine yazar)
-            sudo tee /etc/systemd/system/webimar-api.service > /dev/null << 'EOF'
-            [Unit]
-            Description=Webimar Django API
-            After=network.target
-
-            [Service]
-            User=akn
-            Group=www-data
-            WorkingDirectory=/home/akn/webimar/webimar-api
-            Environment=PATH=/home/akn/webimar/webimar-api/venv/bin
-            ExecStart=/home/akn/webimar/webimar-api/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 webimar_api.wsgi:application
-            Restart=on-failure
-
-            [Install]
-            WantedBy=multi-user.target
-            EOF
-
-            sudo tee /etc/systemd/system/webimar-react.service > /dev/null << 'EOF'
-            [Unit]
-            Description=Webimar React Frontend
-            After=network.target
-
-            [Service]
-            User=akn
-            Group=www-data
-            WorkingDirectory=/home/akn/webimar/webimar-react
-            ExecStart=/usr/bin/npm exec serve -- -s build -l 3000
-            Restart=on-failure
-
-            [Install]
-            WantedBy=multi-user-target
-            EOF
-
-            sudo systemctl daemon-reload
-            sudo systemctl enable webimar-api webimar-react
-
             # Django API Deploy
             cd webimar-api
             if [ ! -d "venv" ]; then
@@ -73,8 +36,6 @@ jobs:
             python3 -m pip install -r requirements.txt
             python3 manage.py migrate
             python3 manage.py collectstatic --noinput
-
-            # Systemd üzerinden Django servisini yeniden başlat
             sudo systemctl restart webimar-api
 
             # React Frontend Deploy
@@ -87,8 +48,6 @@ jobs:
             echo "BUILD_TIME=$(date +%s)" >> .env.production
             rm -rf build
             npm run build
-
-            # Systemd üzerinden React servisini yeniden başlat
             sudo systemctl restart webimar-react
 
             echo "Deploy işlemi tamamlandı."
