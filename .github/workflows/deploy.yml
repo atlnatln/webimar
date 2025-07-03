@@ -27,7 +27,12 @@ jobs:
             
             # Django API Deploy
             cd webimar-api
+            # Eğer venv yoksa oluştur
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
             source venv/bin/activate
+            pip install --upgrade pip
             pip install -r requirements.txt
             python manage.py migrate
             python manage.py collectstatic --noinput
@@ -36,6 +41,9 @@ jobs:
             pkill -f "gunicorn webimar_api.wsgi" || true
             
             # Start Django API server in background
+            cd ..
+            mkdir -p logs
+            cd webimar-api
             nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 > ../logs/django.log 2>&1 &
             
             # React Frontend Deploy
@@ -55,8 +63,7 @@ jobs:
             pkill -f "serve -s build" || true
             
             # Start React server in background
-            nohup npx serve -s build -l 3000 > ../logs/react.log 2>&1 &
-            
-            # Create logs directory if it doesn't exist
             cd ..
             mkdir -p logs
+            cd webimar-react
+            nohup npx serve -s build -l 3000 > ../logs/react.log 2>&1 &
