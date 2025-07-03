@@ -37,21 +37,20 @@ jobs:
             python3 manage.py migrate
             python3 manage.py collectstatic --noinput
 
-            pkill -f "gunicorn webimar_api.wsgi" || true
-            sleep 2
-
-            # 8000 portunu dinleyen tüm process'leri öldür
-            fuser -k 8000/tcp || true
-            lsof -ti:8000 | xargs -r kill -9 || true
-
-            # Eski gunicorn process'lerini kesin olarak öldür
-            pkill -9 -f gunicorn || true
+            # PID dosyasından eski Gunicorn process'ini bul ve sonlandır
+            if [ -f /tmp/gunicorn.pid ]; then
+              kill -9 $(cat /tmp/gunicorn.pid) || true
+              rm -f /tmp/gunicorn.pid
+            fi
+            # Yedek olarak, çalışan diğer gunicorn process'lerini de sonlandır
+            pkill -9 -f "gunicorn" || true
             sleep 3
 
             cd ..
             mkdir -p logs
             cd webimar-api
-            nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 > ../logs/django.log 2>&1 &
+            # Gunicorn'u PID dosyası oluşturarak başlat
+            nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 --pid /tmp/gunicorn.pid > ../logs/django.log 2>&1 &
             sleep 1
 
             # React Frontend Deploy
