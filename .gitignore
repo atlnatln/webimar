@@ -12,15 +12,18 @@ package-lock.json
 # Database files
 *.sqlite3
 db.sqlite3
+webimar-api/db.sqlite3
 
 # Log files
 *.log
 *.logs
+webimar-api/webimar_api.log
 
 # Cache directories
 .cache/
 */__pycache__/
 *.pyc
+__pycache__/
 
 # Build directories
 build/
