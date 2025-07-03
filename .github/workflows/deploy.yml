@@ -20,49 +20,43 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             cd /home/akn/webimar
             git reset --hard
             git clean -fd
             git pull origin main
-            
+
             # Django API Deploy
             cd webimar-api
-            # Eğer venv yoksa oluştur
             if [ ! -d "venv" ]; then
               python3 -m venv venv
             fi
-            source venv/bin/activate
-            pip install --upgrade pip
-            pip install -r requirements.txt
-            python manage.py migrate
-            python manage.py collectstatic --noinput
-            
-            # Kill existing Django process
+            . venv/bin/activate
+            python3 -m pip install --upgrade pip
+            python3 -m pip install -r requirements.txt
+            python3 manage.py migrate
+            python3 manage.py collectstatic --noinput
+
             pkill -f "gunicorn webimar_api.wsgi" || true
-            
-            # Start Django API server in background
+
             cd ..
             mkdir -p logs
             cd webimar-api
             nohup gunicorn webimar_api.wsgi:application --bind 0.0.0.0:8000 > ../logs/django.log 2>&1 &
-            
+
             # React Frontend Deploy
             cd ../webimar-react
             npm install
-            
-            # Create production environment file
+
             echo "REACT_APP_API_BASE_URL=http://104.247.166.125:8000/api" > .env.production
             echo "REACT_APP_BACKEND_URL=http://104.247.166.125:8000" >> .env.production
             echo "NODE_ENV=production" >> .env.production
             echo "GENERATE_SOURCEMAP=false" >> .env.production
-            
-            # Build with production environment
+
             npm run build
-            
-            # Kill existing React process
+
             pkill -f "serve -s build" || true
-            
-            # Start React server in background
+
             cd ..
             mkdir -p logs
             cd webimar-react
