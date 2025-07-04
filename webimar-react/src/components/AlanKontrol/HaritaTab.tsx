@@ -35,6 +35,10 @@ interface HaritaTabProps {
   // Arazi bilgileri
   araziVasfi?: string;
   
+  // Harita başlangıç ayarları
+  initialCoordinate?: { lat: number; lng: number };
+  initialZoom?: number;
+  
   // Callbacks
   enhancedCallbacks: any;
   setIsDrawing: (drawing: boolean) => void;
@@ -54,6 +58,8 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
   tarlaAlani,
   zeytinlikAlani,
   araziVasfi,
+  initialCoordinate,
+  initialZoom,
   enhancedCallbacks,
   setIsDrawing,
   handleTabChange,
@@ -220,8 +226,8 @@ const HaritaTab: React.FC<HaritaTabProps> = ({
       {/* Harita */}
       <MapWrapper>
         <MapContainer
-          center={[38.4237, 27.1428]} // İzmir merkezi
-          zoom={13}
+          center={initialCoordinate ? [initialCoordinate.lat, initialCoordinate.lng] : [38.4237, 27.1428]}
+          zoom={initialZoom || 13}
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer

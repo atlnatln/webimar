@@ -39,6 +39,8 @@ interface AlanKontrolProps {
   initialDikiliAlan?: number;
   initialTarlaAlani?: number;
   initialZeytinlikAlani?: number; // Zeytinlik alanı desteği
+  initialCoordinate?: { lat: number; lng: number }; // Harita için ilk nokta
+  initialZoom?: number; // Harita için ilk zoom
 }
 
 const AlanKontrol: React.FC<AlanKontrolProps> = ({ 
@@ -49,7 +51,9 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
   araziVasfi = '',
   initialDikiliAlan = 0,
   initialTarlaAlani = 0,
-  initialZeytinlikAlani = 0 
+  initialZeytinlikAlani = 0,
+  initialCoordinate,
+  initialZoom
 }) => {
   // "Tarla + Zeytinlik" ve "… Adetli Zeytin Ağacı bulunan tarla" için varsayılan tab harita olsun
   const [activeTab, setActiveTab] = useState<'manuel' | 'harita'>(
@@ -398,6 +402,10 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             // Arazi bilgileri
             araziVasfi={araziVasfi}
             
+            // Harita başlangıç ayarları
+            initialCoordinate={initialCoordinate}
+            initialZoom={initialZoom}
+            
             // Callbacks
             enhancedCallbacks={enhancedCallbacks}
             setIsDrawing={setIsDrawing}
@@ -422,6 +430,10 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             
             // Arazi bilgileri
             araziVasfi={araziVasfi}
+            
+            // Harita başlangıç ayarları
+            initialCoordinate={initialCoordinate}
+            initialZoom={initialZoom}
             
             // Callbacks
             enhancedCallbacks={enhancedCallbacks}
@@ -491,6 +503,10 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
               // Arazi bilgileri
               araziVasfi={araziVasfi}
               
+              // Harita başlangıç ayarları
+              initialCoordinate={initialCoordinate}
+              initialZoom={initialZoom}
+              
               // Callbacks
               enhancedCallbacks={enhancedCallbacks}
               setIsDrawing={setIsDrawing}
@@ -558,6 +574,10 @@ const AlanKontrol: React.FC<AlanKontrolProps> = ({
             
             // Arazi bilgileri
             araziVasfi={araziVasfi}
+            
+            // Harita başlangıç ayarları
+            initialCoordinate={initialCoordinate}
+            initialZoom={initialZoom}
             
             // Callbacks
             enhancedCallbacks={enhancedCallbacks}

@@ -1129,6 +1129,8 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
             : (formData.dikili_alani || 0)
         }
         initialTarlaAlani={formData.tarla_alani || 0}
+        initialCoordinate={locationState.selectedPoint || undefined}
+        initialZoom={15} // Hesaplama sayfasında kullanılan zoom seviyesi
       />
 
       {/* Lokasyon Seçimi Uyarı Modalı */}
