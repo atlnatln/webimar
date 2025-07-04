@@ -740,12 +740,32 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     }
   };
 
+  // Nokta seçilmeden uyarı gösteren bileşen
+  const LocationPrompt: React.FC = () => (
+    <div style={{
+      background: '#fff3cd',
+      color: '#856404',
+      border: '1px solid #ffeeba',
+      borderRadius: 8,
+      padding: 24,
+      textAlign: 'center',
+      fontSize: 18,
+      margin: '32px 0'
+    }}>
+      <strong>Lütfen harita üzerinde arazinizin yakınında veya üzerinde bir nokta seçiniz.</strong>
+    </div>
+  );
+
+  // Formun render kısmı
+  if (!selectedCoordinate) {
+    return <LocationPrompt />;
+  }
+
   return (
     <FormContainer>
       <FormTitle>
-        {structureTypeLabels[calculationType] || calculationType} Hesaplama
+        Hesaplama
       </FormTitle>
-
       <FormContent>
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
