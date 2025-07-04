@@ -21,7 +21,7 @@ const Sidebar = styled.aside<{ $isOpen: boolean }>`
   position: fixed;
   height: 100vh;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 1201;
   transition: all 0.3s ease;
   
   /* Mobilde tamamen ekran dışına çık */
