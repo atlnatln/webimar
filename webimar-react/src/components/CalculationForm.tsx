@@ -765,6 +765,17 @@ const CalculationForm: React.FC<CalculationFormComponentProps> = ({
     <FormContainer>
       <FormTitle>
         Hesaplama
+        {structureTypeLabels && calculationType && structureTypeLabels[calculationType] && (
+          <span style={{
+            display: 'block',
+            fontSize: 18,
+            fontWeight: 500,
+            color: '#1976d2',
+            marginTop: 4
+          }}>
+            {structureTypeLabels[calculationType]}
+          </span>
+        )}
       </FormTitle>
       <FormContent>
         {error && <ErrorMessage>{error}</ErrorMessage>}

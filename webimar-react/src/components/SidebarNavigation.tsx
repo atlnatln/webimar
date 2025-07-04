@@ -152,12 +152,6 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ isOpen, onToggle,
         label: 'Ana Sayfa',
         path: '/',
         category: 'other'
-      },
-      {
-        id: 'map-test',
-        label: '🗺️ Harita Testi',
-        path: '/map-test',
-        category: 'other'
       }
     ];
 
