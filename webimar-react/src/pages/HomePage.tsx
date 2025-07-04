@@ -2,11 +2,17 @@ import React from 'react';
 import styled from 'styled-components';
 import { useStructureTypes } from '../contexts/StructureTypesContext';
 import LoginModal from '../components/LoginModal';
+import { Link } from 'react-router-dom';
 
 const HomeContainer = styled.div`
   padding: 40px;
   max-width: 1200px;
   margin: 0 auto;
+  @media (max-width: 600px) {
+    padding: 16px 4px;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 `;
 
 const HeroSection = styled.div`
@@ -17,6 +23,11 @@ const HeroSection = styled.div`
   border-radius: 16px;
   color: white;
   margin: -24px -24px 60px -24px;
+  @media (max-width: 600px) {
+    padding: 28px 0;
+    margin: -8px -8px 32px -8px;
+    border-radius: 8px;
+  }
 `;
 
 const HeroTitle = styled.h1`
@@ -24,6 +35,9 @@ const HeroTitle = styled.h1`
   font-weight: 700;
   margin: 0 0 16px 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  @media (max-width: 600px) {
+    font-size: 28px;
+  }
 `;
 
 const HeroSubtitle = styled.p`
@@ -33,6 +47,11 @@ const HeroSubtitle = styled.p`
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  @media (max-width: 600px) {
+    font-size: 16px;
+    margin-bottom: 16px;
+    max-width: 95vw;
+  }
 `;
 
 const HeroDescription = styled.p`
@@ -41,6 +60,10 @@ const HeroDescription = styled.p`
   max-width: 800px;
   margin: 0 auto;
   line-height: 1.6;
+  @media (max-width: 600px) {
+    font-size: 14px;
+    max-width: 98vw;
+  }
 `;
 
 const FeaturesGrid = styled.div`
@@ -48,6 +71,11 @@ const FeaturesGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 30px;
   margin-bottom: 60px;
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
 `;
 
 const FeatureCard = styled.div`
@@ -57,7 +85,9 @@ const FeatureCard = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
   &:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
@@ -74,6 +104,12 @@ const FeatureIcon = styled.div`
   justify-content: center;
   margin-bottom: 20px;
   font-size: 24px;
+  @media (max-width: 600px) {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
 `;
 
 const FeatureTitle = styled.h3`
@@ -81,6 +117,10 @@ const FeatureTitle = styled.h3`
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 12px 0;
+  @media (max-width: 600px) {
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
 `;
 
 const FeatureDescription = styled.p`
@@ -88,6 +128,9 @@ const FeatureDescription = styled.p`
   font-size: 16px;
   line-height: 1.6;
   margin: 0;
+  @media (max-width: 600px) {
+    font-size: 12px;
+  }
 `;
 
 const StatsSection = styled.div`
@@ -95,6 +138,11 @@ const StatsSection = styled.div`
   border-radius: 16px;
   padding: 40px;
   margin-bottom: 60px;
+  @media (max-width: 600px) {
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+  }
 `;
 
 const StatsGrid = styled.div`
@@ -102,6 +150,10 @@ const StatsGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 30px;
   text-align: center;
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 `;
 
 const StatItem = styled.div`
@@ -113,16 +165,26 @@ const StatNumber = styled.div`
   font-weight: 700;
   color: #059669;
   margin-bottom: 8px;
+  @media (max-width: 600px) {
+    font-size: 22px;
+    margin-bottom: 2px;
+  }
 `;
 
 const StatLabel = styled.div`
   font-size: 16px;
   color: #6b7280;
   font-weight: 500;
+  @media (max-width: 600px) {
+    font-size: 11px;
+  }
 `;
 
 const StructureTypesSection = styled.div`
   margin-bottom: 60px;
+  @media (max-width: 600px) {
+    margin-bottom: 24px;
+  }
 `;
 
 const SectionTitle = styled.h2`
@@ -131,12 +193,19 @@ const SectionTitle = styled.h2`
   font-weight: 700;
   text-align: center;
   margin: 0 0 40px 0;
+  @media (max-width: 600px) {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
 `;
 
 const StructureTypesGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 40px;
+  @media (max-width: 600px) {
+    gap: 16px;
+  }
 `;
 
 const CategorySection = styled.div`
@@ -145,17 +214,28 @@ const CategorySection = styled.div`
   padding: 30px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
+  @media (max-width: 600px) {
+    padding: 12px;
+    border-radius: 8px;
+  }
 `;
 
 const CategoryHeader = styled.div`
   display: flex;
   align-items: center;
   margin-bottom: 20px;
+  @media (max-width: 600px) {
+    margin-bottom: 8px;
+  }
 `;
 
 const CategoryIcon = styled.span`
   font-size: 32px;
   margin-right: 12px;
+  @media (max-width: 600px) {
+    font-size: 20px;
+    margin-right: 6px;
+  }
 `;
 
 const CategoryTitle = styled.h3`
@@ -163,35 +243,55 @@ const CategoryTitle = styled.h3`
   font-size: 24px;
   font-weight: 700;
   margin: 0;
+  @media (max-width: 600px) {
+    font-size: 14px;
+  }
 `;
 
 const CategoryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
-`;
-
-const StructureTypeCard = styled.div`
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: left;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    transform: translateY(-2px);
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 `;
 
-const StructureTypeTitle = styled.h4`
+const StructureTypeButton = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-decoration: none;
   color: #111827;
   font-size: 14px;
   font-weight: 500;
-  margin: 0;
-  line-height: 1.4;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: none;
+  &:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+    transform: translateY(-2px);
+  }
+  @media (max-width: 600px) {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+`;
+
+const StructureTypeIcon = styled.div`
+  font-size: 20px;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
 `;
 
 const GetStartedSection = styled.div`
@@ -200,18 +300,30 @@ const GetStartedSection = styled.div`
   padding: 40px;
   text-align: center;
   color: white;
+  @media (max-width: 600px) {
+    padding: 16px;
+    border-radius: 8px;
+  }
 `;
 
 const GetStartedTitle = styled.h2`
   font-size: 28px;
   font-weight: 700;
   margin: 0 0 16px 0;
+  @media (max-width: 600px) {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
 `;
 
 const GetStartedDescription = styled.p`
   font-size: 18px;
   opacity: 0.9;
   margin: 0 0 24px 0;
+  @media (max-width: 600px) {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
 `;
 
 const GetStartedButton = styled.button`
@@ -224,7 +336,10 @@ const GetStartedButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+  @media (max-width: 600px) {
+    font-size: 13px;
+    padding: 10px 16px;
+  }
   &:hover {
     background: #f1f5f9;
     transform: translateY(-2px);
@@ -322,9 +437,10 @@ const HomePage: React.FC = () => {
               </CategoryHeader>
               <CategoryGrid>
                 {category.types.map((type: string, idx: number) => (
-                  <StructureTypeCard key={type + '-' + idx}>
-                    <StructureTypeTitle>{structureTypeLabels[type as keyof typeof structureTypeLabels] || type}</StructureTypeTitle>
-                  </StructureTypeCard>
+                  <StructureTypeButton key={type + '-' + idx} to={`/${type}`}>
+                    <StructureTypeIcon>{category.icon}</StructureTypeIcon>
+                    <span>{structureTypeLabels[type as keyof typeof structureTypeLabels] || type}</span>
+                  </StructureTypeButton>
                 ))}
               </CategoryGrid>
             </CategorySection>
