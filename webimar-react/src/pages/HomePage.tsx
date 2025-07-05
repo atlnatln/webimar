@@ -196,12 +196,14 @@ const StatsGridWrapper = styled.div`
 const StatsGrid = styled.div`
   display: flex;
   align-items: center;
+  justify-content: center;
   text-align: center;
   position: relative;
   z-index: 1;
   min-height: 64px;
-  width: fit-content;
-  
+  width: 100%;
+  gap: 48px;
+
   @media (max-width: 900px) {
     gap: 24px;
   }
@@ -211,6 +213,8 @@ const StatsGrid = styled.div`
     white-space: nowrap;
     will-change: transform;
     min-height: 48px;
+    width: fit-content;
+    gap: 0;
     animation: slideMarquee var(--animation-duration, 12s) linear infinite;
 
     &:hover {
@@ -785,7 +789,7 @@ const HomePage: React.FC = () => {
               ["--animation-duration" as any]: `${animationDuration}s`,
             } : {}}
           >
-            {[...stats, ...stats].map((item, idx) => (
+            {(window.innerWidth <= 600 ? [...stats, ...stats] : stats).map((item, idx) => (
               <StatItem key={idx} data-marquee-item>
                 <StatNumber>{item.number}</StatNumber>
                 <StatLabel>{item.label}</StatLabel>
